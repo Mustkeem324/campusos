@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Header } from '../components/layout/Header';
 import { CommandPalette } from '../components/layout/CommandPalette';
@@ -68,6 +68,7 @@ import { useAuthStore } from '../lib/auth-store';
 import { Building2, UserPlus, Shield, BookOpen, Layers, Cpu, CheckSquare, Calendar, Video, GraduationCap, Grid, Lock, DollarSign, CreditCard, Bus, Library, HelpCircle, MessageSquare, Briefcase, Award, Users, Sparkles, Activity, Zap, ShieldCheck, WifiOff, Server, AlertOctagon, CloudUpload, Rocket, ShoppingCart, Building, UserCheck, HeartPulse, Trophy, Flame, Globe, Search, TrendingUp } from 'lucide-react';
 
 export default function Home() {
+  const [mounted, setMounted] = useState(false);
   const { isSidebarCollapsed } = useAuthStore();
   const [activeTab, setActiveTab] = useState<
     | 'dashboard'
@@ -130,10 +131,27 @@ export default function Home() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isMatrixOpen, setIsMatrixOpen] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl animate-bounce shadow-xl">
+            C
+          </div>
+          <span className="text-xs font-mono font-bold text-gray-400">Loading CampusOS ERP...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <ImpersonationBanner />
-      <Sidebar />
+      <Sidebar activeTab={activeTab} onSelectTab={(tabId) => setActiveTab(tabId as any)} />
       <Header />
       <CommandPalette />
       <BulkImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />

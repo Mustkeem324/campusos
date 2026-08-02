@@ -12,111 +12,106 @@ import {
   DollarSign,
   Building2,
   Bell,
-  MessageSquare,
   Users,
   Shield,
-  HelpCircle,
-  Bus,
-  Library,
+  UserCheck,
   ChevronLeft,
   ChevronRight,
-  Briefcase,
-  UserCheck
 } from 'lucide-react';
 
 interface NavItem {
   label: string;
   icon: React.ElementType;
-  href: string;
+  tabId: string;
   badge?: string;
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  activeTab?: string;
+  onSelectTab?: (tabId: string) => void;
+}
+
+export function Sidebar({ activeTab = 'dashboard', onSelectTab }: SidebarProps) {
   const { currentSession, isSidebarCollapsed, toggleSidebar } = useAuthStore();
 
   const getRoleNavItems = (): NavItem[] => {
     const role = currentSession.role;
 
     const common: NavItem[] = [
-      { label: 'Overview', icon: LayoutDashboard, href: '/' },
-      { label: 'Notices & Broadcasts', icon: Bell, href: '/notices', badge: '3' },
+      { label: 'Overview', icon: LayoutDashboard, tabId: 'dashboard' },
+      { label: 'Public Cert Verification', icon: Shield, tabId: 'verify-cert' },
+      { label: 'ROI Calculator', icon: DollarSign, tabId: 'roi-calc' },
     ];
 
     switch (role) {
       case 'SUPER_ADMIN':
         return [
           ...common,
-          { label: 'Tenants & Institutions', icon: Building2, href: '/admin/tenants' },
-          { label: 'Platform Metrics', icon: Shield, href: '/admin/metrics' },
-          { label: 'Global Audit Logs', icon: FileText, href: '/admin/audit' },
+          { label: 'Group Treasury', icon: Building2, tabId: 'group-treasury' },
+          { label: 'Prometheus Metrics', icon: Shield, tabId: 'prometheus-metrics' },
+          { label: 'Chaos Testing', icon: FileText, tabId: 'chaos-testing' },
+          { label: 'Audit Logs', icon: FileText, tabId: 'audit' },
         ];
 
       case 'INSTITUTION_ADMIN':
         return [
           ...common,
-          { label: 'Academic Calendar', icon: Calendar, href: '/academics' },
-          { label: 'User Directory', icon: Users, href: '/users' },
-          { label: 'Department Setup', icon: Building2, href: '/departments' },
-          { label: 'Fee Rules & Ledgers', icon: DollarSign, href: '/finance' },
-          { label: 'Audit Trail', icon: FileText, href: '/audit' },
+          { label: 'Academic Setup', icon: Calendar, tabId: 'academic-setup' },
+          { label: 'SaaS Provisioning', icon: Building2, tabId: 'saas-provision' },
+          { label: 'Fee Structures', icon: DollarSign, tabId: 'fee-structures' },
+          { label: 'Audit Logs', icon: FileText, tabId: 'audit' },
         ];
 
       case 'HOD':
         return [
           ...common,
-          { label: 'Department Courses', icon: BookOpen, href: '/courses' },
-          { label: 'Faculty Workload', icon: UserCheck, href: '/workload' },
-          { label: 'Exam Lock Approvals', icon: FileText, href: '/approvals' },
-          { label: 'Attendance Shortages', icon: CheckSquare, href: '/attendance-shortage' },
+          { label: 'Course Catalogue', icon: BookOpen, tabId: 'catalogue' },
+          { label: 'Marks Lock Approvals', icon: FileText, tabId: 'marks-lock' },
+          { label: 'Faculty Publications', icon: BookOpen, tabId: 'publications' },
         ];
 
       case 'FACULTY':
         return [
           ...common,
-          { label: 'My Timetable', icon: Calendar, href: '/timetable' },
-          { label: 'Mark Attendance', icon: CheckSquare, href: '/attendance' },
-          { label: 'LMS Workspaces', icon: BookOpen, href: '/lms' },
-          { label: 'Assignments & Rubrics', icon: FileText, href: '/assignments' },
-          { label: 'Marks Entry', icon: GraduationCap, href: '/marks' },
+          { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
+          { label: 'Mark Attendance', icon: CheckSquare, tabId: 'attendance' },
+          { label: 'LMS Workspaces', icon: BookOpen, tabId: 'lms' },
+          { label: 'Research Grants', icon: DollarSign, tabId: 'grants' },
         ];
 
       case 'STUDENT':
         return [
           ...common,
-          { label: 'Course Registration', icon: BookOpen, href: '/registration', badge: 'Open' },
-          { label: 'Class Timetable', icon: Calendar, href: '/timetable' },
-          { label: 'Attendance Health', icon: CheckSquare, href: '/attendance' },
-          { label: 'My Submissions', icon: FileText, href: '/submissions' },
-          { label: 'Fee Payments', icon: DollarSign, href: '/fees' },
-          { label: 'Exam Results', icon: GraduationCap, href: '/results' },
-          { label: 'Hostel Outpass', icon: Building2, href: '/hostel' },
+          { label: 'Course Registration', icon: BookOpen, tabId: 'registration', badge: 'Open' },
+          { label: 'Class Timetable', icon: Calendar, tabId: 'timetable' },
+          { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
+          { label: 'Fee Payments', icon: DollarSign, tabId: 'payments' },
+          { label: 'Grade Card Marksheet', icon: GraduationCap, tabId: 'marksheet' },
+          { label: 'Hostel Management', icon: Building2, tabId: 'hostel' },
         ];
 
       case 'PARENT':
         return [
           ...common,
-          { label: 'Child Progress', icon: GraduationCap, href: '/child-progress' },
-          { label: 'Attendance Feed', icon: CheckSquare, href: '/child-attendance' },
-          { label: 'Fee Statements', icon: DollarSign, href: '/child-fees' },
-          { label: 'Outpass Approvals', icon: Building2, href: '/outpass-approval' },
+          { label: 'Student Progress', icon: GraduationCap, tabId: 'dashboard' },
+          { label: 'Attendance Feed', icon: CheckSquare, tabId: 'attendance' },
+          { label: 'Fee Payments', icon: DollarSign, tabId: 'payments' },
+          { label: 'Outpass Approvals', icon: Building2, tabId: 'hostel' },
         ];
 
       case 'WARDEN':
         return [
           ...common,
-          { label: 'Hostel Occupancy', icon: Building2, href: '/hostel-rooms' },
-          { label: 'Gate In/Out Logs', icon: Users, href: '/gate-logs' },
-          { label: 'Outpass Requests', icon: FileText, href: '/outpasses', badge: '12' },
-          { label: 'Mess & Menu', icon: BookOpen, href: '/mess' },
+          { label: 'Hostel Outpasses', icon: Building2, tabId: 'hostel' },
+          { label: 'Transport Tracker', icon: Building2, tabId: 'transport' },
         ];
 
       case 'ACCOUNTANT':
         return [
           ...common,
-          { label: 'Fee Structures', icon: DollarSign, href: '/fee-structures' },
-          { label: 'Invoices & Receipts', icon: FileText, href: '/invoices' },
-          { label: 'Reconciliation', icon: CheckSquare, href: '/reconcile' },
-          { label: 'Defaulters List', icon: Users, href: '/defaulters' },
+          { label: 'Fee Structures', icon: DollarSign, tabId: 'fee-structures' },
+          { label: 'Payments Console', icon: FileText, tabId: 'payments' },
+          { label: 'Treasury Dashboard', icon: DollarSign, tabId: 'treasury' },
         ];
 
       default:
@@ -174,24 +169,26 @@ export function Sidebar() {
       <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
         {navItems.map((item, idx) => {
           const Icon = item.icon;
+          const isSelected = activeTab === item.tabId;
+
           return (
-            <a
+            <button
               key={idx}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
-                idx === 0
+              onClick={() => onSelectTab && onSelectTab(item.tabId)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+                isSelected
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               <Icon size={20} className="shrink-0" />
               {!isSidebarCollapsed && (
-                <span className="truncate flex-1">{item.label}</span>
+                <span className="truncate flex-1 text-left">{item.label}</span>
               )}
               {!isSidebarCollapsed && item.badge && (
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                    idx === 0
+                    isSelected
                       ? 'bg-white/20 text-white'
                       : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
                   }`}
@@ -199,7 +196,7 @@ export function Sidebar() {
                   {item.badge}
                 </span>
               )}
-            </a>
+            </button>
           );
         })}
       </nav>
