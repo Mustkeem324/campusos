@@ -14,14 +14,14 @@ interface AuthState {
 }
 
 const DEFAULT_SESSION: UserSession = {
-  id: 'usr_demo_101',
-  email: 'admin@apexuniversity.edu',
-  name: 'Dr. Sarah Vance',
-  tenantId: 'inst_apex_univ',
-  institutionName: 'Apex Technological University',
-  role: 'SUPER_ADMIN',
+  id: 'usr_mustkeem_129078',
+  email: 'mustkeem.129078@stu.upes.ac.in',
+  name: 'MUSTKEEM AHMAD',
+  tenantId: 'inst_upes_univ',
+  institutionName: 'UPES University',
+  role: 'STUDENT',
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-  departmentId: 'dept_cs_01'
+  departmentId: 'dept_cs_upes'
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -32,7 +32,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setRole: (role: UserRole) =>
     set((state) => ({
-      currentSession: { ...state.currentSession, role }
+      currentSession:
+        role === 'STUDENT'
+          ? DEFAULT_SESSION
+          : { ...state.currentSession, role }
     })),
 
   toggleDarkMode: () =>

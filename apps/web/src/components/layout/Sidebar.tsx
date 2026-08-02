@@ -17,6 +17,13 @@ import {
   UserCheck,
   ChevronLeft,
   ChevronRight,
+  User,
+  MessageSquare,
+  HelpCircle,
+  MessageCircle,
+  Library,
+  Sparkles,
+  Video,
 } from 'lucide-react';
 
 interface NavItem {
@@ -36,6 +43,27 @@ export function Sidebar({ activeTab = 'dashboard', onSelectTab }: SidebarProps) 
 
   const getRoleNavItems = (): NavItem[] => {
     const role = currentSession.role;
+
+    // STUDENT role navigation containing all 15 user-requested modules
+    if (role === 'STUDENT') {
+      return [
+        { label: 'My Profile', icon: User, tabId: 'student-profile', badge: 'Active' },
+        { label: 'Digital Notice Board', icon: Bell, tabId: 'comms', badge: '3 New' },
+        { label: 'Learning Management', icon: BookOpen, tabId: 'lms' },
+        { label: 'Integrated Assignments', icon: FileText, tabId: 'lms' },
+        { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
+        { label: 'Feedbacks', icon: MessageSquare, tabId: 'feedback' },
+        { label: 'Student Services', icon: HelpCircle, tabId: 'helpdesk' },
+        { label: 'Course Registrations', icon: CheckSquare, tabId: 'registration', badge: 'Open' },
+        { label: 'Hostel', icon: Building2, tabId: 'hostel' },
+        { label: 'Discussion Forum', icon: MessageCircle, tabId: 'forum' },
+        { label: 'Payments', icon: DollarSign, tabId: 'payments' },
+        { label: 'Exam Results', icon: GraduationCap, tabId: 'marksheet' },
+        { label: 'OPAC', icon: Library, tabId: 'opac' },
+        { label: 'Updates', icon: Sparkles, tabId: 'updates' },
+        { label: 'Webinars', icon: Video, tabId: 'webinars', badge: 'Live' },
+      ];
+    }
 
     const common: NavItem[] = [
       { label: 'Overview', icon: LayoutDashboard, tabId: 'dashboard' },
@@ -77,17 +105,6 @@ export function Sidebar({ activeTab = 'dashboard', onSelectTab }: SidebarProps) 
           { label: 'Mark Attendance', icon: CheckSquare, tabId: 'attendance' },
           { label: 'LMS Workspaces', icon: BookOpen, tabId: 'lms' },
           { label: 'Research Grants', icon: DollarSign, tabId: 'grants' },
-        ];
-
-      case 'STUDENT':
-        return [
-          ...common,
-          { label: 'Course Registration', icon: BookOpen, tabId: 'registration', badge: 'Open' },
-          { label: 'Class Timetable', icon: Calendar, tabId: 'timetable' },
-          { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
-          { label: 'Fee Payments', icon: DollarSign, tabId: 'payments' },
-          { label: 'Grade Card Marksheet', icon: GraduationCap, tabId: 'marksheet' },
-          { label: 'Hostel Management', icon: Building2, tabId: 'hostel' },
         ];
 
       case 'PARENT':
@@ -175,19 +192,19 @@ export function Sidebar({ activeTab = 'dashboard', onSelectTab }: SidebarProps) 
             <button
               key={idx}
               onClick={() => onSelectTab && onSelectTab(item.tabId)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
                 isSelected
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 font-bold'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <Icon size={20} className="shrink-0" />
+              <Icon size={18} className="shrink-0" />
               {!isSidebarCollapsed && (
                 <span className="truncate flex-1 text-left">{item.label}</span>
               )}
               {!isSidebarCollapsed && item.badge && (
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
                     isSelected
                       ? 'bg-white/20 text-white'
                       : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
@@ -203,18 +220,16 @@ export function Sidebar({ activeTab = 'dashboard', onSelectTab }: SidebarProps) 
 
       {/* User Footer */}
       <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-3">
-        <img
-          src={currentSession.avatarUrl}
-          alt={currentSession.name}
-          className="w-9 h-9 rounded-full object-cover border-2 border-indigo-500 shrink-0"
-        />
+        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs border border-indigo-400 shrink-0">
+          MA
+        </div>
         {!isSidebarCollapsed && (
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+            <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
               {currentSession.name}
             </span>
-            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 uppercase font-bold truncate">
-              {currentSession.role.replace('_', ' ')}
+            <span className="text-[10px] font-mono text-indigo-500 truncate">
+              {currentSession.email}
             </span>
           </div>
         )}
