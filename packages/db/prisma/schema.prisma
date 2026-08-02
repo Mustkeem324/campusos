@@ -1,0 +1,882 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum RoleType {
+  SUPER_ADMIN
+  INSTITUTION_ADMIN
+  HOD
+  FACULTY
+  STUDENT
+  PARENT
+  WARDEN
+  ACCOUNTANT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  RAZORPAY
+  STRIPE
+  UPI
+  NETBANKING
+  CASH
+  CHEQUE
+  DD
+}
+
+// ----------------------------------------------------
+// 1. INSTITUTION & ACADEMIC STRUCTURE
+// ----------------------------------------------------
+
+model Institution {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  code          String   @unique
+  subdomain     String   @unique
+  logoUrl       String?
+  primaryColor  String   @default("#4f46e5")
+  secondaryColor String  @default("#06b6d4")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  campuses          Campus[]
+  departments       Department[]
+  users             User[]
+  roles             Role[]
+  students          Student[]
+  staff             Staff[]
+  courses           Course[]
+  feeStructures     FeeStructure[]
+  hostels           Hostel[]
+  notices           Notice[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  webhooks          Webhook[]
+  apiKeys           ApiKey[]
+
+  @@map("institutions")
+}
+
+model Campus {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  code          String
+  address       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  departments   Department[]
+  rooms         Room[]
+
+  @@map("campuses")
+}
+
+model Department {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  campusId      String   @map("campus_id") @db.Uuid
+  name          String
+  code          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  campus        Campus      @relation(fields: [campusId], references: [id])
+  programs      Program[]
+  courses       Course[]
+
+  @@map("departments")
+}
+
+model Program {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  departmentId  String   @map("department_id") @db.Uuid
+  name          String
+  code          String
+  durationYears Int      @default(4)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  department    Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  batches       Batch[]
+  curriculums   Curriculum[]
+
+  @@map("programs")
+}
+
+model Batch {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  programId     String   @map("program_id") @db.Uuid
+  name          String
+  startYear     Int
+  endYear       Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  program       Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  sections      Section[]
+  students      Student[]
+
+  @@map("batches")
+}
+
+model Section {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  batchId       String   @map("batch_id") @db.Uuid
+  name          String
+  capacity      Int      @default(60)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  batch         Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  students      Student[]
+  courseOfferings CourseOffering[]
+
+  @@map("sections")
+}
+
+model AcademicYear {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  isCurrent     Boolean  @default(false)
+
+  terms         Term[]
+
+  @@map("academic_years")
+}
+
+model Term {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  academicYearId String  @map("academic_year_id") @db.Uuid
+  name          String
+  number        Int
+  startDate     DateTime
+  endDate       DateTime
+
+  academicYear  AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  courseOfferings CourseOffering[]
+  exams         Exam[]
+
+  @@map("terms")
+}
+
+// ----------------------------------------------------
+// 2. USERS, ROLES & PERMISSIONS
+// ----------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  email         String
+  passwordHash  String
+  name          String
+  phone         String?
+  avatarUrl     String?
+  role          RoleType @default(STUDENT)
+  isActive      Boolean  @default(true)
+  mfaEnabled    Boolean  @default(false)
+  mfaSecret     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roleAssignments RoleAssignment[]
+  studentProfile Student?
+  staffProfile   Staff?
+  guardianProfile Guardian?
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+model Role {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  description   String?
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions   Permission[]
+  roleAssignments RoleAssignment[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id            String   @id @default(uuid()) @db.Uuid
+  roleId        String   @map("role_id") @db.Uuid
+  action        String
+  resource      String
+  scope         String   @default("own")
+
+  role          Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("permissions")
+}
+
+model RoleAssignment {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  roleId        String   @map("role_id") @db.Uuid
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("role_assignments")
+}
+
+model Student {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  rollNumber    String
+  batchId       String   @map("batch_id") @db.Uuid
+  sectionId     String?  @map("section_id") @db.Uuid
+  guardianId    String?  @map("guardian_id") @db.Uuid
+  cgpa          Float    @default(0.0)
+  creditsEarned Int      @default(0)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batch         Batch    @relation(fields: [batchId], references: [id])
+  section       Section? @relation(fields: [sectionId], references: [id])
+  guardian      Guardian? @relation(fields: [guardianId], references: [id])
+  enrollments   Enrollment[]
+  attendanceRecords AttendanceRecord[]
+  submissions   Submission[]
+  invoices      Invoice[]
+  results       Result[]
+  allocations   Allocation[]
+
+  @@map("students")
+}
+
+model Staff {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  employeeId    String
+  designation   String
+  departmentId  String?  @map("department_id") @db.Uuid
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courseOfferings CourseOffering[]
+
+  @@map("staff")
+}
+
+model Guardian {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  relationship  String
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  students      Student[]
+
+  @@map("guardians")
+}
+
+// ----------------------------------------------------
+// 3. COURSES, LMS & TIMETABLE
+// ----------------------------------------------------
+
+model Course {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  departmentId  String   @map("department_id") @db.Uuid
+  code          String
+  title         String
+  lectureCredits Int     @default(3)
+  tutorialCredits Int    @default(0)
+  practicalCredits Int   @default(1)
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  department    Department  @relation(fields: [departmentId], references: [id])
+  offerings     CourseOffering[]
+  syllabusUnits SyllabusUnit[]
+
+  @@map("courses")
+}
+
+model Curriculum {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  programId     String   @map("program_id") @db.Uuid
+  version       String
+
+  program       Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@map("curriculum")
+}
+
+model SyllabusUnit {
+  id            String   @id @default(uuid()) @db.Uuid
+  courseId      String   @map("course_id") @db.Uuid
+  unitNumber    Int
+  title         String
+  content       String
+
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("syllabus_units")
+}
+
+model CourseOffering {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  courseId      String   @map("course_id") @db.Uuid
+  termId        String   @map("term_id") @db.Uuid
+  sectionId     String   @map("section_id") @db.Uuid
+  facultyId     String   @map("faculty_id") @db.Uuid
+  capacity      Int      @default(60)
+
+  course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  term          Term     @relation(fields: [termId], references: [id])
+  section       Section  @relation(fields: [sectionId], references: [id])
+  faculty       Staff    @relation(fields: [facultyId], references: [id])
+  enrollments   Enrollment[]
+  timetableSlots TimetableSlot[]
+  attendanceSessions AttendanceSession[]
+  assignments   Assignment[]
+
+  @@map("course_offerings")
+}
+
+model Enrollment {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  studentId        String   @map("student_id") @db.Uuid
+  courseOfferingId String   @map("course_offering_id") @db.Uuid
+  enrolledAt       DateTime @default(now())
+
+  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseOffering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+
+  @@map("enrollments")
+}
+
+model Room {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  campusId      String   @map("campus_id") @db.Uuid
+  roomNumber    String
+  building      String
+  capacity      Int      @default(60)
+
+  campus        Campus   @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  slots         TimetableSlot[]
+
+  @@map("rooms")
+}
+
+model TimetableSlot {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  courseOfferingId String   @map("course_offering_id") @db.Uuid
+  roomId           String   @map("room_id") @db.Uuid
+  dayOfWeek        Int      // 1=Monday...7=Sunday
+  startTime        String   // "09:00"
+  endTime          String   // "10:00"
+
+  courseOffering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  room             Room           @relation(fields: [roomId], references: [id])
+
+  @@map("timetable_slots")
+}
+
+model AttendanceSession {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  courseOfferingId String   @map("course_offering_id") @db.Uuid
+  sessionDate      DateTime
+  qrToken          String?
+
+  courseOffering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  records          AttendanceRecord[]
+
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  attendanceSessionId String   @map("attendance_session_id") @db.Uuid
+  studentId           String   @map("student_id") @db.Uuid
+  status              AttendanceStatus @default(PRESENT)
+
+  session             AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  student             Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("attendance_records")
+}
+
+model Assignment {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  courseOfferingId String   @map("course_offering_id") @db.Uuid
+  title            String
+  description      String
+  dueDate          DateTime
+  maxMarks         Float    @default(100)
+
+  courseOffering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  submissions      Submission[]
+  rubrics          Rubric[]
+
+  @@map("assignments")
+}
+
+model Rubric {
+  id            String   @id @default(uuid()) @db.Uuid
+  assignmentId  String   @map("assignment_id") @db.Uuid
+  criterion     String
+  maxPoints     Float
+
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@map("rubrics")
+}
+
+model Submission {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  assignmentId  String   @map("assignment_id") @db.Uuid
+  studentId     String   @map("student_id") @db.Uuid
+  fileUrl       String?
+  submittedAt   DateTime @default(now())
+  marksObtained Float?
+
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  grades        Grade[]
+
+  @@map("submissions")
+}
+
+model Grade {
+  id            String   @id @default(uuid()) @db.Uuid
+  submissionId  String   @map("submission_id") @db.Uuid
+  gradeLetter   String
+  feedback      String?
+
+  submission    Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@map("grades")
+}
+
+// ----------------------------------------------------
+// 4. EXAMS, RESULTS & FINANCE
+// ----------------------------------------------------
+
+model Exam {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  termId        String   @map("term_id") @db.Uuid
+  name          String
+  type          String   // MID_TERM, END_TERM, PRACTICAL
+
+  term          Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  schedules     ExamSchedule[]
+  results       Result[]
+
+  @@map("exams")
+}
+
+model ExamSchedule {
+  id            String   @id @default(uuid()) @db.Uuid
+  examId        String   @map("exam_id") @db.Uuid
+  examDate      DateTime
+
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  marks         Mark[]
+
+  @@map("exam_schedules")
+}
+
+model Mark {
+  id             String   @id @default(uuid()) @db.Uuid
+  examScheduleId String   @map("exam_schedule_id") @db.Uuid
+  marksObtained  Float
+
+  examSchedule   ExamSchedule @relation(fields: [examScheduleId], references: [id], onDelete: Cascade)
+
+  @@map("marks")
+}
+
+model Result {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  examId        String   @map("exam_id") @db.Uuid
+  studentId     String   @map("student_id") @db.Uuid
+  sgpa          Float
+  cgpa          Float
+
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  transcripts   Transcript[]
+
+  @@map("results")
+}
+
+model Transcript {
+  id            String   @id @default(uuid()) @db.Uuid
+  resultId      String   @map("result_id") @db.Uuid
+  qrCodeUrl     String?
+
+  result        Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+
+  @@map("transcripts")
+}
+
+model FeeStructure {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  amount        Float
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
+
+  @@map("fee_structures")
+}
+
+model Invoice {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  studentId      String   @map("student_id") @db.Uuid
+  feeStructureId String   @map("fee_structure_id") @db.Uuid
+  amount         Float
+  dueDate        DateTime
+  status         PaymentStatus @default(PENDING)
+
+  student        Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeStructure   FeeStructure @relation(fields: [feeStructureId], references: [id])
+  payments       Payment[]
+
+  @@map("invoices")
+}
+
+model Payment {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  invoiceId     String   @map("invoice_id") @db.Uuid
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PAID)
+  transactionId String?
+  paidAt        DateTime @default(now())
+
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  refunds       Refund[]
+
+  @@map("payments")
+}
+
+model Refund {
+  id            String   @id @default(uuid()) @db.Uuid
+  paymentId     String   @map("payment_id") @db.Uuid
+  amount        Float
+  reason        String
+
+  payment       Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("refunds")
+}
+
+model Scholarship {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  discountPct   Float
+
+  @@map("scholarships")
+}
+
+// ----------------------------------------------------
+// 5. CAMPUS LIFE, HOSTEL, TRANSPORT & LIBRARY
+// ----------------------------------------------------
+
+model Hostel {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  name          String
+  building      String
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rooms         RoomHostel[]
+
+  @@map("hostels")
+}
+
+model RoomHostel {
+  id            String   @id @default(uuid()) @db.Uuid
+  hostelId      String   @map("hostel_id") @db.Uuid
+  roomNumber    String
+  capacity      Int      @default(2)
+
+  hostel        Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  allocations   Allocation[]
+
+  @@map("rooms_hostel")
+}
+
+model Allocation {
+  id            String   @id @default(uuid()) @db.Uuid
+  roomHostelId  String   @map("room_hostel_id") @db.Uuid
+  studentId     String   @map("student_id") @db.Uuid
+
+  roomHostel    RoomHostel @relation(fields: [roomHostelId], references: [id], onDelete: Cascade)
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("allocations")
+}
+
+model MessBill {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  amount        Float
+
+  @@map("mess_bills")
+}
+
+model TransportRoute {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  routeName     String
+
+  @@map("transport_routes")
+}
+
+model LibraryItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  title         String
+  isbn          String?
+
+  loans         Loan[]
+
+  @@map("library_items")
+}
+
+model Loan {
+  id            String   @id @default(uuid()) @db.Uuid
+  libraryItemId String   @map("library_item_id") @db.Uuid
+  borrowedAt    DateTime @default(now())
+
+  libraryItem   LibraryItem @relation(fields: [libraryItemId], references: [id], onDelete: Cascade)
+
+  @@map("loans")
+}
+
+// ----------------------------------------------------
+// 6. NOTICES, FORUMS, TICKETS & SYSTEM UTILS
+// ----------------------------------------------------
+
+model Notice {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  title         String
+  content       String
+  targetRole    String   @default("ALL")
+  createdAt     DateTime @default(now())
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("notices")
+}
+
+model Announcement {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  title         String
+
+  @@map("announcements")
+}
+
+model ForumThread {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  title         String
+
+  posts         ForumPost[]
+
+  @@map("forum_threads")
+}
+
+model ForumPost {
+  id            String   @id @default(uuid()) @db.Uuid
+  forumThreadId String   @map("forum_thread_id") @db.Uuid
+  content       String
+
+  forumThread   ForumThread @relation(fields: [forumThreadId], references: [id], onDelete: Cascade)
+
+  @@map("forum_posts")
+}
+
+model FeedbackForm {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  title         String
+
+  responses     FeedbackResponse[]
+
+  @@map("feedback_forms")
+}
+
+model FeedbackResponse {
+  id             String   @id @default(uuid()) @db.Uuid
+  feedbackFormId String   @map("feedback_form_id") @db.Uuid
+  score          Int
+
+  feedbackForm   FeedbackForm @relation(fields: [feedbackFormId], references: [id], onDelete: Cascade)
+
+  @@map("feedback_responses")
+}
+
+model Ticket {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  subject       String
+  status        String   @default("OPEN")
+
+  @@map("tickets")
+}
+
+model Document {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  fileUrl       String
+
+  @@map("documents")
+}
+
+model Certificate {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  certificateType String
+
+  @@map("certificates")
+}
+
+model Placement {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  companyName   String
+
+  applications  Application[]
+
+  @@map("placements")
+}
+
+model Application {
+  id            String   @id @default(uuid()) @db.Uuid
+  placementId   String   @map("placement_id") @db.Uuid
+  status        String   @default("APPLIED")
+
+  placement     Placement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+
+  @@map("applications")
+}
+
+model Alumni {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  graduationYear Int
+
+  @@map("alumni")
+}
+
+model AuditLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  action        String
+  entity        String
+  diffJson      String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  title         String
+  body          String
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model File {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  fileName      String
+  fileUrl       String
+  mimeType      String
+
+  @@map("files")
+}
+
+model Webhook {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  url           String
+  secret        String
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("webhooks")
+}
+
+model ApiKey {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  key           String   @unique
+  name          String
+
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("api_keys")
+}
