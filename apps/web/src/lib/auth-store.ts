@@ -14,14 +14,14 @@ interface AuthState {
 }
 
 const DEFAULT_SESSION: UserSession = {
-  id: 'usr_mustkeem_129078',
+  id: 'usr_mustkeem_500129078',
   email: 'mustkeem.129078@stu.upes.ac.in',
   name: 'MUSTKEEM AHMAD',
   tenantId: 'inst_upes_univ',
   institutionName: 'UPES University',
   role: 'STUDENT',
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-  departmentId: 'dept_cs_upes'
+  departmentId: 'dept_mba_ba_upes'
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
