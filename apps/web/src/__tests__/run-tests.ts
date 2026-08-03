@@ -1,6 +1,6 @@
 import assert from 'node:assert';
 import { can } from '../lib/permissions';
-import { validateEnv } from '../../../packages/config/src/env';
+import { validateEnv } from '../../../../packages/config/src/env';
 
 console.log('🧪 Running CampusOS Phase 0 Built-in Unit Test Suite...\n');
 

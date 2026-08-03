@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { POST, GET, PUT, DELETE } from '../app/api/departments/route'; // Mocked route logic structure
+import { POST, GET } from '../app/api/departments/route';
 
 describe('Departments API Validation', () => {
   it('should enforce role-based access control for creating departments', async () => {

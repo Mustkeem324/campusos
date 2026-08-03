@@ -113,6 +113,7 @@ describe('Phase 3: Multi-Tenancy & Security Isolation Engine', () => {
     
     const newCourse = await dbA.course.create({
       data: {
+        tenantId: tenantA_Id,
         title: 'Physics 101',
         code: 'PHY101',
         departmentId: deptA_Id,
