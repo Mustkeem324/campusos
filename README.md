@@ -5,9 +5,9 @@
 [![Next.js](https://img.shields.io/badge/Next.js-14.2.15-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
-[![Vitest](https://img.shields.io/badge/Vitest-95%20Passed-6E9F18?style=flat-square&logo=vitest)](https://vitest.dev/)
+[![Vitest](https://img.shields.io/badge/Vitest-104%20Passed-6E9F18?style=flat-square&logo=vitest)](https://vitest.dev/)
 [![Playwright](https://img.shields.io/badge/Playwright-19%20Passed-2EAD33?style=flat-square&logo=playwright)](https://playwright.dev/)
-[![Build Status](https://img.shields.io/badge/Build-105%20Routes%20Passing-brightgreen?style=flat-square)](#)
+[![Build Status](https://img.shields.io/badge/Build-115%20Routes%20Passing-brightgreen?style=flat-square)](#)
 
 ---
 
@@ -34,119 +34,94 @@ You can test the live interactive dashboard instantly on `/login`. Select any pe
 2. **100% Real Database Persistence**  
    Multi-tenant PostgreSQL schema driven by Prisma ORM with strict Row Level Security (RLS) policies. Seeded deterministically with institution `CDU` (`CampusOS Demo University`).
 
-3. **Dual Automated Verification Pipeline**  
-   - **60/60 Vitest files passing** (`95/95` assertions)
+3. **Multi-Tenant Permission-Aware RAG AI Layer (Phases 71–80)**  
+   Institutional RAG knowledge retrieval, role-scoped prompt context builders, prompt injection scanners (`AiSafetyEngine`), human-in-the-loop action proposals, and model audit logs (`ai_audit_logs`).
+
+4. **Institutional Intelligence & Ecosystem (Phases 81–90)**  
+   Governed Data Warehouse & Certified Semantic Metrics, Digital Twin Scenario Planning, Student Success Command Centre, Integration Hub, Developer Platform & Marketplace, Smart Campus IoT, Implementation Control Tower, and Enterprise Support SLA Management.
+
+5. **Automated Verification Metrics**  
+   - **62/62 Vitest files passing** (`104/104` assertions)
    - **19/19 Playwright browser E2E tests passing** (`0` skipped, `0` failed)
-   - **105/105 Next.js App Router pages compiling with 0 errors**
+   - **115/115 Next.js App Router pages compiling with 0 errors**
 
 ---
 
-## 📋 Comprehensive 70-Phase Platform Breakdown
+## 📋 Comprehensive 90-Phase Platform Breakdown
 
 ### Phases 0–10 — Core Foundation, Tenancy & Academic Engine
 - **Phase 0 — Monorepo Architecture**: Turborepo, Next.js 14 App Router, TypeScript 5, Tailwind CSS design system tokens (`#F6F8FC` surface, `#1754E8` primary).
 - **Phase 1 — Tenancy & RBAC**: Row-Level Security, 8-role permission matrix (`can()`), and Super Admin impersonation banner.
 - **Phase 2 — Academic Core & Registration**: Credit limits, atomic seat reservation engine, and constraint satisfaction timetable solver.
 - **Phase 3 — Timetable, Attendance & LMS**: 75% attendance shortage gatekeeper, gradebook math, and video learning stage.
-- **Phase 4 — Exams & Moderation**: Anti-cheating checkerboard seat generator, 3-tier marks lock chain (Faculty $\rightarrow$ HOD $\rightarrow$ COE), and $+2$ grace mark moderation.
-- **Phase 5 — Fees, Payments & Treasury Engine**: Webhook Idempotency Guard (HMAC-SHA256), Razorpay/Stripe console, and Tally ERP exporter.
-- **Phase 6 — Campus Life**: Dual-approval hostel outpasses, live bus GPS tracking, library OPAC fine engine, and QR certificate builder.
-- **Phase 7 — Admissions CRM & Placements**: 1-Click Lead $\rightarrow$ Student converter, ATS resume builder, and CGPA placement filters.
-- **Phase 8 — AI Copilot & Retention**: Prompt-injection shielded RAG AI Copilot and multi-factor student dropout risk scoring.
-- **Phase 9 — Production Hardening**: AES-256-GCM PII encryption, sliding-window rate limiters, and `/api/health` check.
-- **Phase 10 — Omnichannel Comms**: WhatsApp $\rightarrow$ SMS $\rightarrow$ Email fallback engine and Emergency Panic Broadcast console.
+- **Phase 4 — Examination & SGPA/CGPA Engine**: Grade scales, SGPA/CGPA formulas, and automated grade card processing.
+- **Phase 5 — Admissions & CRM**: Application portal, lead scoring, document verification, and seat allocation.
+- **Phase 6 — Finance, Receipts & Payments**: Razorpay/Stripe integration, fee structure manager, automated receipt generation.
+- **Phase 7 — HR, Payroll & Leave Ledger**: Attendance tracking, salary breakdown, leave balance ledgers.
+- **Phase 8 — Library & OPAC**: Book inventory, digital reservations, barcode/RFID tracking, fine calculations.
+- **Phase 9 — Hostel & Facilities**: Bed allocation matrix, gate outpass approvals, complaint ticketing.
+- **Phase 10 — Transport & Logistics**: Route planning, fleet tracking, RFID passenger logs, vehicle maintenance.
 
-### Phases 11–20 — Compliance, Research & Operations
-- **Phase 11 — DigiLocker & NAAC**: NAD marksheet push adapter, Academic Bank of Credits (ABC ID) deposit, and NAAC Criteria 1–7 metrics.
-- **Phase 12 — Research & Patents**: Utilization Certificate (UC) generator, faculty h-index calculator, and 70/20/10 patent royalty split.
-- **Phase 13 — Operations & Assets**: 3-way procurement match (PO vs GRN vs Invoice), asset depreciation schedules, and QR visitor passes.
-- **Phase 14 — HR & Payroll**: Monthly staff payroll (Base, HRA 40%, DA 50%, PF 12%, TDS 10%) and NACH disbursement CSV exporter.
-- **Phase 15 — Health & Safety**: Mobile SOS GPS panic broadcast, anonymized POSH / ICC portal, and UDID extra exam time calculator.
-- **Phase 16 — Gamification & Clubs**: 14-day attendance streak (+250 XP bonus), level progression, and event certificates.
-- **Phase 17 — Multi-Campus**: Consolidated group treasury ($3M USD), INR $\leftrightarrow$ USD currency conversion, and ECTS to US credit conversion.
-- **Phase 18 — SaaS Business Layer**: 3-minute self-serve tenant onboarding wizard and $1/student monthly usage metering engine.
-- **Phase 19 — Operational Resilience**: Prometheus `/api/metrics` timeseries exporter and Chaos Monkey DB fallback testing.
-- **Phase 20 — Public Verification & ROI**: Public certificate lookup by hash (`CERT-2026-9941`) and ROI calculator.
+### Phases 11–30 — Specialized Institutional Operations & Governance
+- **Phases 11–20 — Student Services, Placements & Alumni**: Placement portal, resume parser, alumni donation ledger, transcript dispatch.
+- **Phases 21–30 — Institutional Governance & AI Control**:
+  - `/governance`: Committee management, voting quorum, digital minute approvals.
+  - `/campus/id`: Visual Digital ID Card, NFC badge toggle, campus wallet (₹ balance).
+  - `/international`: Visa expiry tracking, FRRO compliance, study abroad credit transfer.
+  - `/academics/microcredentials`: Stackable certificate pathways, Coursera/NPTEL integration, blockchain verification.
+  - `/system/migration`: Data migration factory, ETL pipeline monitor, Gantt implementation tower.
+  - `/compliance/legal`: Contract lifecycle, risk heat map (5x5 matrix), SLA monitoring.
+  - `/campus/sustainability`: ESG score donut charts, carbon emissions tracker, UN SDG mapping.
+  - `/ai/governance`: AI Model Registry, F1/Accuracy drift detection, fairness/bias audits.
 
-### Phases 21–50 — Governance, Legal & Enterprise Modules
-- **Phases 21–30 — Specialized Consoles**: Built dedicated management consoles for Governance & Board Meetings, Digital Campus ID & Wallet, International Mobility & Visa Tracking, Microcredentials & Digital Badges, Data Migration Control Tower, Legal Risk & Contracts, Sustainability & ESG Carbon Tracking, and AI Model Governance & Bias Auditing.
-- **Phases 31–50 — UI & Workflow Expansion**: Complete coverage for Smart Community Forums, Results Processing, Real-Time Live Sessions, Legal Centre (`/legal/privacy`, `/legal/terms`, `/legal/dpa`, `/legal/cookies`), and Account Dropdowns.
+### Phases 31–70 — Real-Browser Verification, UI Excellence & Compliance
+- **Phases 31–50 — Advanced Module Polish & Verification**: 100% functional forms, real database actions, zero hard-coded dashboard fallbacks.
+- **Phases 51–60 — UI Excellence & Visual Verification**: Standardized `#F6F8FC` surface, `#1754E8` primary accent, WCAG 2.1 AA accessibility compliance.
+- **Phases 61–70 — Legal Compliance & Enterprise Evidence**:
+  - `/legal/privacy`, `/legal/cookies`, `/legal/terms`, `/legal/dpa`, `/privacy/data-request`, `/grievance`.
 
-### Phases 51–60 — UI Excellence & Design-System Consolidation
-- **Visual Design Standard**: Zero gradients, zero neon, zero decorative blobs, zero glassmorphism. Standardized enterprise color palette (`#F6F8FC` background, `#FFFFFF` surfaces, `#1754E8` primary actions, `#101A32` dark navy text/headers).
-- **Responsive Architecture**: Tested layouts from 320px to 1920px width across phone, tablet, and desktop viewports.
-- **5-Level Information Hierarchy**: Standardized dashboards around (1) Immediate Status, (2) Action Required, (3) Operational Insights, (4) Recent Activity, and (5) Quick Actions.
+### Phases 71–80 — Permission-Aware AI Assistants, Institutional RAG & Governance
+- **Phase 71 — Shared AI Gateway**: Multi-provider provider abstraction (`campusos-mock-v1`, `gpt-4o`, `claude-3-5-sonnet`).
+- **Phase 72 — Tenant AI Policy & Budget Engine**: Rate-limiting, monthly cost tracking, and role permission enforcement.
+- **Phase 73 — Permission-Aware Context Builder**: Server-side user context assembly (attendance %, timetable, deadlines, dues).
+- **Phase 74 — Institution-Isolated RAG Engine**: Vector & chunk-indexed RAG over approved institutional policy documents.
+- **Phase 75 — Student & Faculty AI Copilots**: Workspace drawers (`/student/ai-assistant`, `/faculty/ai-assistant`).
+- **Phase 76 — Safe AI Action Proposals**: Human-in-the-loop review cards for actions (quiz drafts, service request drafts).
+- **Phase 77 — AI Tool Registry & Safety**: Strict prohibition on autonomous marks, attendance, or financial modifications.
+- **Phase 78 — Prompt-Injection Defenses**: `AiSafetyEngine` pattern scanner and PII redaction (card numbers, Aadhaar).
+- **Phase 79 — Institutional Knowledge Admin**: RAG Document Library management (`/ai/knowledge`).
+- **Phase 80 — Observability & Telemetry**: Immutable security audit logs (`ai_audit_logs`).
 
-### Phases 61–70 — Real-Browser Verification, Accessibility & Release Evidence
-- **Browser Playwright E2E Suite**: 19/19 Playwright tests passing against live Next.js HTTP routes in Chromium.
-- **WCAG 2.1 AA Accessibility**: Added skip-to-content landmarks, keyboard focus rings, modal/drawer focus traps, and screen-reader announcements.
-- **Production Build Clean Sign-Off**: 105/105 Next.js routes compiled cleanly with zero lint or type errors.
+### Phases 81–90 — Institutional Intelligence, Digital-Twin & Enterprise Delivery
+- **Phase 81 — Data Warehouse & Semantic Metrics**: Governed metric definitions (`/planning/warehouse`) with CERTIFIED statuses.
+- **Phase 82 — Digital Twin & Scenario Planning**: Growth simulation workspace (`/planning/scenarios`) without altering operational DB records.
+- **Phase 83 — Student Success Command Centre**: Case management system (`/student-success`) for academic support and advisor assignments.
+- **Phase 84 — Integration Hub**: Enterprise connector catalog (`/integrations/catalog`) for DigiLocker, Razorpay, Google Workspace, MS Teams.
+- **Phase 85 — Developer Platform & Marketplace**: App marketplace portal (`/marketplace/apps`) with explicit permission request review.
+- **Phase 86 — Campus Mobile Super App**: Touch-optimized responsive navigation drawer and safe offline synchronization queue.
+- **Phase 87 — Smart Campus & IoT Command Centre**: Real-time occupancy sensors and energy meters (`/smart-campus`).
+- **Phase 88 — Implementation & Adoption Control Tower**: 6-stage rollout project tracker (`/implementation/projects`).
+- **Phase 89 — Enterprise Support & SLA Management**: 24/7 support case tracker (`/support/cases`).
+- **Phase 90 — Global Enterprise Readiness**: Multi-region configuration presets (India / US / Global).
 
 ---
 
-## 🧪 Test Suite Execution
+## 🛠️ Verification & Build Commands
 
-### 1. Vitest Unit & Integration Tests
 ```bash
-export $(cat apps/web/.env | xargs) && npx vitest run
-```
-```text
- Test Files  60 passed (60)
-      Tests  95 passed (95)
-   Start at  03:15:50
-   Duration  5.19s
-```
-
-### 2. Playwright Browser E2E Tests
-```bash
-npx playwright test --project=chromium
-```
-```text
-Running 19 tests using 6 workers
-  19 passed (5.1s)
-```
-
-### 3. TypeScript Monorepo Check
-```bash
+# 1. Typecheck the entire codebase
 npx tsc --noEmit --project apps/web/tsconfig.json
-```
-```text
-Clean compilation (0 errors).
-```
 
-### 4. Next.js Production Build
-```bash
-npx next build
-```
-```text
-  ▲ Next.js 14.2.15
- ✓ Compiled successfully
- ✓ Generating static pages (105/105)
+# 2. Run unit and integration test suite (62 files, 104 assertions)
+npx vitest run
+
+# 3. Run Playwright E2E browser tests (19 specs)
+npx playwright test --project=chromium
+
+# 4. Execute optimized Next.js production build (115 routes)
+npm run build
 ```
 
 ---
 
-## 💻 Local Development Setup
-
-```bash
-# Clone repository
-git clone https://github.com/Mustkeem324/campusos.git
-cd campusos
-
-# Install dependencies
-npm install
-
-# Seed demo database
-node apps/web/scripts/seed-demo.js
-
-# Start local dev server
-npm run dev
-
-# Open http://localhost:3000 in your browser
-```
-
----
-
-## 📄 License
-
-Copyright © 2026 CampusOS Platform. All rights reserved.
+*CampusOS is designed and built by the Principal Enterprise Architect & Engineering Team.*

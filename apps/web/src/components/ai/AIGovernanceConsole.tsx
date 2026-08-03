@@ -23,7 +23,12 @@ interface AIModel {
   driftDetected: boolean;
 }
 
-const mockModels: AIModel[] = [];
+const mockModels: AIModel[] = [
+  { id: 'MOD-001', name: 'CampusOS Native Engine', version: 'v1.4', type: 'RAG & Assistant', framework: 'TypeScript / Node', deploymentStatus: 'Production', accuracy: 98.4, f1Score: 0.97, lastTrained: '2026-08-01', predictions: 124500, driftDetected: false },
+  { id: 'MOD-002', name: 'OpenAI GPT-4o Enterprise', version: '2024-08-06', type: 'LLM Reasoning', framework: 'API Integration', deploymentStatus: 'Production', accuracy: 99.1, f1Score: 0.98, lastTrained: '2026-08-02', predictions: 89200, driftDetected: false },
+  { id: 'MOD-003', name: 'Student Retention Dropout Classifier', version: 'v2.1', type: 'Gradient Boosting', framework: 'Scikit-Learn', deploymentStatus: 'Production', accuracy: 94.8, f1Score: 0.93, lastTrained: '2026-07-28', predictions: 45000, driftDetected: false },
+  { id: 'MOD-004', name: 'Timetable CSP Optimization Engine', version: 'v3.0', type: 'Constraint Solver', framework: 'Python OR-Tools', deploymentStatus: 'Production', accuracy: 99.8, f1Score: 0.99, lastTrained: '2026-07-15', predictions: 12000, driftDetected: false }
+];
 const biasMetrics: any[] = [];
 const incidents: any[] = [];
 

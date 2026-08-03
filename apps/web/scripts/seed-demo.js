@@ -172,6 +172,202 @@ async function seed() {
     }
   });
 
+  // 6. AI Platform Models & Tenant Policy
+  await prisma.aiModel.upsert({
+    where: { modelId: 'campusos-mock-v1' },
+    update: {},
+    create: {
+      provider: 'mock',
+      modelId: 'campusos-mock-v1',
+      name: 'CampusOS Native Engine (Mock/Local)',
+      capability: 'chat',
+      contextLimit: 128000,
+      costClass: 'standard',
+      isEnabled: true,
+    }
+  });
+
+  await prisma.aiModel.upsert({
+    where: { modelId: 'gpt-4o' },
+    update: {},
+    create: {
+      provider: 'openai',
+      modelId: 'gpt-4o',
+      name: 'OpenAI GPT-4o (Enterprise RAG)',
+      capability: 'chat',
+      contextLimit: 128000,
+      costClass: 'premium',
+      isEnabled: true,
+    }
+  });
+
+  await prisma.aiTenantPolicy.upsert({
+    where: { tenantId: institution.id },
+    update: {},
+    create: {
+      tenantId: institution.id,
+      isEnabled: true,
+      allowedRoles: ['STUDENT', 'FACULTY', 'INSTITUTION_ADMIN', 'PARENT'],
+      maxMonthlyBudgetUsd: 500.0,
+      currentMonthlySpendUsd: 12.45,
+      rateLimitPerMin: 30,
+      requireHumanApproval: true,
+      retentionDays: 90,
+    }
+  });
+
+  // 7. Seed Institutional RAG Knowledge Base Documents
+  const policyDoc = await prisma.aiKnowledgeDocument.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000099' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000099',
+      tenantId: institution.id,
+      title: 'University Attendance & Examination Eligibility Policy 2026',
+      category: 'Academic Regulations',
+      scope: 'INSTITUTION',
+      audience: 'ALL',
+      classification: 'PUBLIC',
+      publicationStatus: 'PUBLISHED',
+      content: `1. Minimum Attendance Requirement: All registered students must maintain a minimum of 75% attendance in each course to be eligible for end-semester examinations.
+2. Shortage & De-barment: Students falling between 60% and 74.9% attendance may submit a medical condonation petition to the Dean of Academic Affairs. Students with less than 60% attendance are automatically de-barred from writing the final examination.
+3. Re-evaluation & Scrutiny: Students may apply for mark re-evaluation within 14 days of result publication upon payment of the ₹500 fee per course.`,
+      authorName: 'Office of the Registrar',
+    }
+  });
+
+  await prisma.aiKnowledgeChunk.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000098' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000098',
+      documentId: policyDoc.id,
+      tenantId: institution.id,
+      chunkIndex: 0,
+      content: policyDoc.content,
+      tokenCount: 150,
+    }
+  });
+
+  // 8. Phases 81-90 Ecosystem Seed
+  await prisma.analyticsMetric.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000081' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000081',
+      tenantId: institution.id,
+      metricKey: 'ENROLLMENT_YIELD',
+      name: 'Enrollment Yield Rate',
+      category: 'Admissions',
+      definition: 'Percentage of admitted students who complete enrollment registration',
+      certificationStatus: 'CERTIFIED',
+      currentValue: 84.2,
+      previousValue: 81.5,
+      unit: '%',
+    }
+  });
+
+  await prisma.planningScenario.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000082' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000082',
+      tenantId: institution.id,
+      title: '2026-2028 Campus Expansion & Student Growth Simulation',
+      baselineYear: 2026,
+      targetEnrollment: 4500,
+      facultyToStudentRatio: 18,
+      projectedRevenueInr: 450000000,
+      projectedExpenseInr: 320000000,
+      status: 'DRAFT',
+      assumptionsJson: { hostelExpansionBeds: 500, newFacultyHires: 35, tuitionIncreasePct: 5 },
+    }
+  });
+
+  await prisma.studentSuccessCase.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000083' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000083',
+      tenantId: institution.id,
+      studentRollNumber: 'STU-24-001',
+      studentName: 'Rohan Verma',
+      riskCategory: 'ATTENDANCE_SHORTAGE',
+      riskLevel: 'MEDIUM',
+      status: 'INTERVENTION_PLANNED',
+      assignedAdvisorId: facultyUser.id,
+      notes: 'Scheduled academic review meeting with faculty advisor Dr. Priya Sharma.',
+    }
+  });
+
+  await prisma.integrationConnection.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000084' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000084',
+      tenantId: institution.id,
+      provider: 'digilocker',
+      category: 'Regulatory',
+      status: 'ACTIVE',
+      syncFrequency: 'REALTIME',
+    }
+  });
+
+  await prisma.marketplaceApp.upsert({
+    where: { slug: 'turnitin-plagiarism-checker' },
+    update: {},
+    create: {
+      slug: 'turnitin-plagiarism-checker',
+      name: 'Turnitin Academic Integrity Suite',
+      publisher: 'Turnitin Inc',
+      category: 'Learning',
+      description: 'Automated plagiarism and similarity detection for assignments and research theses.',
+      requestedPermissions: ['assignments:read', 'submissions:read'],
+      status: 'VERIFIED',
+    }
+  });
+
+  await prisma.smartDevice.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000087' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000087',
+      tenantId: institution.id,
+      deviceName: 'Central Library Occupancy Monitor',
+      deviceType: 'OCCUPANCY_SENSOR',
+      spaceName: 'Main Library 2F',
+      status: 'ONLINE',
+      lastReading: '142 / 200 Seats Occupied (71%)',
+    }
+  });
+
+  await prisma.implementationProject.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000088' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000088',
+      tenantId: institution.id,
+      projectName: 'CampusOS Enterprise Digital Transformation',
+      currentStage: 'PILOT',
+      overallProgressPct: 85,
+      targetGoLiveDate: new Date('2026-09-01'),
+    }
+  });
+
+  await prisma.supportCase.upsert({
+    where: { caseNumber: 'CAS-2026-001' },
+    update: {},
+    create: {
+      tenantId: institution.id,
+      userId: adminUser.id,
+      caseNumber: 'CAS-2026-001',
+      title: 'Legacy Data Migration Verification Support',
+      category: 'Data Migration',
+      priority: 'HIGH',
+      status: 'INVESTIGATING',
+    }
+  });
+
   console.log('Seed successful');
 }
 

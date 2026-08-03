@@ -53,6 +53,20 @@ model Institution {
   students               Student[]
   users                  User[]
   webhooks               Webhook[]
+  aiTenantPolicies       AiTenantPolicy[]
+  aiKnowledgeDocuments   AiKnowledgeDocument[]
+  aiKnowledgeChunks      AiKnowledgeChunk[]
+  aiConversations        AiConversation[]
+  aiMessages             AiMessage[]
+  aiProposals            AiActionProposal[]
+  aiAuditLogs            AiAuditLog[]
+  analyticsMetrics       AnalyticsMetric[]
+  planningScenarios      PlanningScenario[]
+  studentSuccessCases    StudentSuccessCase[]
+  integrationConnections IntegrationConnection[]
+  smartDevices           SmartDevice[]
+  implementationProjects ImplementationProject[]
+  supportCases           SupportCase[]
 
   @@map("institutions")
 }
@@ -205,6 +219,12 @@ model User {
   sessions               Session[]
   staffProfile           Staff?
   studentProfile         Student?
+  aiConversations        AiConversation[]
+  aiProposedActions      AiActionProposal[]       @relation("ProposerUser")
+  aiApprovedActions      AiActionProposal[]       @relation("ApproverUser")
+  aiAuditLogs            AiAuditLog[]
+  studentSuccessCases    StudentSuccessCase[]     @relation("AdvisorUser")
+  supportCases           SupportCase[]
   institution            Institution              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, email])
@@ -2135,3 +2155,337 @@ enum ChatModerationActionType {
   CLOSE_REPORT
   ADD_NOTE
 }
+
+// ==========================================
+// AI PLATFORM & GOVERNANCE MODELS (PHASES 71-80)
+// ==========================================
+
+enum AiActionRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  PROHIBITED
+}
+
+enum AiActionStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+  EXECUTED
+  FAILED
+}
+
+enum AiDocumentClassification {
+  PUBLIC
+  INTERNAL
+  CONFIDENTIAL
+  RESTRICTED
+}
+
+enum AiPublicationStatus {
+  DRAFT
+  UNDER_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+model AiModel {
+  id                    String                   @id @default(uuid()) @db.Uuid
+  provider              String                   // openai, anthropic, google, self-hosted, mock
+  modelId               String                   @unique // e.g. gpt-4o, claude-3-5-sonnet, gemini-1.5-pro, campusos-mock-v1
+  name                  String
+  capability            String                   // chat, embedding, moderation, evaluation
+  contextLimit          Int                      @default(128000)
+  costClass             String                   @default("standard")
+  dataClassification    AiDocumentClassification @default(INTERNAL)
+  fallbackModelId       String?
+  isEnabled             Boolean                  @default(true)
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@map("ai_models")
+}
+
+model AiTenantPolicy {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @unique @map("tenant_id") @db.Uuid
+  isEnabled              Boolean  @default(true)
+  allowedRoles           String[] @default(["STUDENT", "FACULTY", "INSTITUTION_ADMIN", "PARENT"])
+  maxMonthlyBudgetUsd    Float    @default(500.0)
+  currentMonthlySpendUsd  Float    @default(0.0)
+  rateLimitPerMin        Int      @default(30)
+  requireHumanApproval   Boolean  @default(true)
+  retentionDays          Int      @default(90)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  institution            Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("ai_tenant_policies")
+}
+
+model AiKnowledgeDocument {
+  id                    String                   @id @default(uuid()) @db.Uuid
+  tenantId              String                   @map("tenant_id") @db.Uuid
+  title                 String
+  category              String                   // Academic Policy, Fee Rules, Examination, Hostel, General
+  scope                 String                   @default("INSTITUTION")
+  audience              String                   @default("ALL")
+  classification        AiDocumentClassification @default(INTERNAL)
+  publicationStatus     AiPublicationStatus      @default(PUBLISHED)
+  content               String                   @db.Text
+  effectiveDate         DateTime                 @default(now())
+  expiryDate            DateTime?
+  sourceUrl             String?
+  authorName            String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  institution           Institution              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chunks                AiKnowledgeChunk[]
+
+  @@map("ai_knowledge_documents")
+}
+
+model AiKnowledgeChunk {
+  id                    String              @id @default(uuid()) @db.Uuid
+  documentId            String              @map("document_id") @db.Uuid
+  tenantId              String              @map("tenant_id") @db.Uuid
+  chunkIndex            Int
+  content               String              @db.Text
+  tokenCount            Int                 @default(0)
+  createdAt             DateTime            @default(now())
+
+  document              AiKnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  institution           Institution         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("ai_knowledge_chunks")
+}
+
+model AiConversation {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  userId                String      @map("user_id") @db.Uuid
+  title                 String      @default("New Conversation")
+  roleContext           String      @default("STUDENT")
+  isArchived            Boolean     @default(false)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages              AiMessage[]
+  proposals             AiActionProposal[]
+
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id                    String         @id @default(uuid()) @db.Uuid
+  conversationId        String         @map("conversation_id") @db.Uuid
+  tenantId              String         @map("tenant_id") @db.Uuid
+  role                  String         // user, assistant, system, tool
+  content               String         @db.Text
+  modelUsed             String?
+  promptTokens          Int            @default(0)
+  completionTokens      Int            @default(0)
+  citations             Json?          // Array of { title, category, snippet, sourceUrl }
+  toolCalls             Json?          // Array of tool calls
+  createdAt             DateTime       @default(now())
+
+  conversation          AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  institution           Institution    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("ai_messages")
+}
+
+model AiActionProposal {
+  id                    String            @id @default(uuid()) @db.Uuid
+  tenantId              String            @map("tenant_id") @db.Uuid
+  userId                String            @map("user_id") @db.Uuid
+  conversationId        String?           @map("conversation_id") @db.Uuid
+  actionName            String
+  targetRecord          String
+  currentValues         Json?
+  proposedValues        Json
+  reason                String
+  riskLevel             AiActionRiskLevel @default(MEDIUM)
+  requiredPermission    String
+  status                AiActionStatus    @default(PROPOSED)
+  approverUserId        String?           @map("approver_user_id") @db.Uuid
+  executedAt            DateTime?
+  createdAt             DateTime          @default(now())
+
+  institution           Institution       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                  User              @relation(name: "ProposerUser", fields: [userId], references: [id], onDelete: Cascade)
+  approver              User?             @relation(name: "ApproverUser", fields: [approverUserId], references: [id], onDelete: SetNull)
+  conversation          AiConversation?   @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@map("ai_action_proposals")
+}
+
+model AiAuditLog {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  userId                String      @map("user_id") @db.Uuid
+  userRole              String
+  feature               String
+  actionType            String
+  modelUsed             String
+  promptTokens          Int         @default(0)
+  completionTokens      Int         @default(0)
+  estimatedCostUsd      Float       @default(0.0)
+  promptInjectionBlocked Boolean    @default(false)
+  status                String      @default("SUCCESS")
+  createdAt             DateTime    @default(now())
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_audit_logs")
+}
+
+// ==========================================
+// INSTITUTIONAL INTELLIGENCE & ECOSYSTEM MODELS (PHASES 81-90)
+// ==========================================
+
+model AnalyticsMetric {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  metricKey             String
+  name                  String
+  category              String      // Admissions, Academics, Attendance, Finance, Student Success
+  definition            String      @db.Text
+  certificationStatus   String      @default("CERTIFIED") // DRAFT, UNDER_REVIEW, CERTIFIED, DEPRECATED
+  currentValue          Float
+  previousValue         Float?
+  unit                  String      @default("%")
+  refreshSchedule       String      @default("DAILY")
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("analytics_metrics")
+}
+
+model PlanningScenario {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  title                 String
+  baselineYear          Int         @default(2026)
+  targetEnrollment      Int
+  facultyToStudentRatio Int         @default(20)
+  projectedRevenueInr   Float
+  projectedExpenseInr   Float
+  status                String      @default("DRAFT") // DRAFT, UNDER_REVIEW, APPROVED, ARCHIVED
+  assumptionsJson       Json
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("planning_scenarios")
+}
+
+model StudentSuccessCase {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  studentRollNumber     String
+  studentName           String
+  riskCategory          String      // ATTENDANCE_SHORTAGE, ACADEMIC_DISCREPANCY, FEE_OVERDUE, DISENGAGEMENT
+  riskLevel             String      @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status                String      @default("IDENTIFIED") // IDENTIFIED, INTERVENTION_PLANNED, ACTIVE, RESOLVED
+  assignedAdvisorId     String?     @map("assigned_advisor_id") @db.Uuid
+  notes                 String      @db.Text
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  advisor               User?       @relation(name: "AdvisorUser", fields: [assignedAdvisorId], references: [id], onDelete: SetNull)
+
+  @@map("student_success_cases")
+}
+
+model IntegrationConnection {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  provider              String      // digilocker, razorpay, stripe, google_workspace, ms_teams, moodle
+  category              String      // Regulatory, Payment, LMS, Identity, Communication
+  status                String      @default("ACTIVE") // ACTIVE, PENDING, DISCONNECTED, ERROR
+  syncFrequency         String      @default("REALTIME")
+  lastSyncAt            DateTime    @default(now())
+  errorLog              String?     @db.Text
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("integration_connections")
+}
+
+model MarketplaceApp {
+  id                    String   @id @default(uuid()) @db.Uuid
+  slug                  String   @unique
+  name                  String
+  publisher             String
+  category              String   // Analytics, Learning, Operations, Security
+  description           String   @db.Text
+  requestedPermissions  String[]
+  status                String   @default("VERIFIED")
+  createdAt             DateTime @default(now())
+
+  @@map("marketplace_apps")
+}
+
+model SmartDevice {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  deviceName            String
+  deviceType            String      // OCCUPANCY_SENSOR, ENERGY_METER, ACCESS_READER, HVAC_CONTROLLER
+  spaceName             String
+  status                String      @default("ONLINE") // ONLINE, OFFLINE, MAINTENANCE, ALERT
+  lastReading           String
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("smart_devices")
+}
+
+model ImplementationProject {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  projectName           String
+  currentStage          String      @default("PILOT") // DISCOVERY, MIGRATION, INTEGRATION, TESTING, PILOT, GO_LIVE
+  overallProgressPct    Int         @default(75)
+  targetGoLiveDate      DateTime
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("implementation_projects")
+}
+
+model SupportCase {
+  id                    String      @id @default(uuid()) @db.Uuid
+  tenantId              String      @map("tenant_id") @db.Uuid
+  userId                String      @map("user_id") @db.Uuid
+  caseNumber            String      @unique
+  title                 String
+  category              String      // Technical, Billing, Integration, Data
+  priority              String      @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  status                String      @default("NEW") // NEW, ACKNOWLEDGED, INVESTIGATING, RESOLVED, CLOSED
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  institution           Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("support_cases")
+}
+
+
+
