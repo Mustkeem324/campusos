@@ -182,7 +182,7 @@ export function BlueprintDirectory() {
             ))}
             {filteredTopics.length === 0 && (
               <div className="col-span-full py-20 text-center text-[#5F6C7B]">
-                <p>No architecture topics found for "{search}".</p>
+                <p>No architecture topics found for &quot;{search}&quot;.</p>
               </div>
             )}
           </div>

@@ -39,7 +39,7 @@ export function PricingSection() {
             Scale your digital infrastructure
           </h2>
           <p className="text-[17px] text-[#5F6B7A] max-w-[680px] mx-auto">
-            Choose a plan that fits your institution's size and complexity. We price based on active student enrollment, not per module.
+            Choose a plan that fits your institution&apos;s size and complexity. We price based on active student enrollment, not per module.
           </p>
         </div>
 

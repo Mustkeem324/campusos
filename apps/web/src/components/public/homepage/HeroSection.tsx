@@ -96,7 +96,7 @@ export function HeroSection() {
                   {/* KPI Row */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-white rounded-xl border border-[#DEE5EF] p-4 shadow-sm">
-                      <div className="text-[12px] font-medium text-[#5F6B7A] mb-2">Today's Classes</div>
+                      <div className="text-[12px] font-medium text-[#5F6B7A] mb-2">Today&apos;s Classes</div>
                       <div className="text-[20px] font-bold text-[#101828]">6 Sessions</div>
                     </div>
                     <div className="bg-white rounded-xl border border-[#DEE5EF] p-4 shadow-sm">
@@ -124,7 +124,7 @@ export function HeroSection() {
                     <div className="col-span-2 flex flex-col gap-6">
                       <div className="bg-white rounded-xl border border-[#DEE5EF] p-5 shadow-sm flex-1">
                         <div className="flex items-center justify-between mb-4">
-                          <h3 className="font-semibold text-[14px] text-[#101828]">Today's Schedule</h3>
+                          <h3 className="font-semibold text-[14px] text-[#101828]">Today&apos;s Schedule</h3>
                           <span className="text-[#1854E8] text-[12px] font-medium cursor-pointer">View full timetable</span>
                         </div>
                         <div className="flex flex-col gap-3">

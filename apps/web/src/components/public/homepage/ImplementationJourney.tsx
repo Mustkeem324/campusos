@@ -21,7 +21,7 @@ export function ImplementationJourney() {
             A structured path to digital transformation
           </h2>
           <p className="text-[17px] text-[#5F6B7A] max-w-[680px] mx-auto">
-            We don't just hand over software. Our dedicated deployment team guides your institution through a proven six-stage methodology to ensure absolute success.
+            We don&apos;t just hand over software. Our dedicated deployment team guides your institution through a proven six-stage methodology to ensure absolute success.
           </p>
         </div>
 

@@ -174,7 +174,7 @@ export function RoleExperienceSection() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="bg-white p-4 rounded-lg border border-[#DEE5EF]">
-                          <h4 className="text-[13px] font-semibold mb-3">Today's Timetable</h4>
+                          <h4 className="text-[13px] font-semibold mb-3">Today&apos;s Timetable</h4>
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-3 p-2 bg-[#F5F7FB] rounded border-l-2 border-[#1854E8]">
                               <Clock size={14} className="text-[#5F6B7A]" />
@@ -213,7 +213,7 @@ export function RoleExperienceSection() {
                     <div className="flex flex-col gap-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div className="bg-white p-3 rounded-lg border border-[#DEE5EF]">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Today's Classes</div>
+                          <div className="text-[11px] text-[#5F6B7A] mb-1">Today&apos;s Classes</div>
                           <div className="text-[18px] font-bold text-[#101828]">4</div>
                         </div>
                         <div className="bg-white p-3 rounded-lg border border-[#DEE5EF]">

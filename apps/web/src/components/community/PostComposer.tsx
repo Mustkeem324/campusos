@@ -84,7 +84,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ onSuccess }) => {
             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm mb-3 px-3 py-2 bg-transparent border-b"
           />
 
-          <label htmlFor="post-content" className="sr-only">What's on your mind?</label>
+          <label htmlFor="post-content" className="sr-only">What&apos;s on your mind?</label>
           <textarea
             id="post-content"
             rows={3}

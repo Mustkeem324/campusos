@@ -103,7 +103,7 @@ export function LegalDocumentView({ title, documentType }: LegalDocumentViewProp
               <ul>
                 <li>Provide accurate and complete information during registration.</li>
                 <li>Not share authentication tokens, passwords, or multi-factor authentication codes.</li>
-                <li>Report any unauthorized access immediately to your institution's IT administrator.</li>
+                <li>Report any unauthorized access immediately to your institution&apos;s IT administrator.</li>
                 <li>Comply with all applicable laws and institutional policies.</li>
               </ul>
 
@@ -114,7 +114,7 @@ export function LegalDocumentView({ title, documentType }: LegalDocumentViewProp
 
               <h2 id="section-5">5. Updates to this Policy</h2>
               <p>
-                We may update these terms from time to time. We will notify you of material changes by posting the new policy on this page and updating the "Effective Date" at the top of this document. For significant changes, we may also notify you via email or a platform notification.
+                We may update these terms from time to time. We will notify you of material changes by posting the new policy on this page and updating the &quot;Effective Date&quot; at the top of this document. For significant changes, we may also notify you via email or a platform notification.
               </p>
 
               <h2 id="section-6">6. Contact Information</h2>

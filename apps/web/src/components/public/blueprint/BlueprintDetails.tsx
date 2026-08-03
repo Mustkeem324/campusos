@@ -245,7 +245,7 @@ export function ComplianceDetail() {
   return (
     <div className="space-y-6 text-[#101828]">
       <p className="text-[17px] leading-relaxed italic text-[#5F6C7B]">
-        "Designed to support institution-configured readiness."
+        &quot;Designed to support institution-configured readiness.&quot;
       </p>
 
       <div className="flex gap-2 border-b border-[#DFE6F0] pb-px">

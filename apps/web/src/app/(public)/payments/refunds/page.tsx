@@ -164,7 +164,7 @@ export default function RefundsPage() {
                     <div>
                       <h4 className="text-sm font-semibold text-[#912018]">Refund Policy Acknowledgment</h4>
                       <p className="text-sm text-[#B42318] mt-1">
-                        By submitting this request, you acknowledge that a processing fee or deduction may apply according to the institution's active <Link href="/legal/refund-and-cancellation" className="underline font-bold">Refund Policy</Link>.
+                        By submitting this request, you acknowledge that a processing fee or deduction may apply according to the institution&apos;s active <Link href="/legal/refund-and-cancellation" className="underline font-bold">Refund Policy</Link>.
                       </p>
                     </div>
                   </div>
