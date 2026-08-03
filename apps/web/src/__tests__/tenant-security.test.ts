@@ -5,6 +5,7 @@ import { generateRandomToken } from '../lib/auth';
 describe('Phase 3: Multi-Tenancy & Security Isolation Engine', () => {
   let tenantA_Id: string;
   let tenantB_Id: string;
+  let deptA_Id: string;
   
   beforeAll(async () => {
     // Create Tenant A
@@ -18,6 +19,15 @@ describe('Phase 3: Multi-Tenancy & Security Isolation Engine', () => {
     });
     tenantA_Id = tenantA.id;
 
+    // Create Campus & Department for Tenant A
+    const campusA = await prisma.campus.create({
+      data: { tenantId: tenantA_Id, name: 'Campus A', code: 'CA' }
+    });
+    const deptA = await prisma.department.create({
+      data: { tenantId: tenantA_Id, campusId: campusA.id, name: 'CS Dept A', code: 'CSA' }
+    });
+    deptA_Id = deptA.id;
+
     // Create Tenant B
     const tenantB = await prisma.institution.create({
       data: {
@@ -28,13 +38,21 @@ describe('Phase 3: Multi-Tenancy & Security Isolation Engine', () => {
       }
     });
     tenantB_Id = tenantB.id;
+
+    // Create Campus & Department for Tenant B
+    const campusB = await prisma.campus.create({
+      data: { tenantId: tenantB_Id, name: 'Campus B', code: 'CB' }
+    });
+    const deptB = await prisma.department.create({
+      data: { tenantId: tenantB_Id, campusId: campusB.id, name: 'Math Dept B', code: 'MTHB' }
+    });
     
     // Seed some data bypassing the tenant wrapper (raw admin level)
     await prisma.course.createMany({
       data: [
-        { tenantId: tenantA_Id, title: 'Intro to CS (A)', code: 'CS101A', departmentId: tenantA_Id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
-        { tenantId: tenantA_Id, title: 'Data Structures (A)', code: 'CS102A', departmentId: tenantA_Id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
-        { tenantId: tenantB_Id, title: 'Intro to Math (B)', code: 'MTH101B', departmentId: tenantB_Id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
+        { tenantId: tenantA_Id, title: 'Intro to CS (A)', code: 'CS101A', departmentId: deptA.id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
+        { tenantId: tenantA_Id, title: 'Data Structures (A)', code: 'CS102A', departmentId: deptA.id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
+        { tenantId: tenantB_Id, title: 'Intro to Math (B)', code: 'MTH101B', departmentId: deptB.id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
       ]
     });
   });
@@ -97,7 +115,7 @@ describe('Phase 3: Multi-Tenancy & Security Isolation Engine', () => {
       data: {
         title: 'Physics 101',
         code: 'PHY101',
-        departmentId: tenantA_Id,
+        departmentId: deptA_Id,
         lectureCredits: 3,
         tutorialCredits: 0,
         practicalCredits: 0,

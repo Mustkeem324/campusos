@@ -79,7 +79,7 @@ export function AccountDropdown() {
 
       {isOpen && (
         <div 
-          className="absolute right-0 top-full mt-2 w-[320px] bg-surface border border-border rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col md:static md:w-[320px] fixed bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-0 md:mt-2 w-full md:rounded-xl rounded-t-2xl max-h-[85vh] md:max-h-[600px] sm:w-[320px] sm:left-auto"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(85dvh,42rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-[600px] md:w-80 md:rounded-xl"
           role="menu"
         >
           {/* Mobile Drag Handle */}

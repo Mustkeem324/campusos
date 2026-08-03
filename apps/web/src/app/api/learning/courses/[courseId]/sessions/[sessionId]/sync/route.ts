@@ -1,52 +1,25 @@
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { NextResponse } from 'next/server';
+import { LearningSessionAccessError, requireLearningSessionAccess } from '../../../../../../../../lib/learning-session-access';
 
-export async function GET(
-  req: Request,
-  { params }: { params: { courseId: string; sessionId: string } }
-) {
+export async function GET(_: Request, { params }: { params: { courseId: string; sessionId: string } }) {
   try {
-    const { sessionId } = params;
-
-    const session = await prisma.learningSession.findUnique({
-      where: { id: sessionId },
+    const { db, learningSession } = await requireLearningSessionAccess(params.courseId, params.sessionId);
+    const current = await db.learningSession.findFirst({
+      where: { id: learningSession.id },
       include: {
         participants: true,
-        chatMessages: {
-          orderBy: { createdAt: "asc" },
-        },
-        presences: {
-          where: {
-            lastSeenAt: {
-              gte: new Date(Date.now() - 30000), // active in last 30s
-            },
-          },
-        },
-        polls: {
-          include: {
-            votes: true,
-          }
-        },
+        chatMessages: { orderBy: { createdAt: 'asc' } },
+        presences: { where: { lastSeenAt: { gte: new Date(Date.now() - 30_000) } } },
+        polls: { include: { votes: true } },
       },
     });
-
-    if (!session) {
-      return NextResponse.json({ error: "Not Found" }, { status: 404 });
-    }
-
+    if (!current) return NextResponse.json({ error: 'Learning session not found' }, { status: 404 });
     return NextResponse.json({
-      session,
-      participants: session.participants.map((p: any) => {
-        const isOnline = session.presences.some((pr: any) => pr.userId === p.userId);
-        return {
-          ...p,
-          isOnline
-        };
-      })
+      session: current,
+      participants: current.participants.map((participant) => ({ ...participant, isOnline: current.presences.some((presence) => presence.userId === participant.userId) })),
     });
-  } catch (error) {
-    console.error("Sync Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (error: unknown) {
+    if (error instanceof LearningSessionAccessError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: 'Unable to synchronise learning session' }, { status: 500 });
   }
 }

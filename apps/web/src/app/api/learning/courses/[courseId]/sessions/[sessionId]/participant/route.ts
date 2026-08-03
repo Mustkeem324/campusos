@@ -1,40 +1,24 @@
-import { NextResponse } from "next/server";
-import { prisma } from "../../../../../../../../lib/db";
+import { NextResponse } from 'next/server';
+import { LearningSessionAccessError, requireLearningSessionParticipant } from '../../../../../../../../lib/learning-session-access';
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { courseId: string; sessionId: string } }
-) {
+export async function PATCH(request: Request, { params }: { params: { courseId: string; sessionId: string } }) {
   try {
-    const { sessionId } = params;
-    const body = await req.json();
-    const { userId, micEnabled, cameraEnabled, screenSharing, handRaised } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-    }
-
-    const participants = await prisma.learningSessionParticipant.findMany({
-      where: { sessionId, userId }
-    });
-
-    if (participants.length === 0) {
-      return NextResponse.json({ error: "Participant not found" }, { status: 404 });
-    }
-
-    const updated = await prisma.learningSessionParticipant.update({
-      where: { id: participants[0].id },
-      data: {
-        ...(micEnabled !== undefined && { micEnabled }),
-        ...(cameraEnabled !== undefined && { cameraEnabled }),
-        ...(screenSharing !== undefined && { screenSharing }),
-        ...(handRaised !== undefined && { handRaised }),
-      }
-    });
-
+    const body: unknown = await request.json();
+    const settings = getParticipantSettings(body);
+    if (!settings) return NextResponse.json({ error: 'At least one participant setting must be a boolean' }, { status: 400 });
+    const { db, participant } = await requireLearningSessionParticipant(params.courseId, params.sessionId);
+    const updated = await db.learningSessionParticipant.update({ where: { id: participant.id }, data: settings });
     return NextResponse.json(updated);
-  } catch (error) {
-    console.error("Participant Update Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (error: unknown) {
+    if (error instanceof LearningSessionAccessError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: 'Unable to update participant settings' }, { status: 500 });
   }
+}
+
+function getParticipantSettings(value: unknown) {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as Record<string, unknown>;
+  const settings: { micEnabled?: boolean; cameraEnabled?: boolean; screenSharing?: boolean; handRaised?: boolean } = {};
+  for (const key of ['micEnabled', 'cameraEnabled', 'screenSharing', 'handRaised'] as const) if (typeof source[key] === 'boolean') settings[key] = source[key] as boolean;
+  return Object.keys(settings).length > 0 ? settings : null;
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommunityChatWorkspace } from '../../../components/community/CommunityChatWorkspace';
+import { CommunityFeed } from '../../../components/community/CommunityFeed';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 
 export default function CommunityPage() {
   return (
-    <CommunityChatWorkspace />
+    <CommunityFeed />
   );
 }

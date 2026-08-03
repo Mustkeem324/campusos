@@ -1,122 +1,21 @@
 'use client';
 
-import React from 'react';
-import { MessageSquare, Heart, Pin, Lock, MoreVertical } from 'lucide-react';
+import React, { useState } from 'react';
+import { Bookmark, Heart, MessageSquare, MoreHorizontal, Pin, Send } from 'lucide-react';
 
-interface Author {
-  id: string;
-  email: string;
-  role: string;
+type Author = { id: string; name: string; avatarUrl: string | null; role: string };
+export type Post = { id: string; type: string; title: string | null; content: string; visibility: string; isPinned: boolean; isLocked: boolean; commentsEnabled: boolean; createdAt: string; author: Author; bookmarks: { id: string }[]; _count: { replies: number; reactions: number } };
+
+export function PostCard({ post, onDeleted }: { post: Post; onDeleted: () => void }) {
+  const [bookmarked, setBookmarked] = useState(post.bookmarks.length > 0);
+  const [message, setMessage] = useState('');
+  const initials = post.author.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+  const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(post.createdAt));
+  async function removePost() { if (!window.confirm('Delete this post?')) return; const response = await fetch(`/api/community/posts/${post.id}`, { method: 'DELETE' }); if (response.ok) onDeleted(); }
+  async function bookmark() { const response = await fetch(`/api/community/posts/${post.id}/bookmark`, { method: 'POST' }); if (response.ok) setBookmarked((value) => !value); }
+  return <article className="rounded-xl border border-border bg-surface p-4 shadow-sm" aria-labelledby={`post-${post.id}`}>
+    <header className="flex items-start justify-between gap-3"><div className="flex min-w-0 gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-sm font-bold text-primary">{initials}</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="truncate font-semibold text-text-primary">{post.author.name}</span><span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-text-secondary">{post.author.role.replaceAll('_', ' ').toLowerCase()}</span>{post.isPinned && <Pin size={14} className="text-primary" aria-label="Pinned"/>}</div><p className="mt-0.5 text-xs text-text-muted"><time dateTime={post.createdAt}>{date}</time> · {post.visibility.toLowerCase()}</p></div></div><button type="button" onClick={removePost} className="rounded-md p-2 text-text-muted hover:bg-surface-muted" aria-label="Delete post"><MoreHorizontal size={18}/></button></header>
+    <div className="mt-4"><span className="rounded-full bg-primary-soft px-2 py-1 text-[11px] font-semibold text-primary">{post.type.replaceAll('_', ' ')}</span>{post.title && <h2 id={`post-${post.id}`} className="mt-3 text-lg font-semibold text-text-primary">{post.title}</h2>}<p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-text-primary">{post.content}</p></div>
+    <footer className="mt-4 flex flex-wrap gap-1 border-t border-border pt-3"><button type="button" className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-text-secondary hover:bg-surface-muted" aria-label="React to this post"><Heart size={16}/> {post._count.reactions}</button><button type="button" className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-text-secondary hover:bg-surface-muted" disabled={!post.commentsEnabled} aria-label="View replies"><MessageSquare size={16}/> {post._count.replies}</button><button type="button" onClick={() => void bookmark()} className="ml-auto inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-text-secondary hover:bg-surface-muted" aria-pressed={bookmarked} aria-label="Save this post"><Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'}/>{bookmarked ? 'Saved' : 'Save'}</button><button type="button" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/community/post/${post.id}`).then(() => setMessage('Link copied')).catch(() => setMessage('Unable to copy link')); }} className="inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-text-secondary hover:bg-surface-muted" aria-label="Copy post link"><Send size={16}/></button>{message && <span className="self-center text-xs text-text-muted" role="status">{message}</span>}</footer>
+  </article>;
 }
-
-interface PostCount {
-  replies: number;
-  reactions: number;
-}
-
-export interface Post {
-  id: string;
-  type: string;
-  title: string | null;
-  content: string;
-  visibility: string;
-  isPinned: boolean;
-  isLocked: boolean;
-  commentsEnabled: boolean;
-  createdAt: string;
-  author: Author;
-  _count: PostCount;
-}
-
-interface PostCardProps {
-  post: Post;
-  onDelete?: (id: string) => void;
-  currentUserId?: string;
-}
-
-export const PostCard: React.FC<PostCardProps> = ({ post, onDelete, currentUserId }) => {
-  const isAuthor = currentUserId === post.author.id;
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-  }).format(new Date(post.createdAt));
-
-  return (
-    <article 
-      className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 mb-4 hover:shadow-md transition-shadow"
-      aria-labelledby={`post-title-${post.id}`}
-    >
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold" aria-hidden="true">
-            {post.author.email.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div className="font-semibold text-gray-900 flex items-center gap-2">
-              {post.author.email.split('@')[0]}
-              {post.type === 'ANNOUNCEMENT' && (
-                <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                  Announcement
-                </span>
-              )}
-            </div>
-            <div className="text-xs text-gray-500 flex items-center gap-2">
-              <time dateTime={post.createdAt}>
-                {formattedDate}
-              </time>
-              <span>•</span>
-              <span className="capitalize">{post.visibility.toLowerCase()}</span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {post.isPinned && (
-            <Pin className="w-4 h-4 text-indigo-600" aria-label="Pinned post" />
-          )}
-          {post.isLocked && (
-            <Lock className="w-4 h-4 text-gray-400" aria-label="Locked post" />
-          )}
-          {isAuthor && onDelete && (
-            <button 
-              onClick={() => onDelete(post.id)}
-              className="text-gray-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
-              aria-label="Delete post"
-            >
-              <MoreVertical className="w-4 h-4" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        {post.title && (
-          <h2 id={`post-title-${post.id}`} className="text-xl font-bold text-gray-900 mb-2">
-            {post.title}
-          </h2>
-        )}
-        <p className="text-gray-700 whitespace-pre-wrap">{post.content}</p>
-      </div>
-
-      <div className="flex items-center space-x-6 text-gray-500 border-t border-gray-100 pt-3 mt-4">
-        <button 
-          className="flex items-center space-x-1.5 hover:text-indigo-600 transition-colors"
-          aria-label={`${post._count.reactions} likes`}
-        >
-          <Heart className="w-4 h-4" />
-          <span className="text-sm font-medium">{post._count.reactions}</span>
-        </button>
-        <button 
-          className="flex items-center space-x-1.5 hover:text-indigo-600 transition-colors"
-          disabled={!post.commentsEnabled}
-          aria-label={`${post._count.replies} comments`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span className="text-sm font-medium">{post._count.replies}</span>
-        </button>
-      </div>
-    </article>
-  );
-};

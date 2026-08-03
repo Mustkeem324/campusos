@@ -58,7 +58,7 @@ export function Modal({ isOpen, onClose, title, children, requireConfirmationOnC
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6"
       onClick={handleOutsideClick}
     >
       <div 
@@ -66,7 +66,7 @@ export function Modal({ isOpen, onClose, title, children, requireConfirmationOnC
         role="dialog" 
         aria-modal="true" 
         aria-labelledby="modal-title"
-        className="bg-surface w-full max-w-lg rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 my-8"
+        className="bg-surface my-auto flex max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-full max-w-lg flex-col rounded-t-2xl shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:rounded-2xl"
       >
         <div className="p-6 border-b border-border flex items-center justify-between">
           <h2 id="modal-title" className="text-xl font-bold text-text-primary">
@@ -80,7 +80,7 @@ export function Modal({ isOpen, onClose, title, children, requireConfirmationOnC
             <X size={20} />
           </button>
         </div>
-        <div className="p-6">
+        <div className="overflow-y-auto overscroll-contain p-4 sm:p-6">
           {children}
         </div>
       </div>

@@ -1,43 +1,16 @@
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { NextResponse } from 'next/server';
+import { LearningSessionAccessError, requireLearningSessionAccess } from '../../../../../../../../lib/learning-session-access';
 
-export async function POST(
-  req: Request,
-  { params }: { params: { courseId: string; sessionId: string } }
-) {
+export const dynamic = 'force-dynamic';
+
+export async function POST(_: Request, { params }: { params: { courseId: string; sessionId: string } }) {
   try {
-    const { sessionId } = params;
-    const body = await req.json();
-    const { userId } = body;
-
-    if (!userId) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
-    }
-
-    const participants = await prisma.learningSessionParticipant.findMany({
-      where: { sessionId, userId }
-    });
-
-    if (participants.length > 0) {
-      // Re-joined
-      await prisma.learningSessionParticipant.update({
-        where: { id: participants[0].id },
-        data: { leftAt: null, joinedAt: new Date() }
-      });
-      return NextResponse.json(participants[0]);
-    }
-
-    const participant = await prisma.learningSessionParticipant.create({
-      data: {
-        sessionId,
-        userId,
-      },
-    });
-
+    const { db, session, learningSession, isHost } = await requireLearningSessionAccess(params.courseId, params.sessionId);
+    const existing = await db.learningSessionParticipant.findFirst({ where: { sessionId: learningSession.id, userId: session.userId } });
+    const participant = existing ? await db.learningSessionParticipant.update({ where: { id: existing.id }, data: { leftAt: null, joinedAt: new Date() } }) : await db.learningSessionParticipant.create({ data: { sessionId: learningSession.id, userId: session.userId, role: isHost ? 'HOST' : 'PARTICIPANT' } });
     return NextResponse.json(participant);
-  } catch (error) {
-    console.error("Join Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (error: unknown) {
+    if (error instanceof LearningSessionAccessError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: 'Unable to join session' }, { status: 500 });
   }
 }

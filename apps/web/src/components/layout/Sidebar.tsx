@@ -30,7 +30,6 @@ import {
   Brain,
   Bus,
   Settings,
-  ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 
@@ -47,8 +46,22 @@ interface NavGroup {
 }
 
 export function Sidebar() {
-  const { currentSession, isSidebarCollapsed, toggleSidebar } = useAuthStore();
+  const { currentSession, isSidebarCollapsed } = useAuthStore();
   const pathname = usePathname();
+  const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const toggleMobileNavigation = () => setIsMobileOpen((open) => !open);
+    const closeMobileNavigation = () => setIsMobileOpen(false);
+    window.addEventListener('campusos:toggle-mobile-navigation', toggleMobileNavigation);
+    window.addEventListener('resize', closeMobileNavigation);
+    return () => {
+      window.removeEventListener('campusos:toggle-mobile-navigation', toggleMobileNavigation);
+      window.removeEventListener('resize', closeMobileNavigation);
+    };
+  }, []);
+
+  React.useEffect(() => { setIsMobileOpen(false); }, [pathname]);
 
   const getRoleNavGroups = (): NavGroup[] => {
     const role = currentSession.role;
@@ -160,9 +173,10 @@ export function Sidebar() {
     .toLowerCase()
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-  return (
+  return (<>
+    {isMobileOpen && <button type="button" className="fixed inset-0 z-20 bg-black/40 md:hidden" onClick={() => setIsMobileOpen(false)} aria-label="Close navigation" />}
     <aside
-      className="fixed left-0 flex flex-col border-r bg-surface border-border transition-all duration-300"
+      className={`app-sidebar fixed left-0 flex flex-col border-r bg-surface border-border transition-transform duration-300 max-md:-translate-x-full ${isMobileOpen ? 'max-md:translate-x-0' : ''}`}
       style={{
         width: isSidebarCollapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)',
         top: 'var(--impersonation-bar-h)',
@@ -193,19 +207,16 @@ export function Sidebar() {
       {/* Institution Switcher */}
       {!isSidebarCollapsed && (
         <div className="px-4 py-4 shrink-0">
-          <div className="p-3 rounded-lg bg-primary-soft border border-primary/20 flex items-start gap-3 cursor-pointer hover:bg-primary/10 transition">
+          <div className="p-3 rounded-lg bg-primary-soft border border-primary/20 flex items-start gap-3">
             <div className="w-8 h-8 rounded bg-white flex items-center justify-center text-primary font-bold text-xs shrink-0 shadow-sm">
               UP
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-semibold text-text-primary truncate">
-                {currentSession.institutionName || 'UPES University'}
+                {currentSession.institutionName}
               </p>
-              <p className="text-[11px] text-text-secondary truncate">
-                Dehradun Campus
-              </p>
+              <p className="text-[11px] text-text-secondary truncate">Institution workspace</p>
             </div>
-            <ChevronDown size={14} className="text-text-secondary mt-1 shrink-0" />
           </div>
         </div>
       )}
@@ -228,6 +239,7 @@ export function Sidebar() {
                 <a
                   key={idx}
                   href={href}
+                  onClick={() => setIsMobileOpen(false)}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all group ${
                     isSelected
                       ? 'bg-primary-soft text-primary font-medium'
@@ -271,5 +283,5 @@ export function Sidebar() {
         )}
       </div>
     </aside>
-  );
+  </>);
 }

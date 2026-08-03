@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireTenantContext } from '../../../../lib/tenant-context';
-import { requirePermission } from '../../../../lib/rbac';
+import { RoleType } from '@prisma/client';
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
@@ -18,34 +18,38 @@ const postSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    const { db } = await requireTenantContext();
+    const { db, session } = await requireTenantContext();
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
-    const visibility = searchParams.get('visibility');
+    const query = searchParams.get('q')?.trim();
+    const offset = Math.max(0, Number(searchParams.get('offset') || '0'));
+    const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || '20')));
 
-    const whereClause: any = {};
-    if (type) whereClause.type = type;
-    if (visibility) whereClause.visibility = visibility;
+    const where = {
+      ...(type && type !== 'all' ? { type: type as z.infer<typeof postSchema>['type'] } : {}),
+      ...(query ? { OR: [{ title: { contains: query, mode: 'insensitive' as const } }, { content: { contains: query, mode: 'insensitive' as const } }] } : {}),
+    };
 
     const posts = await db.communityPost.findMany({
-      where: whereClause,
+      where,
       include: {
-        author: { select: { id: true, email: true, role: true } },
-        _count: { select: { replies: true, reactions: true } }
+        author: { select: { id: true, name: true, avatarUrl: true, role: true } },
+        bookmarks: { where: { userId: session.userId }, select: { id: true } },
+        _count: { select: { replies: true, reactions: true } },
       },
       orderBy: [
         { isPinned: 'desc' },
         { createdAt: 'desc' }
       ],
-      take: 50
+      skip: offset,
+      take: limit + 1,
     });
-
-    return NextResponse.json(posts);
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
+    const hasMore = posts.length > limit;
+    return NextResponse.json({ posts: posts.slice(0, limit), nextOffset: hasMore ? offset + limit : null });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.error('[COMMUNITY_POSTS_GET]', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -59,31 +63,39 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validatedData = postSchema.parse(body);
 
-    if (validatedData.type === 'ANNOUNCEMENT' || validatedData.type === 'URGENT_NOTICE' || validatedData.type === 'IMPORTANT_NOTICE') {
-      requirePermission(session.role as any, 'edit_academic_records'); // Using existing perm for now, or just admin check
-      // Ideal: 'manage_announcements' but let's just make sure they are not standard users if required.
+    const restrictedNotice = ['ANNOUNCEMENT', 'URGENT_NOTICE', 'IMPORTANT_NOTICE'].includes(validatedData.type);
+    const noticePublisherRoles: RoleType[] = [RoleType.SUPER_ADMIN, RoleType.INSTITUTION_ADMIN, RoleType.REGISTRAR, RoleType.DEAN, RoleType.HOD];
+    const canPublishNotice = noticePublisherRoles.includes(session.role);
+    if (restrictedNotice && !canPublishNotice) {
+      return NextResponse.json({ error: 'You do not have permission to publish institutional notices.' }, { status: 403 });
     }
 
     const post = await db.communityPost.create({
       data: {
-        ...validatedData,
+        type: validatedData.type,
+        content: validatedData.content,
+        title: validatedData.title,
+        visibility: validatedData.visibility,
+        isPinned: validatedData.isPinned,
+        isLocked: validatedData.isLocked,
+        commentsEnabled: validatedData.commentsEnabled,
+        expiresAt: validatedData.expiresAt,
         tenantId: session.tenantId,
         authorId: session.userId,
-      } as any,
+      },
       include: {
-        author: { select: { id: true, email: true, role: true } }
+        author: { select: { id: true, name: true, avatarUrl: true, role: true } }
       }
     });
 
     return NextResponse.json(post, { status: 201 });
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
     }
-    console.error('[COMMUNITY_POSTS_POST]', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

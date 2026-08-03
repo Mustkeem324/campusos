@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Printer, Download, ChevronLeft, Calendar, FileText, Globe, Info } from 'lucide-react';
+import { Printer, ChevronLeft, FileText, Globe, Info } from 'lucide-react';
 
 interface LegalDocumentViewProps {
   title: string;
@@ -30,18 +30,13 @@ export function LegalDocumentView({ title, documentType }: LegalDocumentViewProp
             Back to Legal Centre
           </Link>
           <div className="flex items-center gap-3">
-            <button 
+            <button
+              type="button"
               onClick={handlePrint}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#475467] hover:text-[#101B33] hover:bg-[#F1F5F9] rounded-md transition-colors"
             >
               <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print</span>
-            </button>
-            <button 
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#1854E8] bg-[#EFF4FF] hover:bg-[#DBEAFE] rounded-md transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Download PDF</span>
             </button>
           </div>
         </div>
@@ -62,17 +57,10 @@ export function LegalDocumentView({ title, documentType }: LegalDocumentViewProp
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-4 border-t border-[#F1F5F9]">
                 <div className="flex items-start gap-2">
-                  <Calendar className="w-4 h-4 text-[#64748B] mt-0.5" />
-                  <div>
-                    <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Effective Date</p>
-                    <p className="text-[13px] text-[#101B33] font-medium">October 15, 2026</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
                   <FileText className="w-4 h-4 text-[#64748B] mt-0.5" />
                   <div>
                     <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Version</p>
-                    <p className="text-[13px] text-[#101B33] font-medium">2.1</p>
+                    <p className="text-[13px] text-[#101B33] font-medium">Current published version</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-2">
@@ -86,7 +74,7 @@ export function LegalDocumentView({ title, documentType }: LegalDocumentViewProp
                   <Info className="w-4 h-4 text-[#64748B] mt-0.5" />
                   <div>
                     <p className="text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Previous Versions</p>
-                    <Link href="#" className="text-[13px] text-[#1854E8] hover:underline font-medium">View Archive</Link>
+                    <p className="text-[13px] text-[#475467] font-medium">Available from institutional records</p>
                   </div>
                 </div>
               </div>

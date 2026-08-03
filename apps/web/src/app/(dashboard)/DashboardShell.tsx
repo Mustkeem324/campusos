@@ -55,7 +55,7 @@ export default function DashboardShell({
       {/* Main content — offset by sidebar + header heights */}
       <main
         id="main-content"
-        className="flex-1 transition-all duration-300 pb-12 px-4 sm:px-6"
+        className="dashboard-main flex-1 min-w-0 transition-all duration-300 pb-[max(3rem,env(safe-area-inset-bottom))] px-4 sm:px-6"
         style={{
           paddingTop: 'calc(var(--layout-top) + 24px)',
           marginLeft: isSidebarCollapsed

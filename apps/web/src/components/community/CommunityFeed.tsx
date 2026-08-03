@@ -1,88 +1,65 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Bookmark, FileText, Loader2, Search } from 'lucide-react';
 import { PostCard, Post } from './PostCard';
 import { PostComposer } from './PostComposer';
-import { Loader2 } from 'lucide-react';
 
-export const CommunityFeed: React.FC = () => {
+const tabs = [
+  ['all', 'All posts'], ['QUESTION', 'Questions'], ['ANNOUNCEMENT', 'Announcements'], ['POLL', 'Polls'],
+  ['URGENT_NOTICE', 'Urgent notices'], ['IMPORTANT_NOTICE', 'Important notices'], ['EVENT', 'Events'], ['RESOURCE', 'Media'],
+] as const;
+type FeedResponse = { posts: Post[]; nextOffset: number | null };
+
+export function CommunityFeed() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [type, setType] = useState('all');
+  const [query, setQuery] = useState('');
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
 
-  const fetchPosts = useCallback(async () => {
+  const load = useCallback(async (offset = 0, append = false) => {
+    append ? setLoadingMore(true) : setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch('/api/community/posts');
-      if (!res.ok) throw new Error('Failed to fetch posts');
-      const data = await res.json();
-      setPosts(data);
-    } catch (err: any) {
-      setError(err.message || 'Error fetching posts');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const params = new URLSearchParams({ type, offset: String(offset) });
+      if (query.trim()) params.set('q', query.trim());
+      const response = await fetch(`/api/community/posts?${params.toString()}`, { cache: 'no-store' });
+      const payload: unknown = await response.json();
+      if (!response.ok || !isFeedResponse(payload)) throw new Error('Unable to load community posts.');
+      setPosts((current) => append ? [...current, ...payload.posts] : payload.posts);
+      setNextOffset(payload.nextOffset);
+    } catch (cause: unknown) { setError(cause instanceof Error ? cause.message : 'Unable to load community posts.'); }
+    finally { setLoading(false); setLoadingMore(false); }
+  }, [query, type]);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [fetchPosts]);
+  useEffect(() => { void load(); }, [load]);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
-    
-    try {
-      const res = await fetch(`/api/community/posts/${id}`, {
-        method: 'DELETE'
-      });
-      if (!res.ok) throw new Error('Failed to delete post');
-      setPosts(posts.filter(p => p.id !== id));
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete post');
-    }
-  };
+  function selectTab(nextType: string) {
+    setType(nextType);
+    const url = new URL(window.location.href);
+    nextType === 'all' ? url.searchParams.delete('type') : url.searchParams.set('type', nextType.toLowerCase());
+    window.history.replaceState(null, '', url);
+  }
 
-  return (
-    <div className="max-w-3xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Community Hub</h1>
-        <p className="text-gray-600">Connect, share, and engage with your campus community.</p>
-      </div>
-
-      <PostComposer onSuccess={fetchPosts} />
-
-      <div aria-live="polite" className="space-y-4">
-        {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" aria-label="Loading posts" />
-          </div>
-        ) : error ? (
-          <div className="text-center py-8 text-red-600 bg-red-50 rounded-lg" role="alert">
-            {error}
-            <button 
-              onClick={fetchPosts}
-              className="mt-4 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-md font-medium transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-gray-200 text-gray-500">
-            No posts found. Be the first to start a conversation!
-          </div>
-        ) : (
-          posts.map(post => (
-            <PostCard 
-              key={post.id} 
-              post={post} 
-              onDelete={handleDelete}
-              // Ideally we'd get currentUserId from a context or session hook
-              currentUserId={undefined} 
-            />
-          ))
-        )}
-      </div>
+  return <main className="mx-auto w-full max-w-7xl space-y-5 py-2">
+    <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
+      <div><nav className="text-xs text-text-muted" aria-label="Breadcrumb">Home / Campus / Community</nav><h1 className="mt-2 text-2xl font-bold text-text-primary">Campus Community</h1><p className="mt-1 max-w-2xl text-sm text-text-secondary">Ask questions, share resources, post campus updates and collaborate with students, faculty and university teams.</p></div>
+      <div className="flex flex-wrap gap-2"><a href="#post-composer" className="min-h-10 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">Create post</a><Link href="/community/bookmarks" className="min-h-10 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-text-primary"><Bookmark className="mr-1 inline" size={15}/>My bookmarks</Link><Link href="/legal/terms" className="min-h-10 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-text-primary">Guidelines</Link></div>
+    </header>
+    <div role="tablist" aria-label="Community feed filters" className="flex gap-1 overflow-x-auto border-b border-border pb-1">
+      {tabs.map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={type === value} onClick={() => selectTab(value)} className={`min-h-10 shrink-0 border-b-2 px-3 text-sm font-medium ${type === value ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}>{label}</button>)}
     </div>
-  );
-};
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <section className="min-w-0 space-y-4"><label className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2"><Search size={16} className="text-text-muted"/><input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Search posts" aria-label="Search community posts"/></label><div id="post-composer"><PostComposer onSuccess={() => void load()} /></div>
+      {loading ? <div className="grid min-h-48 place-items-center"><Loader2 className="animate-spin text-primary" aria-label="Loading posts"/></div> : error ? <div role="alert" className="rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-text-primary">{error}<button type="button" onClick={() => void load()} className="ml-3 font-semibold text-primary">Try again</button></div> : posts.length === 0 ? <div className="rounded-xl border border-dashed border-border p-10 text-center"><FileText className="mx-auto text-text-muted"/><h2 className="mt-3 font-semibold">No posts found</h2><p className="mt-1 text-sm text-text-secondary">Try another filter or start the first conversation.</p></div> : posts.map((post) => <PostCard key={post.id} post={post} onDeleted={() => void load()} />)}
+      {nextOffset !== null && <button type="button" onClick={() => void load(nextOffset, true)} disabled={loadingMore} className="w-full rounded-lg border border-border px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60">{loadingMore ? 'Loading…' : 'Load more posts'}</button>}</section>
+      <aside className="hidden space-y-4 xl:block"><section className="rounded-xl border border-border bg-surface p-4"><h2 className="font-semibold">Community guidelines</h2><p className="mt-2 text-sm leading-6 text-text-secondary">Be respectful, protect personal data, and report inappropriate content.</p><Link href="/legal/terms" className="mt-3 inline-block text-sm font-semibold text-primary">Read guidelines</Link></section></aside>
+    </div>
+  </main>;
+}
+
+function isFeedResponse(value: unknown): value is FeedResponse { return Boolean(value && typeof value === 'object' && Array.isArray((value as FeedResponse).posts)); }

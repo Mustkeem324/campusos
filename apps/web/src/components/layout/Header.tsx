@@ -1,40 +1,27 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { useAuthStore } from '../../lib/auth-store';
-import { UserRole } from '../../lib/types';
-import { Bell, Search, Moon, Sun, HelpCircle, ChevronDown, Menu, MapPin } from 'lucide-react';
+import { Bell, Search, Moon, Sun, HelpCircle, Menu } from 'lucide-react';
 import { AccountDropdown } from './AccountDropdown';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 
 export function Header() {
-  const { currentSession, setRole, isDarkMode, toggleDarkMode, setCmdPaletteOpen, toggleSidebar, isSidebarCollapsed } = useAuthStore();
+  const { currentSession, isDarkMode, toggleDarkMode, setCmdPaletteOpen, toggleSidebar, isSidebarCollapsed } = useAuthStore();
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = React.useState(false);
-
-  const roles: { role: UserRole; label: string }[] = [
-    { role: 'SUPER_ADMIN', label: 'Super Admin' },
-    { role: 'INSTITUTION_ADMIN', label: 'Institution Admin' },
-    { role: 'REGISTRAR', label: 'Registrar' },
-    { role: 'DEAN', label: 'Dean' },
-    { role: 'HOD', label: 'Head of Dept' },
-    { role: 'FACULTY', label: 'Faculty' },
-    { role: 'STUDENT', label: 'Student' },
-    { role: 'PARENT', label: 'Parent' },
-    { role: 'FINANCE_OFFICER', label: 'Finance Officer' },
-    { role: 'ACCOUNTANT', label: 'Accountant' },
-    { role: 'HR_ADMIN', label: 'HR Admin' },
-    { role: 'WARDEN', label: 'Warden' },
-    { role: 'LIBRARIAN', label: 'Librarian' },
-    { role: 'TRANSPORT_MANAGER', label: 'Transport Mgr' },
-    { role: 'PLACEMENT_OFFICER', label: 'Placement Officer' },
-    { role: 'ADMISSIONS_COUNSELLOR', label: 'Admissions' },
-    { role: 'EXAMINATION_CONTROLLER', label: 'Exam Controller' },
-  ];
+  const handleNavigationToggle = () => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      window.dispatchEvent(new Event('campusos:toggle-mobile-navigation'));
+      return;
+    }
+    toggleSidebar();
+  };
 
   return (
     <>
       <header
-        className="fixed right-0 bg-surface border-b border-border transition-all duration-300 flex items-center justify-between px-4"
+        className="app-header fixed right-0 bg-surface border-b border-border transition-all duration-300 flex items-center justify-between px-3 sm:px-4"
         style={{
           height: 'var(--header-h)',
           top: 'var(--impersonation-bar-h)',
@@ -45,9 +32,9 @@ export function Header() {
         {/* Left: hamburger + search */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <button
-            onClick={toggleSidebar}
+            onClick={handleNavigationToggle}
             className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition"
-            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
             <Menu size={18} />
           </button>
@@ -66,29 +53,9 @@ export function Header() {
 
         {/* Right: controls */}
         <div className="flex items-center gap-2 shrink-0 ml-3">
-          {/* Role Switcher */}
-          <div className="hidden lg:flex items-center">
-            <label htmlFor="role-switcher" className="sr-only">Current role</label>
-            <select
-              id="role-switcher"
-              value={currentSession.role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="bg-transparent text-[13px] font-medium text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30 rounded cursor-pointer hover:text-text-primary transition"
-            >
-              {roles.map((r) => (
-                <option key={r.role} value={r.role} className="bg-surface text-text-primary">
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Campus Selector */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-muted cursor-pointer transition text-text-secondary">
-            <MapPin size={14} />
-            <span className="text-[13px] font-medium">Dehradun</span>
-            <ChevronDown size={14} />
-          </div>
+          <span className="hidden lg:block max-w-52 truncate text-[13px] font-medium text-text-secondary">
+            {currentSession.role.replace(/_/g, ' ').toLowerCase()}
+          </span>
 
           <div className="w-px h-4 bg-border mx-1 hidden md:block"></div>
 
@@ -98,15 +65,11 @@ export function Header() {
             aria-label="Open notifications"
           >
             <Bell size={18} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full" aria-hidden="true"></span>
           </button>
 
-          <button
-            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition hidden md:flex"
-            aria-label="Help"
-          >
+          <Link href="/helpdesk" className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition hidden md:flex" aria-label="Open helpdesk">
             <HelpCircle size={18} />
-          </button>
+          </Link>
 
           <button
             onClick={toggleDarkMode}

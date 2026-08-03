@@ -1,330 +1,140 @@
 'use client';
 
 import React from 'react';
+import { Activity, AlertCircle, ArrowRight, BookOpen, CalendarDays, CheckCircle2, Clock3, Database, GraduationCap, ReceiptText, RefreshCw, ShieldCheck, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useAuthStore } from '../../lib/auth-store';
-import {
-  Users,
-  GraduationCap,
-  CheckSquare,
-  DollarSign,
-  Building2,
-  Calendar,
-  Sparkles,
-  TrendingUp,
-  AlertTriangle,
-  FileText,
-  Clock,
-  Award,
-  BookOpen,
-  UserCheck,
-  ShieldCheck,
-  CheckCircle2
-} from 'lucide-react';
+
+type Metric = { label: string; value: string | number | null; detail: string };
+type DashboardData = {
+  role: string;
+  metrics: Metric[];
+  activity: Array<{ id: string; action: string; entity: string; createdAt: string }>;
+};
+
+const roleName = (role: string) => role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export function RoleDashboard() {
   const { currentSession } = useAuthStore();
-  const role = currentSession.role;
-  const [data, setData] = React.useState<any>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [data, setData] = React.useState<DashboardData | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const res = await fetch('/api/dashboard');
-        if (!res.ok) throw new Error('Failed to fetch dashboard data');
-        const json = await res.json();
-        setData(json);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboard();
+  const loadDashboard = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/dashboard', { cache: 'no-store' });
+      const payload: unknown = await response.json();
+      if (!response.ok || !isDashboardData(payload)) throw new Error('Dashboard data is unavailable.');
+      setData(payload);
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Dashboard data is unavailable.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const renderSuperAdmin = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Active Institutions" value={data?.activeInstitutions || 0} change="Current billing cycle" icon={Building2} color="indigo" />
-        <StatCard title="Total Platform Users" value={(data?.totalUsers || 0).toLocaleString()} change="All tenants" icon={Users} color="emerald" />
-        <StatCard title="System API Latency" value="Not telemetry" change="N/A" icon={Sparkles} color="sky" />
-        <StatCard title="Monthly Recurring Rev" value="Unavailable" change="N/A" icon={DollarSign} color="amber" />
-      </div>
+  React.useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center justify-between">
-            <span>Multi-Tenant Infrastructure Status</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 font-medium">
-              100% Operational
-            </span>
-          </h3>
-          <div className="space-y-3 text-xs">
-            <TenantRow name="Apex Technological University" domain="apex.campusos.edu" users="14,200" status="Healthy" />
-            <TenantRow name="St. Jude Medical Institute" domain="stjude.campusos.edu" users="8,450" status="Healthy" />
-            <TenantRow name="National Institute of Science" domain="nis.campusos.edu" users="22,100" status="Healthy" />
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Security & Compliance Feed</h3>
-          <div className="space-y-3 text-xs">
-            <LogEntry time="2m ago" action="Tenant RLS Policy Audit" detail="Verified 55 tables for inst_apex_univ" />
-            <LogEntry time="14m ago" action="Admin Impersonation Start" detail="Super Admin logged into inst_stjude" />
-            <LogEntry time="1h ago" action="SAML IdP Rotation" detail="Key pair updated for SAML 2.0 gateway" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderInstAdmin = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Students Enrolled" value={(data?.students || 0).toLocaleString()} change="Active records" icon={GraduationCap} color="indigo" />
-        <StatCard title="Faculty & Staff" value={(data?.faculty || 0).toLocaleString()} change="Across depts" icon={Users} color="emerald" />
-        <StatCard title="Course Offerings" value={(data?.courses || 0).toLocaleString()} change="Active curriculum" icon={BookOpen} color="sky" />
-        <StatCard title="Term Fee Collection" value={`$${(data?.termFeeCollection || 0).toLocaleString()}`} change="Successful payments" icon={DollarSign} color="amber" />
-      </div>
-
-      <div className="p-6 rounded-2xl bg-primary text-white shadow-xl">
-        <h3 className="text-lg font-extrabold mb-1">Academic Year 2026-2 Term 2 Configuration</h3>
-        <p className="text-xs text-indigo-100 mb-4">
-          Course registration window closes in 4 days. Elective auto-allotment algorithm scheduled for Friday.
-        </p>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 rounded-xl bg-white text-indigo-700 font-bold text-xs shadow-md">
-            Manage Registration Windows
-          </button>
-          <button className="px-4 py-2 rounded-xl bg-indigo-700/60 text-white font-medium text-xs hover:bg-indigo-700">
-            View Elective Ranking Matrix
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderHOD = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Dept Courses Offered" value={data?.coursesOffered || 0} change="Assigned department" icon={BookOpen} color="indigo" />
-        <StatCard title="Faculty Workload Avg" value={data?.facultyWorkloadAvg || "N/A"} change="Calculated" icon={UserCheck} color="emerald" />
-        <StatCard title="Defaulter Attendance" value={data?.defaulterAttendance || 0} change="<75% Threshold" icon={AlertTriangle} color="amber" />
-      </div>
-
-      <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Pending Exam Marks Lock Approvals</h3>
-        <div className="space-y-2">
-          <ApprovalRow course="CS401 Data Structures" faculty="Prof. Alan Turing" section="Sec A" status="Ready for HOD Sign-off" />
-          <ApprovalRow course="CS405 Machine Learning" faculty="Dr. Fei-Fei Li" section="Sec B" status="Ready for HOD Sign-off" />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderFaculty = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Today's Lectures" value={data?.todayClasses || 0} change="Scheduled today" icon={Calendar} color="indigo" />
-        <StatCard title="Attendance Marked" value={`${data?.attendanceMarked || 0}%`} change="Recent avg" icon={CheckSquare} color="emerald" />
-        <StatCard title="Assignments to Grade" value={data?.assignmentsToGrade || 0} change="Pending review" icon={FileText} color="amber" />
-        <StatCard title="Open Student Doubts" value={data?.openStudentDoubts || 0} change="Community forum" icon={Users} color="sky" />
-      </div>
-
-      <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Today's Class Schedule</h3>
-        <div className="space-y-3">
-          <ClassSlot time="09:00 - 10:30 AM" course="CS401 Data Structures" room="Lab 3B (Cap: 60)" status="Completed" />
-          <ClassSlot time="11:00 - 12:30 PM" course="CS405 Artificial Intelligence" room="Hall A1" status="Upcoming" />
-          <ClassSlot time="02:00 - 03:30 PM" course="CS499 Capstone Project Review" room="Seminar Room 2" status="Upcoming" />
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderStudent = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Current CGPA" value={data?.cgpa || 0} change="Based on results" icon={Award} color="emerald" />
-        <StatCard title="Attendance Health" value={`${data?.attendanceHealth || 0}%`} change="Overall" icon={CheckSquare} color="indigo" />
-        <StatCard title="Enrolled Credits" value={data?.enrolledCredits || 0} change="Current Term" icon={BookOpen} color="sky" />
-        <StatCard title="Fee Dues Pending" value={`$${(data?.feeDuesPending || 0).toLocaleString()}`} change="Pending Invoices" icon={AlertTriangle} color={data?.feeDuesPending > 0 ? "amber" : "emerald"} />
-      </div>
-
-      <div className="p-5 rounded-2xl bg-primary text-white shadow-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-xs uppercase font-mono tracking-wider text-emerald-200 font-bold">Course Registration Window</span>
-            <h3 className="text-lg font-extrabold mt-0.5">Term 2 Elective Allotment Active</h3>
-            <p className="text-xs text-emerald-100 mt-1">Real-time seat counter enabled with optimistic locking protection.</p>
-          </div>
-          <button className="px-5 py-2.5 rounded-xl bg-white text-emerald-800 font-extrabold text-xs shadow-lg">
-            Open Registration Console
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderParent = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Child Attendance" value={`${data?.childAttendance || 0}%`} change="Overall" icon={CheckSquare} color="emerald" />
-        <StatCard title="Latest Term Grade" value={`SGPA ${data?.latestTermGrade || 0}`} change="Verified" icon={GraduationCap} color="indigo" />
-        <StatCard title="Upcoming Fee Due" value={`$${(data?.upcomingFeeDue || 0).toLocaleString()}`} change="Pending" icon={DollarSign} color="emerald" />
-      </div>
-
-      <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Hostel Outpass Approval Requests</h3>
-        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 flex items-center justify-between">
-          <div>
-            <h4 className="text-xs font-bold text-amber-900 dark:text-amber-200">Weekend Overnight Outpass</h4>
-            <p className="text-[11px] text-amber-700 dark:text-amber-300">Destination: Home Visit (Aug 8 - Aug 10)</p>
-          </div>
-          <div className="flex gap-2">
-            <button className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs">Approve Outpass</button>
-            <button className="px-3 py-1.5 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">Decline</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderWarden = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Hostel Rooms" value={data?.totalHostelRooms || 0} change="Capacity config" icon={Building2} color="indigo" />
-        <StatCard title="Occupancy Rate" value={`${data?.occupancyRate || 0}%`} change="Current term" icon={Users} color="emerald" />
-        <StatCard title="Students Out of Campus" value={data?.studentsOutOfCampus || 0} change="Approved Outpasses" icon={Clock} color="amber" />
-        <StatCard title="Open Mess Complaints" value={data?.openComplaints || 0} change="Hostel tickets" icon={AlertTriangle} color="sky" />
-      </div>
-    </div>
-  );
-
-  const renderAccountant = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Today's Collections" value={`$${(data?.todaysCollections || 0).toLocaleString()}`} change="All methods" icon={DollarSign} color="emerald" />
-        <StatCard title="Total Dues Pending" value={`$${(data?.totalDuesPending || 0).toLocaleString()}`} change="Pending invoices" icon={AlertTriangle} color="amber" />
-        <StatCard title="Reconciled Webhooks" value={`${data?.reconciledWebhooks || 0}%`} change="Idempotency Verified" icon={ShieldCheck} color="indigo" />
-        <StatCard title="Scholarship Disbursed" value={`$${(data?.scholarshipDisbursed || 0).toLocaleString()}`} change="Current FY" icon={Award} color="sky" />
-      </div>
-    </div>
-  );
+  if (!currentSession) return null;
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {loading ? (
-        <div className="flex justify-center p-12">
-          <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-        </div>
-      ) : error ? (
-        <div className="p-6 rounded-2xl bg-red-50 text-red-600 text-sm">Failed to load dashboard: {error}</div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-extrabold text-gray-900 dark:text-white">
-                {role.replace('_', ' ')} Dashboard
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Welcome back, {currentSession.name} • {currentSession.institutionName}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-[11px] font-mono font-bold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-                Tenant: {currentSession.tenantId}
-              </span>
-            </div>
-          </div>
-
-          {role === 'SUPER_ADMIN' && renderSuperAdmin()}
-          {role === 'INSTITUTION_ADMIN' && renderInstAdmin()}
-          {role === 'HOD' && renderHOD()}
-          {role === 'FACULTY' && renderFaculty()}
-          {role === 'STUDENT' && renderStudent()}
-          {role === 'PARENT' && renderParent()}
-          {role === 'WARDEN' && renderWarden()}
-          {role === 'ACCOUNTANT' && renderAccountant()}
-        </>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ title, value, change, icon: Icon, color }: any) {
-  return (
-    <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm flex items-center justify-between">
-      <div>
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{title}</p>
-        <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{value}</h3>
-        <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">{change}</p>
-      </div>
-      <div className={`w-12 h-12 rounded-2xl bg-${color}-50 dark:bg-${color}-950/80 text-${color}-600 dark:text-${color}-400 flex items-center justify-center shrink-0`}>
-        <Icon size={24} />
-      </div>
-    </div>
-  );
-}
-
-function TenantRow({ name, domain, users, status }: any) {
-  return (
-    <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-      <div>
-        <h4 className="font-semibold text-gray-900 dark:text-white">{name}</h4>
-        <p className="text-[10px] text-gray-500 font-mono">{domain}</p>
-      </div>
-      <div className="text-right">
-        <span className="font-bold text-gray-800 dark:text-gray-200">{users} Users</span>
-        <span className="block text-[10px] text-emerald-500 font-bold">{status}</span>
-      </div>
-    </div>
-  );
-}
-
-function LogEntry({ time, action, detail }: any) {
-  return (
-    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 flex items-start gap-3">
-      <span className="text-[10px] font-mono text-gray-400 mt-0.5">{time}</span>
-      <div>
-        <h4 className="font-bold text-gray-800 dark:text-gray-200">{action}</h4>
-        <p className="text-gray-500">{detail}</p>
-      </div>
-    </div>
-  );
-}
-
-function ApprovalRow({ course, faculty, section, status }: any) {
-  return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-xs">
-      <div>
-        <h4 className="font-bold text-gray-900 dark:text-white">{course} ({section})</h4>
-        <p className="text-gray-500">{faculty}</p>
-      </div>
-      <button className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700">
-        {status}
-      </button>
-    </div>
-  );
-}
-
-function ClassSlot({ time, course, room, status }: any) {
-  return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 text-xs">
-      <div className="flex items-center gap-3">
-        <div className="w-2 h-8 rounded-full bg-indigo-500" />
+    <section className="space-y-6" aria-busy={loading} aria-live="polite">
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h4 className="font-bold text-gray-900 dark:text-white">{course}</h4>
-          <p className="text-gray-500">{time} • {room}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">{roleName(data?.role ?? currentSession.role)} dashboard</h1>
+          <p className="mt-1 text-sm text-text-secondary">{currentSession.institutionName}</p>
         </div>
-      </div>
-      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-        status === 'Completed' ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-600' : 'bg-amber-100 dark:bg-amber-950 text-amber-600'
-      }`}>
-        {status}
-      </span>
-    </div>
+        <button type="button" onClick={() => void loadDashboard()} disabled={loading} className="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-text-secondary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-60">
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Refresh
+        </button>
+      </header>
+
+      {loading && <DashboardSkeleton />}
+      {!loading && error && <ErrorState message={error} onRetry={loadDashboard} />}
+      {!loading && !error && data && <DashboardContent data={data} />}
+    </section>
   );
+}
+
+function DashboardContent({ data }: { data: DashboardData }) {
+  return <>
+    <section className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary"><Activity size={22} /></span><div><h2 className="font-semibold text-text-primary">Operational overview</h2><p className="mt-1 text-sm text-text-secondary">Current records available to your role.</p></div></div><div className="flex items-center gap-2 text-xs text-text-secondary"><Clock3 size={15} />Updated when you refresh</div></div>
+      {data.metrics.length > 0 ? <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">{data.metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}</div> : <EmptyDashboard />}
+    </section>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]"><ActivityPanel activity={data.activity} /><RoleSummary role={data.role} /></div>
+    <QuickAccess role={data.role} />
+  </>;
+}
+
+type QuickLink = { href: string; label: string; description: string; icon: typeof BookOpen };
+
+function QuickAccess({ role }: { role: string }) {
+  const links = getQuickLinks(role);
+  if (links.length === 0) return null;
+  return <section className="rounded-xl border border-border bg-surface p-5 shadow-sm" aria-labelledby="quick-access-title">
+    <h2 id="quick-access-title" className="text-base font-semibold text-text-primary">Quick access</h2>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {links.map(({ href, label, description, icon: Icon }) => <Link key={href} href={href} className="group flex min-h-24 items-start gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"><Icon size={20} className="mt-0.5 shrink-0 text-primary" /><span><span className="block text-sm font-semibold text-text-primary">{label}</span><span className="mt-1 block text-xs leading-5 text-text-secondary">{description}</span></span></Link>)}
+    </div>
+  </section>;
+}
+
+function getQuickLinks(role: string): QuickLink[] {
+  if (role === 'STUDENT') return [
+    { href: '/student/learning', label: 'My learning', description: 'Courses, lessons, and deadlines', icon: BookOpen },
+    { href: '/student/results', label: 'Academic results', description: 'Published grades and credits', icon: GraduationCap },
+    { href: '/attendance', label: 'Attendance', description: 'Review recorded attendance', icon: CalendarDays },
+    { href: '/fees', label: 'Fees', description: 'Invoices and payment status', icon: ReceiptText },
+  ];
+  if (role === 'FACULTY') return [
+    { href: '/learning', label: 'Teaching workspace', description: 'Courses and learning sessions', icon: BookOpen },
+    { href: '/assignments', label: 'Assignments', description: 'Review and grade submissions', icon: GraduationCap },
+    { href: '/attendance', label: 'Attendance', description: 'Run and review attendance', icon: CalendarDays },
+    { href: '/community', label: 'Community', description: 'Course discussions and notices', icon: Users },
+  ];
+  return [
+    { href: '/community', label: 'Community', description: 'Institution discussions and notices', icon: Users },
+    { href: '/assignments', label: 'Assignments', description: 'Review course assessment work', icon: BookOpen },
+    { href: '/attendance', label: 'Attendance', description: 'Review attendance records', icon: CalendarDays },
+    { href: '/dashboard', label: 'Dashboard', description: 'Refresh your operational overview', icon: ReceiptText },
+  ];
+}
+
+function MetricCard({ metric }: { metric: Metric }) {
+  const Icon = iconForMetric(metric.label);
+  return <article className="min-w-0 p-5"><div className="flex items-start justify-between gap-3"><p className="text-sm font-medium text-text-secondary">{metric.label}</p><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-primary"><Icon size={16} /></span></div><p className="mt-4 truncate text-2xl font-bold tracking-tight text-text-primary" title={String(metric.value ?? 'No data available')}>{metric.value ?? 'No data available'}</p><p className="mt-2 min-h-5 text-xs leading-5 text-text-muted">{metric.detail}</p></article>;
+}
+
+function ActivityPanel({ activity }: { activity: DashboardData['activity'] }) { return <section className="rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold text-text-primary">Recent activity</h2><p className="mt-1 text-sm text-text-secondary">Latest recorded institution events.</p>{activity.length === 0 ? <p className="mt-5 rounded-lg bg-surface-muted p-4 text-sm text-text-secondary">There is no recorded activity to show yet.</p> : <ul className="mt-4 divide-y divide-border">{activity.map((item) => <li key={item.id} className="flex items-start gap-3 py-3 text-sm"><span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" /><div className="min-w-0 flex-1"><p className="font-medium text-text-primary">{item.action}</p><p className="mt-0.5 truncate text-text-secondary">{item.entity}</p></div><time className="shrink-0 text-xs text-text-muted" dateTime={item.createdAt}>{formatActivityTime(item.createdAt)}</time></li>)}</ul>}</section>; }
+function RoleSummary({ role }: { role: string }) { const summary = role === 'STUDENT' ? 'Keep learning, attendance, results, and fees in one place.' : role === 'FACULTY' ? 'Monitor teaching activity, attendance, and grading work.' : 'Manage the institutional records assigned to your role.'; return <aside className="rounded-xl border border-border bg-surface p-5 shadow-sm"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft text-success"><ShieldCheck size={20} /></div><h2 className="mt-4 font-semibold text-text-primary">Role-aware workspace</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{summary}</p><div className="mt-5 rounded-lg border border-border bg-surface-muted p-3"><div className="flex items-center gap-2 text-sm font-medium text-text-primary"><CheckCircle2 size={16} className="text-success" />Securely scoped</div><p className="mt-1 text-xs leading-5 text-text-secondary">Only authorized records appear in this dashboard.</p></div></aside>; }
+function iconForMetric(label: string) { const lower = label.toLowerCase(); if (lower.includes('attendance') || lower.includes('session')) return CalendarDays; if (lower.includes('fee') || lower.includes('collection') || lower.includes('invoice')) return ReceiptText; if (lower.includes('student') || lower.includes('faculty') || lower.includes('user')) return Users; if (lower.includes('course') || lower.includes('submission')) return BookOpen; return Activity; }
+function formatActivityTime(value: string) { return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value)); }
+
+function DashboardSkeleton() {
+  return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Loading dashboard">
+    {[0, 1, 2, 3].map((index) => <div key={index} className="h-36 animate-pulse rounded-xl border border-border bg-surface-muted" />)}
+  </div>;
+}
+
+function EmptyDashboard() {
+  return <section className="rounded-xl border border-dashed border-border bg-surface p-10 text-center">
+    <Database className="mx-auto text-text-muted" size={28} />
+    <h2 className="mt-3 text-base font-semibold text-text-primary">No dashboard data available</h2>
+    <p className="mx-auto mt-1 max-w-md text-sm text-text-secondary">Your role has no published dashboard metrics yet. Use the navigation to access the modules available to you.</p>
+  </section>;
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => Promise<void> }) {
+  return <section className="rounded-xl border border-danger/30 bg-danger-soft p-5" role="alert">
+    <div className="flex gap-3"><AlertCircle className="shrink-0 text-danger" size={20} /><div><h2 className="font-semibold text-text-primary">Unable to load dashboard</h2><p className="mt-1 text-sm text-text-secondary">{message}</p><button type="button" onClick={() => void onRetry()} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">Try again <ArrowRight size={15} /></button></div></div>
+  </section>;
+}
+
+function isDashboardData(value: unknown): value is DashboardData {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<DashboardData>;
+  return typeof candidate.role === 'string' && Array.isArray(candidate.metrics) && Array.isArray(candidate.activity);
 }

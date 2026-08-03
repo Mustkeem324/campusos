@@ -1,158 +1,171 @@
 import { NextResponse } from 'next/server';
+import { RoleType } from '@prisma/client';
 import { requireTenantContext } from '../../../lib/tenant-context';
+import { prisma } from '../../../lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  try {
-    const { db, role, tenantId, session, userId } = await requireTenantContext();
+type Metric = { label: string; value: string | number | null; detail: string };
+type DashboardPayload = {
+  role: RoleType;
+  metrics: Metric[];
+  activity: Array<{ id: string; action: string; entity: string; createdAt: string }>;
+};
 
-    let data: any = {};
+const formatCurrency = (amount: number | null) =>
+  amount === null ? null : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
+
+const startOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const attendancePercentage = (records: Array<{ status: string }>) => {
+  if (records.length === 0) return null;
+  const attended = records.filter(({ status }) => status !== 'ABSENT').length;
+  return Math.round((attended / records.length) * 100);
+};
+
+export async function GET() {
+  try {
+    const { db, role, tenantId, session } = await requireTenantContext();
+    const metrics: Metric[] = [];
+    let activity: DashboardPayload['activity'] = [];
 
     if (role === 'SUPER_ADMIN') {
-      const activeInstitutions = await db.institution.count({ where: { status: 'ACTIVE' } });
-      const totalUsers = await db.user.count();
-      const recentAudits = await db.auditLog.findMany({
-        take: 3,
-        orderBy: { createdAt: 'desc' },
-      });
-      data = {
-        activeInstitutions,
-        totalUsers,
-        recentAudits,
-      };
+      const [activeInstitutions, totalUsers, audits] = await Promise.all([
+        prisma.institution.count({ where: { status: 'ACTIVE' } }),
+        prisma.user.count(),
+        prisma.auditLog.findMany({ take: 5, orderBy: { createdAt: 'desc' }, select: { id: true, action: true, entity: true, createdAt: true } }),
+      ]);
+      metrics.push(
+        { label: 'Active institutions', value: activeInstitutions, detail: 'Current platform tenants' },
+        { label: 'Platform users', value: totalUsers, detail: 'Active and inactive accounts' },
+      );
+      activity = audits.map((audit) => ({ ...audit, createdAt: audit.createdAt.toISOString() }));
     } else if (role === 'INSTITUTION_ADMIN') {
-      const students = await db.user.count({ where: { role: 'STUDENT', tenantId } });
-      const faculty = await db.user.count({ where: { role: 'FACULTY', tenantId } });
-      const courses = await db.course.count({ where: { department: { institution: { id: tenantId } } } });
-      
-      const payments = await db.payment.aggregate({
-        _sum: { amount: true },
-        where: { tenantId, status: 'PAID' }
-      });
-      const termFeeCollection = payments._sum.amount || 0;
-
-      data = { students, faculty, courses, termFeeCollection };
+      const [students, faculty, courses, paid] = await Promise.all([
+        db.user.count({ where: { role: 'STUDENT', tenantId } }),
+        db.user.count({ where: { role: 'FACULTY', tenantId } }),
+        db.course.count({ where: { department: { institution: { id: tenantId } } } }),
+        db.payment.aggregate({ _sum: { amount: true }, where: { status: 'PAID' } }),
+      ]);
+      metrics.push(
+        { label: 'Students enrolled', value: students, detail: 'Student accounts in this institution' },
+        { label: 'Faculty', value: faculty, detail: 'Faculty accounts in this institution' },
+        { label: 'Course offerings', value: courses, detail: 'Courses configured for this institution' },
+        { label: 'Fee collection', value: formatCurrency(paid._sum.amount), detail: 'Recorded paid payments' },
+      );
     } else if (role === 'HOD') {
-      // Find the user's department
-      const user = await db.user.findUnique({
-        where: { id: session.userId },
-        include: { staffProfile: true }
-      });
-      const deptId = user?.staffProfile.departmentId;
-      
-      const coursesOffered = deptId ? await db.course.count({ where: { departmentId: deptId } }) : 0;
-      
-      let facultyWorkloadAvg = '0 hrs/wk';
-      if (deptId) {
-        const staffInDept = await db.staff.count({ where: { departmentId: deptId } });
-        const courses = await db.courseOffering.count({ where: { course: { departmentId: deptId } } });
-        const workload = staffInDept > 0 ? (courses * 3 / staffInDept).toFixed(1) : 0;
-        facultyWorkloadAvg = `${workload} hrs/wk`;
-      }
-      
-      const defaulterAttendance = 0;
-      data = { coursesOffered, facultyWorkloadAvg, defaulterAttendance };
+      const staff = await db.staff.findUnique({ where: { userId: session.userId }, select: { departmentId: true } });
+      const [courses, faculty] = staff?.departmentId
+        ? await Promise.all([
+            db.course.count({ where: { departmentId: staff.departmentId } }),
+            db.staff.count({ where: { departmentId: staff.departmentId } }),
+          ])
+        : [null, null];
+      metrics.push(
+        { label: 'Department courses', value: courses, detail: 'Courses in your assigned department' },
+        { label: 'Department faculty', value: faculty, detail: 'Staff assigned to your department' },
+      );
     } else if (role === 'FACULTY') {
-      const facultyStaff = await db.staff.findUnique({ where: { userId: session.userId } });
-      const todayClasses = facultyStaff ? await db.attendanceSession.count({
-        where: { tenantId, courseOffering: { facultyId: facultyStaff.id } }
-      }) : 0;
-      const attendanceMarked = todayClasses > 0 ? 100 : 0;
-      const assignmentsToGrade = facultyStaff ? await db.submission.count({
-        where: { tenantId, assignment: { courseOffering: { facultyId: facultyStaff.id } }, marksObtained: null }
-      }) : 0;
-      const openStudentDoubts = await db.ticket.count({ where: { tenantId, status: 'OPEN' } });
-      data = { todayClasses, attendanceMarked, assignmentsToGrade, openStudentDoubts };
+      const staff = await db.staff.findUnique({ where: { userId: session.userId }, select: { id: true } });
+      const dayStart = startOfToday();
+      const tomorrow = new Date(dayStart);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const [todaySessions, submissions] = staff
+        ? await Promise.all([
+            db.attendanceSession.count({ where: { courseOffering: { facultyId: staff.id }, sessionDate: { gte: dayStart, lt: tomorrow } } }),
+            db.submission.count({ where: { assignment: { courseOffering: { facultyId: staff.id } }, marksObtained: null } }),
+          ])
+        : [null, null];
+      metrics.push(
+        { label: 'Attendance sessions today', value: todaySessions, detail: 'Sessions assigned to you today' },
+        { label: 'Submissions awaiting grading', value: submissions, detail: 'Unmarked submissions in your courses' },
+      );
     } else if (role === 'STUDENT') {
-      const studentData = await db.student.findUnique({ where: { userId: session.userId } });
-      const cgpa = studentData?.cgpa || 0;
-      const enrolledCredits = studentData?.creditsEarned || 0;
-      
-      const attendanceRecords = await db.attendanceRecord.findMany({
-        where: { tenantId, studentId: studentData?.id || '' }
-      });
-      const presentCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
-      const attendanceHealth = attendanceRecords.length > 0 ? Math.round((presentCount / attendanceRecords.length) * 100) : 100;
-      
-      const pendingInvoices = await db.invoice.aggregate({
-        _sum: { amount: true },
-        where: { tenantId, student: { userId: session.userId }, status: 'PENDING' }
-      });
-      const feeDuesPending = pendingInvoices._sum.amount || 0;
-      data = { cgpa, attendanceHealth, enrolledCredits, feeDuesPending };
+      const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true, cgpa: true, creditsEarned: true } });
+      const [records, invoices] = student
+        ? await Promise.all([
+            db.attendanceRecord.findMany({ where: { studentId: student.id }, select: { status: true } }),
+            db.invoice.aggregate({ _sum: { amount: true }, where: { studentId: student.id, status: { in: ['PENDING', 'PARTIAL'] } } }),
+          ])
+        : [[], { _sum: { amount: null } }];
+      metrics.push(
+        { label: 'Current CGPA', value: student?.cgpa ?? null, detail: 'Published academic record' },
+        { label: 'Attendance', value: attendancePercentage(records) === null ? null : `${attendancePercentage(records)}%`, detail: 'Recorded attendance only' },
+        { label: 'Credits earned', value: student?.creditsEarned ?? null, detail: 'Published academic record' },
+        { label: 'Outstanding fees', value: formatCurrency(invoices._sum.amount), detail: 'Pending or partial invoices' },
+      );
     } else if (role === 'PARENT') {
-      const parentUser = await db.user.findUnique({ 
-        where: { id: session.userId }, 
-        include: { guardianProfile: { include: { students: true } } } 
-      });
-      const child = parentUser?.guardianProfile.students[0];
-      
-      let childAttendance = 100;
-      let latestTermGrade = 0;
-      let upcomingFeeDue = 0;
-      
-      if (child) {
-        latestTermGrade = child.cgpa;
-        const records = await db.attendanceRecord.findMany({ where: { studentId: child.id } });
-        const present = records.filter(r => r.status === 'PRESENT').length;
-        childAttendance = records.length > 0 ? Math.round((present / records.length) * 100) : 100;
-        
-        const invoices = await db.invoice.aggregate({
-           _sum: { amount: true },
-           where: { studentId: child.id, status: 'PENDING' }
-        });
-        upcomingFeeDue = invoices._sum.amount || 0;
-      }
-      data = { childAttendance, latestTermGrade, upcomingFeeDue };
+      const guardian = await db.guardian.findFirst({ where: { userId: session.userId }, include: { students: { take: 1, select: { id: true, cgpa: true } } } });
+      const child = guardian?.students[0];
+      const [records, invoices] = child
+        ? await Promise.all([
+            db.attendanceRecord.findMany({ where: { studentId: child.id }, select: { status: true } }),
+            db.invoice.aggregate({ _sum: { amount: true }, where: { studentId: child.id, status: { in: ['PENDING', 'PARTIAL'] } } }),
+          ])
+        : [[], { _sum: { amount: null } }];
+      metrics.push(
+        { label: 'Linked student attendance', value: attendancePercentage(records) === null ? null : `${attendancePercentage(records)}%`, detail: 'Recorded attendance for linked student' },
+        { label: 'Current CGPA', value: child?.cgpa ?? null, detail: 'Published academic record' },
+        { label: 'Outstanding fees', value: formatCurrency(invoices._sum.amount), detail: 'Pending or partial invoices' },
+      );
     } else if (role === 'WARDEN') {
-      const totalHostelRooms = await db.roomHostel.count({ where: { hostel: { tenantId } } });
-      
-      const totalCapacityAgg = await db.roomHostel.aggregate({
-        _sum: { capacity: true },
-        where: { hostel: { tenantId } }
-      });
-      const totalCapacity = totalCapacityAgg._sum.capacity || 1;
-      
-      const totalAllocations = await db.allocation.count({
-        where: { roomHostel: { hostel: { tenantId } } }
-      });
-      
-      const occupancyRate = Math.round((totalAllocations / totalCapacity) * 100);
-      const studentsOutOfCampus = 0;
-      
-      const openComplaints = await db.ticket.count({
-        where: { tenantId, status: 'OPEN' }
-      });
-      
-      data = { totalHostelRooms, occupancyRate, studentsOutOfCampus, openComplaints };
-    } else if (role === 'ACCOUNTANT') {
-      const todaysCollections = await db.payment.aggregate({
-        _sum: { amount: true },
-        where: { tenantId, status: 'PAID' } // assuming PaymentStatus has PAID
-      });
-      
-      const pendingInvoices = await db.invoice.aggregate({
-        _sum: { amount: true },
-        where: { tenantId, status: 'PENDING' }
-      });
-      
-      const scholarships = await db.scholarship.aggregate({
-        _sum: { discountPct: true },
-        where: { tenantId }
-      });
-
-      data = { 
-        todaysCollections: todaysCollections._sum.amount || 0, 
-        totalDuesPending: pendingInvoices._sum.amount || 0, 
-        reconciledWebhooks: 100, 
-        scholarshipDisbursed: scholarships._sum.discountPct || 0 
-      };
+      const [rooms, capacity, allocations, openTickets] = await Promise.all([
+        db.roomHostel.count({ where: { hostel: { tenantId } } }),
+        db.roomHostel.aggregate({ _sum: { capacity: true }, where: { hostel: { tenantId } } }),
+        db.allocation.count({ where: { roomHostel: { hostel: { tenantId } } } }),
+        db.ticket.count({ where: { status: 'OPEN' } }),
+      ]);
+      const occupancy = capacity._sum.capacity && capacity._sum.capacity > 0 ? Math.round((allocations / capacity._sum.capacity) * 100) : null;
+      metrics.push(
+        { label: 'Hostel rooms', value: rooms, detail: 'Configured rooms in this institution' },
+        { label: 'Occupancy', value: occupancy === null ? null : `${occupancy}%`, detail: 'Allocated beds against configured capacity' },
+        { label: 'Open service requests', value: openTickets, detail: 'Institution tickets currently open' },
+      );
+    } else if (role === 'ACCOUNTANT' || role === 'FINANCE_OFFICER') {
+      const dayStart = startOfToday();
+      const [todayPayments, outstandingInvoices, scholarshipCount] = await Promise.all([
+        db.payment.aggregate({ _sum: { amount: true }, where: { status: 'PAID', paidAt: { gte: dayStart } } }),
+        db.invoice.aggregate({ _sum: { amount: true }, where: { status: { in: ['PENDING', 'PARTIAL'] } } }),
+        db.scholarship.count(),
+      ]);
+      metrics.push(
+        { label: "Today's collections", value: formatCurrency(todayPayments._sum.amount), detail: 'Paid payments recorded today' },
+        { label: 'Outstanding invoices', value: formatCurrency(outstandingInvoices._sum.amount), detail: 'Pending or partial invoice value' },
+        { label: 'Scholarship schemes', value: scholarshipCount, detail: 'Scholarship schemes configured' },
+      );
+    } else {
+      // Every authenticated role should receive real institutional context rather
+      // than an empty dashboard. Detailed metrics remain limited to roles with
+      // an explicitly scoped operational view above.
+      const [users, offerings, notices] = await Promise.all([
+        db.user.count(),
+        db.courseOffering.count(),
+        db.notice.count(),
+      ]);
+      metrics.push(
+        { label: 'Institution users', value: users, detail: 'Accounts in your institution' },
+        { label: 'Course offerings', value: offerings, detail: 'Offerings available in your institution' },
+        { label: 'Institution notices', value: notices, detail: 'Notices available in your institution' },
+      );
     }
 
-    return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('[Dashboard API Error]', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (activity.length === 0) {
+      const audits = await db.auditLog.findMany({
+        take: 6,
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, action: true, entity: true, createdAt: true },
+      });
+      activity = audits.map((audit) => ({ ...audit, createdAt: audit.createdAt.toISOString() }));
+    }
+
+    return NextResponse.json({ role, metrics, activity } satisfies DashboardPayload);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unable to load dashboard data';
+    const status = message.startsWith('Unauthorized') ? 401 : 500;
+    return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Unable to load dashboard data' }, { status });
   }
 }

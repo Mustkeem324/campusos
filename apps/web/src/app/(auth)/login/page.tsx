@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Eye, EyeOff, AlertCircle, CheckCircle2, Building, ShieldCheck, HeadphonesIcon } from 'lucide-react';
+import { Loader2, Eye, EyeOff, AlertCircle, CheckCircle2, Building, ShieldCheck, HeadphonesIcon, Users, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { useAuthStore } from '../../../lib/auth-store';
 
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
   
   const router = useRouter();
   const { setSession } = useAuthStore();
@@ -47,6 +48,32 @@ export default function LoginPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async (persona: string) => {
+    setError('');
+    setDemoLoading(persona);
+
+    try {
+      const res = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Demo login is temporarily unavailable. Please try again.');
+      }
+
+      setSession(data.user);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setDemoLoading(null);
     }
   };
 
@@ -142,38 +169,119 @@ export default function LoginPage() {
             <p className="text-gray-600">Please enter your credentials to access your account.</p>
           </div>
 
-          {/* Demo Login Buttons */}
-          <div className="mb-8">
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Quick Demo Login</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <button 
-                type="button" 
-                onClick={() => { setEmail('admin@campusos.com'); setPassword('demo123'); }}
-                className="py-1.5 px-2 text-xs font-semibold bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded border border-gray-200 transition-colors"
-              >
-                Admin
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { setEmail('faculty@campusos.com'); setPassword('demo123'); }}
-                className="py-1.5 px-2 text-xs font-semibold bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded border border-gray-200 transition-colors"
-              >
-                Faculty
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { setEmail('student@campusos.com'); setPassword('demo123'); }}
-                className="py-1.5 px-2 text-xs font-semibold bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded border border-gray-200 transition-colors"
-              >
-                Student
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { setEmail('parent@campusos.com'); setPassword('demo123'); }}
-                className="py-1.5 px-2 text-xs font-semibold bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 rounded border border-gray-200 transition-colors"
-              >
-                Parent
-              </button>
+          {/* Demo Login Cards */}
+          <div className="mb-10 w-full">
+            <div className="mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Quick Demo Login</h3>
+              <p className="text-sm text-gray-600 mt-1">Explore CampusOS using a fictional demonstration institution. Select a role to open its complete workspace.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* ADMIN */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 leading-tight">Admin</h4>
+                    <p className="text-xs text-gray-500 font-medium">Aarav Mehta</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-mono mb-2 truncate" title="admin.demo@campusos.local">admin.demo@campusos.local</p>
+                <p className="text-xs text-gray-600 mb-4 flex-grow">Explore institution management, academics, finance, operations, users and reports.</p>
+                <button 
+                  type="button" 
+                  disabled={demoLoading !== null}
+                  onClick={() => handleDemoLogin('ADMIN')}
+                  className="w-full py-2.5 px-4 text-sm font-bold bg-gray-50 hover:bg-gray-100 text-gray-900 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {demoLoading === 'ADMIN' ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Opening Admin workspace...</>
+                  ) : 'Continue as Admin'}
+                </button>
+              </div>
+
+              {/* FACULTY */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 leading-tight">Faculty</h4>
+                    <p className="text-xs text-gray-500 font-medium">Dr. Priya Sharma</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-mono mb-2 truncate" title="faculty.demo@campusos.local">faculty.demo@campusos.local</p>
+                <p className="text-xs text-gray-600 mb-4 flex-grow">Explore courses, timetable, attendance, assignments, grading and student progress.</p>
+                <button 
+                  type="button" 
+                  disabled={demoLoading !== null}
+                  onClick={() => handleDemoLogin('FACULTY')}
+                  className="w-full py-2.5 px-4 text-sm font-bold bg-gray-50 hover:bg-gray-100 text-gray-900 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {demoLoading === 'FACULTY' ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Opening Faculty workspace...</>
+                  ) : 'Continue as Faculty'}
+                </button>
+              </div>
+
+              {/* STUDENT */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Building className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 leading-tight">Student</h4>
+                    <p className="text-xs text-gray-500 font-medium">Rohan Verma</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-mono mb-2 truncate" title="student.demo@campusos.local">student.demo@campusos.local</p>
+                <p className="text-xs text-gray-600 mb-4 flex-grow">Explore learning, attendance, timetable, assignments, results, fees and services.</p>
+                <button 
+                  type="button" 
+                  disabled={demoLoading !== null}
+                  onClick={() => handleDemoLogin('STUDENT')}
+                  className="w-full py-2.5 px-4 text-sm font-bold bg-gray-50 hover:bg-gray-100 text-gray-900 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {demoLoading === 'STUDENT' ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Opening Student workspace...</>
+                  ) : 'Continue as Student'}
+                </button>
+              </div>
+
+              {/* PARENT */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col h-full">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 leading-tight">Parent</h4>
+                    <p className="text-xs text-gray-500 font-medium">Anita Verma</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 font-mono mb-2 truncate" title="parent.demo@campusos.local">parent.demo@campusos.local</p>
+                <p className="text-xs text-gray-600 mb-4 flex-grow">Explore linked-student attendance, fees, results, notices and academic progress.</p>
+                <button 
+                  type="button" 
+                  disabled={demoLoading !== null}
+                  onClick={() => handleDemoLogin('PARENT')}
+                  className="w-full py-2.5 px-4 text-sm font-bold bg-gray-50 hover:bg-gray-100 text-gray-900 rounded-lg border border-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  {demoLoading === 'PARENT' ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Opening Parent workspace...</>
+                  ) : 'Continue as Parent'}
+                </button>
+              </div>
+            </div>
+            
+            <div className="mt-8 flex items-center justify-center">
+              <div className="h-px bg-gray-200 flex-grow"></div>
+              <span className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Or sign in manually</span>
+              <div className="h-px bg-gray-200 flex-grow"></div>
             </div>
           </div>
 

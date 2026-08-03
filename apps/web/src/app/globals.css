@@ -84,6 +84,11 @@
     --card-border: var(--border);
   }
 
+  html {
+    min-width: 320px;
+    background-color: var(--bg-app);
+  }
+
   body {
     background-color: var(--bg-app);
     color: var(--text-primary);
@@ -130,7 +135,35 @@
 
 /* ── Prevent body horizontal overflow ── */
 html, body {
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* Mobile app shell: navigation becomes an off-canvas dialog rather than
+   consuming the small viewport beside the content. */
+@media (max-width: 767px) {
+  .app-header {
+    left: 0 !important;
+    padding-top: env(safe-area-inset-top);
+    height: calc(var(--header-h) + env(safe-area-inset-top)) !important;
+  }
+
+  .dashboard-main {
+    margin-left: 0 !important;
+    padding-top: calc(var(--layout-top) + env(safe-area-inset-top) + 16px) !important;
+  }
+
+  .app-sidebar {
+    width: min(86vw, 320px) !important;
+  }
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ── Reduced motion ── */

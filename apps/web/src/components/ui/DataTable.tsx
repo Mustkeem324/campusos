@@ -49,11 +49,11 @@ export function DataTable<T>({
       )}
 
       <div className="overflow-x-auto w-full">
-        <table className="w-full text-left text-sm">
+        <table className="min-w-[640px] w-full text-left text-sm">
           <thead className="bg-surface-muted text-text-secondary text-xs uppercase font-semibold">
             <tr>
               {columns.map((col, idx) => (
-                <th key={idx} className={`px-6 py-4 text-${col.align || 'left'}`}>
+                <th key={idx} className={`px-3 py-3 sm:px-6 sm:py-4 text-${col.align || 'left'}`}>
                   {col.header}
                 </th>
               ))}
@@ -85,7 +85,7 @@ export function DataTable<T>({
               data.map((item, rowIdx) => (
                 <tr key={keyExtractor(item)} className="hover:bg-surface-muted/50 transition">
                   {columns.map((col, colIdx) => (
-                    <td key={colIdx} className={`px-6 py-4 text-${col.align || 'left'}`}>
+                    <td key={colIdx} className={`px-3 py-3 sm:px-6 sm:py-4 text-${col.align || 'left'}`}>
                       {col.render ? col.render(item) : String(item[col.key as keyof T] || '')}
                     </td>
                   ))}
