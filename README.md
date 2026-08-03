@@ -20,6 +20,17 @@ Redesigned public landing pages and authentication flows. Real-time state persis
 
 ---
 
+## 🔑 Quick Demo Login Credentials
+
+You can test the live dashboard using these pre-seeded demo accounts. The login portal (`/login`) includes quick-fill buttons, or you can manually enter the following:
+
+- **Admin Account**: `admin@campusos.com` | Password: `demo123`
+- **Faculty Account**: `faculty@campusos.com` | Password: `demo123`
+- **Student Account**: `student@campusos.com` | Password: `demo123`
+- **Parent Account**: `parent@campusos.com` | Password: `demo123`
+
+---
+
 ## 🏛️ Platform Overview
 
 **CampusOS** is a multi-tenant higher education ERP platform built to manage modern university systems. Built on Next.js 14 App Router, React 19, TypeScript, PostgreSQL Row Level Security (RLS), Redis, and BullMQ, CampusOS orchestrates every dimension of institutional governance across **20 Sequential Implementation Phases**.
