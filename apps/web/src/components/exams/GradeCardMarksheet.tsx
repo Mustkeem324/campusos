@@ -12,7 +12,7 @@ export function GradeCardMarksheet() {
       {/* Official Letterhead */}
       <div className="flex items-center justify-between border-b-2 border-indigo-600 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl gradient-glow flex items-center justify-center text-white font-extrabold text-xl shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-extrabold text-xl shadow-lg">
             C
           </div>
           <div>

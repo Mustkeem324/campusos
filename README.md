@@ -10,6 +10,16 @@
 
 ---
 
+## 🚀 Recent Major Updates
+
+**1. The CampusOS Blueprint Architecture Portal**  
+A premium, interactive technical deep-dive available at `/blueprint`. It details the 15 core architectural systems, compliance matrices (India/US/Global), AI governance principles, and multitenancy infrastructure mapping in a beautiful, gradient-free, accessible enterprise UI.
+
+**2. Unified Authentication & Public Experience**  
+Redesigned public landing pages and authentication flows. Real-time state persistence using `zustand/middleware` ensures immediate role-based dashboard delivery post-login. The dashboard is protected and isolated by Next.js app routing logic and strictly typed schemas.
+
+---
+
 ## 🏛️ Platform Overview
 
 **CampusOS** is a multi-tenant higher education ERP platform built to manage modern university systems. Built on Next.js 14 App Router, React 19, TypeScript, PostgreSQL Row Level Security (RLS), Redis, and BullMQ, CampusOS orchestrates every dimension of institutional governance across **20 Sequential Implementation Phases**.

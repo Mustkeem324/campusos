@@ -16,10 +16,43 @@ module.exports = {
           900: 'hsl(var(--brand-900))',
         },
         surface: {
-          light: '#f8fafc',
-          dark: '#0f172a',
-          cardLight: '#ffffff',
-          cardDark: '#1e293b',
+          light: 'var(--surface)',
+          dark: 'var(--surface)',
+          muted: 'var(--surface-muted)',
+          cardLight: 'var(--card-bg)',
+          cardDark: 'var(--card-bg)',
+          DEFAULT: 'var(--surface)',
+        },
+        app: 'var(--bg-app)',
+        primary: {
+          DEFAULT: 'var(--primary)',
+          hover: 'var(--primary-hover)',
+          soft: 'var(--primary-soft)',
+        },
+        navy: 'var(--navy)',
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+        },
+        border: {
+          DEFAULT: 'var(--border)',
+          strong: 'var(--border-strong)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          soft: 'var(--success-soft)',
+        },
+        warning: {
+          DEFAULT: 'var(--warning)',
+          soft: 'var(--warning-soft)',
+        },
+        danger: {
+          DEFAULT: 'var(--danger)',
+          soft: 'var(--danger-soft)',
+        },
+        info: {
+          soft: 'var(--info-soft)',
         }
       },
       borderRadius: {

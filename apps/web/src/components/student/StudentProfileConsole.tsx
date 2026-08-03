@@ -86,7 +86,7 @@ export function StudentProfileConsole() {
   return (
     <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl space-y-6">
       {/* Student Profile Top Hero Banner */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white shadow-2xl space-y-4">
+      <div className="p-6 rounded-2xl bg-primary text-white shadow-2xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white font-black text-3xl border-2 border-indigo-400 shadow-inner">

@@ -32,7 +32,7 @@ export function RegistrationConsole() {
   return (
     <div className="p-6 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-xl space-y-6">
       {/* Registration Banner */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg">
+      <div className="flex items-center justify-between p-4 rounded-xl bg-primary text-white shadow-lg">
         <div>
           <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-indigo-200">
             Real-Time Course Registration Engine

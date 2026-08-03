@@ -73,7 +73,7 @@ export function LMSWorkspace() {
 
       {activeTab === 'GRADEBOOK' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between shadow-lg">
+          <div className="p-4 rounded-xl bg-primary text-white flex items-center justify-between shadow-lg">
             <div>
               <span className="text-[10px] uppercase font-bold text-indigo-200">Interactive Grade Calculator</span>
               <h3 className="text-lg font-extrabold">Estimated Final Score: {gradeAnalysis.finalPercentage}%</h3>

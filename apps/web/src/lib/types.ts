@@ -1,14 +1,8 @@
 import { z } from 'zod';
 
-export type UserRole =
-  | 'SUPER_ADMIN'
-  | 'INSTITUTION_ADMIN'
-  | 'HOD'
-  | 'FACULTY'
-  | 'STUDENT'
-  | 'PARENT'
-  | 'WARDEN'
-  | 'ACCOUNTANT';
+import { RoleType } from '@prisma/client';
+
+export type UserRole = RoleType;
 
 export interface UserSession {
   id: string;
@@ -39,7 +33,7 @@ export type PermissionScope = 'all' | 'institution' | 'department' | 'own_sectio
 
 export type PermissionString = `${string}:${PermissionAction}:${PermissionScope}`;
 
-export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
+export const ROLE_PERMISSIONS: Partial<Record<UserRole, PermissionString[]>> = {
   SUPER_ADMIN: ['*:manage:all'],
   INSTITUTION_ADMIN: [
     'users:manage:institution',
@@ -104,16 +98,7 @@ export const UserSchema = z.object({
   tenantId: z.string().uuid(),
   email: z.string().email(),
   name: z.string().min(2),
-  role: z.enum([
-    'SUPER_ADMIN',
-    'INSTITUTION_ADMIN',
-    'HOD',
-    'FACULTY',
-    'STUDENT',
-    'PARENT',
-    'WARDEN',
-    'ACCOUNTANT'
-  ]),
+  role: z.nativeEnum(RoleType),
   isActive: z.boolean().default(true),
   createdAt: z.date(),
   updatedAt: z.date()

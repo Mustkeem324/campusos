@@ -1,0 +1,3 @@
+import type { MetadataRoute } from 'next';
+import { guides } from '@/components/public/site-data';
+export default function sitemap(): MetadataRoute.Sitemap { const base = 'https://campusos.example'; const paths = ['/', '/platform', '/solutions', '/roles', '/resources', '/resources/guides', '/security', '/pricing', '/trust', '/integrations', '/developers', '/partners', '/status']; return [...paths.map(url => ({ url: base + url, lastModified: new Date(), changeFrequency: 'weekly' as const, priority: url === '/' ? 1 : .7 })), ...guides.map(g => ({ url: `${base}/resources/guides/${g.slug}`, lastModified: new Date(g.date), changeFrequency: 'monthly' as const, priority: .6 }))]; }

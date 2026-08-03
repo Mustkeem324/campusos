@@ -6,30 +6,82 @@
   :root {
     --brand-50: 238 100% 97%;
     --brand-100: 236 100% 94%;
-    --brand-500: 239 84% 67%;
-    --brand-600: 243 75% 59%;
+    --brand-500: 228 83% 50%; /* #1646E8 */
+    --brand-600: 226 84% 42%; /* #1039C8 */
     --brand-700: 244 55% 41%;
-    --brand-900: 242 47% 19%;
+    --brand-900: 221 51% 16%; /* #14213D */
 
-    --bg-app: #f8fafc;
-    --text-primary: #0f172a;
-    --text-secondary: #64748b;
-    --card-bg: #ffffff;
-    --card-border: #e2e8f0;
+    --bg-app: #f7f9fc;
+    --surface: #ffffff;
+    --surface-muted: #f3f6fa;
+    --primary: #1646e8;
+    --primary-hover: #1039c8;
+    --primary-soft: #eef3ff;
+    --navy: #14213d;
+    --text-primary: #172033;
+    --text-secondary: #667085;
+    --text-muted: #98a2b3;
+    --border: #e3e8ef;
+    --border-strong: #d0d5dd;
+    --success: #078a57;
+    --success-soft: #e8f8f1;
+    --warning: #e56a00;
+    --warning-soft: #fff3e8;
+    --danger: #e5484d;
+    --danger-soft: #fdebec;
+    --info-soft: #eaf0ff;
+
+    --card-bg: var(--surface);
+    --card-border: var(--border);
+
+    /* ── Layout coordination tokens ── */
+    --impersonation-bar-h: 0px;
+    --header-h: 60px;
+    --sidebar-w: 230px;
+    --sidebar-collapsed-w: 72px;
+    --layout-top: calc(var(--impersonation-bar-h) + var(--header-h));
+    --content-max-w: 1600px;
+
+    /* ── Z-index scale ── */
+    --z-sticky-table: 10;
+    --z-sidebar: 30;
+    --z-header: 40;
+    --z-impersonation: 50;
+    --z-dropdown: 60;
+    --z-drawer: 70;
+    --z-modal: 80;
+    --z-toast: 90;
   }
 
   .dark {
     --brand-50: 242 47% 19%;
     --brand-100: 244 55% 25%;
-    --brand-500: 239 84% 67%;
-    --brand-600: 243 75% 65%;
+    --brand-500: 228 83% 65%;
+    --brand-600: 226 84% 75%;
     --brand-700: 238 100% 80%;
 
     --bg-app: #090d16;
+    --surface: #111827;
+    --surface-muted: #1f2937;
+    --primary: #3b82f6;
+    --primary-hover: #60a5fa;
+    --primary-soft: rgba(59, 130, 246, 0.1);
+    --navy: #f8fafc;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --card-bg: #111827;
-    --card-border: #1f2937;
+    --text-muted: #64748b;
+    --border: #334155;
+    --border-strong: #475569;
+    --success: #10b981;
+    --success-soft: rgba(16, 185, 129, 0.1);
+    --warning: #f59e0b;
+    --warning-soft: rgba(245, 158, 11, 0.1);
+    --danger: #ef4444;
+    --danger-soft: rgba(239, 68, 68, 0.1);
+    --info-soft: rgba(59, 130, 246, 0.1);
+
+    --card-bg: var(--surface);
+    --card-border: var(--border);
   }
 
   body {
@@ -39,21 +91,6 @@
   }
 }
 
-.glass-panel {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.dark .glass-panel {
-  background: rgba(17, 24, 39, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.gradient-glow {
-  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-}
 
 .animate-fade-in {
   animation: fadeIn 0.3s ease-in-out forwards;
@@ -67,5 +104,40 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ── Impersonation-aware layout ── */
+.impersonation-active {
+  --impersonation-bar-h: 40px;
+}
+
+/* ── Sidebar scrollbar ── */
+.sidebar-nav-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+.sidebar-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ── Prevent body horizontal overflow ── */
+html, body {
+  overflow-x: hidden;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

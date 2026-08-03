@@ -1,0 +1,32 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+import { getSessionFromCookies } from '@/lib/auth';
+import { CommunityChatService } from '@/lib/community-chat-service';
+import { z } from 'zod';
+
+export const dynamic = 'force-dynamic';
+
+const reportSchema = z.object({
+  reason: z.enum(['SEXUAL_CONTENT', 'HARASSMENT', 'BULLYING', 'HATE_DISCRIMINATION', 'THREAT', 'VIOLENCE', 'SPAM', 'SCAM', 'PRIVACY_VIOLATION', 'IMPERSONATION', 'ACADEMIC_CHEATING', 'COPYRIGHT_VIOLATION', 'INAPPROPRIATE_FILE', 'OTHER']),
+  description: z.string().max(1000).optional(),
+});
+
+export async function POST(request: Request, { params }: { params: { messageId: string } }) {
+  try {
+    const session = await getSessionFromCookies();
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const body = await request.json();
+    const validated = reportSchema.parse(body);
+    const service = new CommunityChatService(prisma);
+    const result = await service.reportMessage(
+      { userId: session.userId, tenantId: session.tenantId, role: session.role },
+      params.messageId, validated.reason, validated.description
+    );
+    if (!result.success) return NextResponse.json({ error: result.error }, { status: 400 });
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation Error' }, { status: 400 });
+    console.error('[CHAT_REPORT]', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

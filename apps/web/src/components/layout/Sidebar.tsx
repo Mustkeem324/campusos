@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { useAuthStore } from '../../lib/auth-store';
 import {
   LayoutDashboard,
@@ -11,19 +12,26 @@ import {
   FileText,
   DollarSign,
   Building2,
-  Bell,
   Users,
   Shield,
   UserCheck,
-  ChevronLeft,
-  ChevronRight,
   User,
   MessageSquare,
   HelpCircle,
   MessageCircle,
   Library,
-  Sparkles,
   Video,
+  CreditCard,
+  Globe,
+  Award,
+  Database,
+  Scale,
+  Leaf,
+  Brain,
+  Bus,
+  Settings,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 
 interface NavItem {
@@ -33,205 +41,233 @@ interface NavItem {
   badge?: string;
 }
 
-interface SidebarProps {
-  activeTab?: string;
-  onSelectTab?: (tabId: string) => void;
+interface NavGroup {
+  label: string;
+  items: NavItem[];
 }
 
-export function Sidebar({ activeTab = 'dashboard', onSelectTab }: SidebarProps) {
+export function Sidebar() {
   const { currentSession, isSidebarCollapsed, toggleSidebar } = useAuthStore();
+  const pathname = usePathname();
 
-  const getRoleNavItems = (): NavItem[] => {
+  const getRoleNavGroups = (): NavGroup[] => {
     const role = currentSession.role;
 
-    // STUDENT role navigation containing all 15 user-requested modules
     if (role === 'STUDENT') {
       return [
-        { label: 'My Profile', icon: User, tabId: 'student-profile', badge: 'Active' },
-        { label: 'Digital Notice Board', icon: Bell, tabId: 'comms', badge: '3 New' },
-        { label: 'Learning Management', icon: BookOpen, tabId: 'lms' },
-        { label: 'Integrated Assignments', icon: FileText, tabId: 'lms' },
-        { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
-        { label: 'Feedbacks', icon: MessageSquare, tabId: 'feedback' },
-        { label: 'Student Services', icon: HelpCircle, tabId: 'helpdesk' },
-        { label: 'Course Registrations', icon: CheckSquare, tabId: 'registration', badge: 'Open' },
-        { label: 'Hostel', icon: Building2, tabId: 'hostel' },
-        { label: 'Discussion Forum', icon: MessageCircle, tabId: 'forum' },
-        { label: 'Payments', icon: DollarSign, tabId: 'payments' },
-        { label: 'Exam Results', icon: GraduationCap, tabId: 'marksheet' },
-        { label: 'OPAC', icon: Library, tabId: 'opac' },
-        { label: 'Updates', icon: Sparkles, tabId: 'updates' },
-        { label: 'Webinars', icon: Video, tabId: 'webinars', badge: 'Live' },
+        {
+          label: 'ACADEMICS',
+          items: [
+            { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard' },
+            { label: 'Learning (LMS)', icon: BookOpen, tabId: 'lms' },
+            { label: 'Assignments', icon: FileText, tabId: 'assignments' },
+            { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
+            { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
+            { label: 'Registration', icon: CheckSquare, tabId: 'registration' },
+            { label: 'Examinations', icon: FileText, tabId: 'examinations' },
+            { label: 'Results', icon: GraduationCap, tabId: 'results' },
+            { label: 'Microcredentials', icon: Award, tabId: 'microcredentials' },
+          ]
+        },
+        {
+          label: 'CAMPUS',
+          items: [
+            { label: 'Helpdesk', icon: HelpCircle, tabId: 'helpdesk' },
+            { label: 'Hostel', icon: Building2, tabId: 'hostel' },
+            { label: 'Library (OPAC)', icon: Library, tabId: 'opac' },
+            { label: 'Transport', icon: Bus, tabId: 'transport' },
+            { label: 'Digital ID', icon: UserCheck, tabId: 'digital-id' },
+            { label: 'Forum', icon: MessageCircle, tabId: 'forum' },
+            { label: 'Webinars', icon: Video, tabId: 'webinars' },
+          ]
+        },
+        {
+          label: 'FINANCE & ADMIN',
+          items: [
+            { label: 'Fees & Payments', icon: DollarSign, tabId: 'payments' },
+            { label: 'Scholarships', icon: Award, tabId: 'scholarships' },
+            { label: 'Receipts', icon: FileText, tabId: 'receipts' },
+            { label: 'Documents', icon: FileText, tabId: 'documents' },
+            { label: 'Profile', icon: User, tabId: 'student-profile' },
+          ]
+        }
       ];
     }
 
-    const common: NavItem[] = [
-      { label: 'Overview', icon: LayoutDashboard, tabId: 'dashboard' },
-      { label: 'Public Cert Verification', icon: Shield, tabId: 'verify-cert' },
-      { label: 'ROI Calculator', icon: DollarSign, tabId: 'roi-calc' },
-    ];
-
-    switch (role) {
-      case 'SUPER_ADMIN':
-        return [
-          ...common,
-          { label: 'Group Treasury', icon: Building2, tabId: 'group-treasury' },
-          { label: 'Prometheus Metrics', icon: Shield, tabId: 'prometheus-metrics' },
-          { label: 'Chaos Testing', icon: FileText, tabId: 'chaos-testing' },
-          { label: 'Audit Logs', icon: FileText, tabId: 'audit' },
-        ];
-
-      case 'INSTITUTION_ADMIN':
-        return [
-          ...common,
-          { label: 'Academic Setup', icon: Calendar, tabId: 'academic-setup' },
-          { label: 'SaaS Provisioning', icon: Building2, tabId: 'saas-provision' },
-          { label: 'Fee Structures', icon: DollarSign, tabId: 'fee-structures' },
-          { label: 'Audit Logs', icon: FileText, tabId: 'audit' },
-        ];
-
-      case 'HOD':
-        return [
-          ...common,
-          { label: 'Course Catalogue', icon: BookOpen, tabId: 'catalogue' },
-          { label: 'Marks Lock Approvals', icon: FileText, tabId: 'marks-lock' },
-          { label: 'Faculty Publications', icon: BookOpen, tabId: 'publications' },
-        ];
-
-      case 'FACULTY':
-        return [
-          ...common,
-          { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
-          { label: 'Mark Attendance', icon: CheckSquare, tabId: 'attendance' },
-          { label: 'LMS Workspaces', icon: BookOpen, tabId: 'lms' },
-          { label: 'Research Grants', icon: DollarSign, tabId: 'grants' },
-        ];
-
-      case 'PARENT':
-        return [
-          ...common,
-          { label: 'Student Progress', icon: GraduationCap, tabId: 'dashboard' },
-          { label: 'Attendance Feed', icon: CheckSquare, tabId: 'attendance' },
-          { label: 'Fee Payments', icon: DollarSign, tabId: 'payments' },
-          { label: 'Outpass Approvals', icon: Building2, tabId: 'hostel' },
-        ];
-
-      case 'WARDEN':
-        return [
-          ...common,
-          { label: 'Hostel Outpasses', icon: Building2, tabId: 'hostel' },
-          { label: 'Transport Tracker', icon: Building2, tabId: 'transport' },
-        ];
-
-      case 'ACCOUNTANT':
-        return [
-          ...common,
-          { label: 'Fee Structures', icon: DollarSign, tabId: 'fee-structures' },
-          { label: 'Payments Console', icon: FileText, tabId: 'payments' },
-          { label: 'Treasury Dashboard', icon: DollarSign, tabId: 'treasury' },
-        ];
-
-      default:
-        return common;
+    if (role === 'INSTITUTION_ADMIN' || role === 'SUPER_ADMIN') {
+      return [
+        {
+          label: 'ADMINISTRATION',
+          items: [
+            { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard' },
+            { label: 'Departments', icon: Building2, tabId: 'departments' },
+            { label: 'Governance', icon: Scale, tabId: 'governance' },
+            { label: 'Legal & Risk', icon: Shield, tabId: 'legal-risk' },
+            { label: 'AI Governance', icon: Brain, tabId: 'ai-governance' },
+            { label: 'Data Migration', icon: Database, tabId: 'data-migration' },
+            { label: 'Sustainability', icon: Leaf, tabId: 'sustainability' },
+            { label: 'Audit Logs', icon: FileText, tabId: 'audit' },
+          ]
+        },
+        {
+          label: 'ACADEMICS & CAMPUS',
+          items: [
+            { label: 'International', icon: Globe, tabId: 'international' },
+            { label: 'Library', icon: Library, tabId: 'opac' },
+            { label: 'Transport', icon: Bus, tabId: 'transport' },
+            { label: 'Hostel', icon: Building2, tabId: 'hostel' },
+          ]
+        },
+        {
+          label: 'SETTINGS',
+          items: [
+            { label: 'Settings', icon: Settings, tabId: 'settings' },
+          ]
+        }
+      ];
     }
+
+    // Default structure for FACULTY and others
+    return [
+      {
+        label: 'OVERVIEW',
+        items: [
+          { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard' },
+          { label: 'LMS', icon: BookOpen, tabId: 'lms' },
+          { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
+          { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
+          { label: 'Assignments', icon: FileText, tabId: 'assignments' },
+          { label: 'Examinations', icon: FileText, tabId: 'examinations' },
+          { label: 'Results', icon: GraduationCap, tabId: 'results' },
+        ]
+      },
+      {
+        label: 'SERVICES',
+        items: [
+          { label: 'Helpdesk', icon: HelpCircle, tabId: 'helpdesk' },
+          { label: 'Community Hub', icon: MessageSquare, tabId: 'community' },
+          { label: 'Settings', icon: Settings, tabId: 'settings' },
+        ]
+      }
+    ];
   };
 
-  const navItems = getRoleNavItems();
+  const navGroups = getRoleNavGroups();
+
+  // Human-readable role label for the footer
+  const roleLabel = currentSession.role
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
     <aside
-      className={`fixed top-0 left-0 bottom-0 z-30 transition-all duration-300 flex flex-col border-r bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 ${
-        isSidebarCollapsed ? 'w-20' : 'w-64'
-      }`}
+      className="fixed left-0 flex flex-col border-r bg-surface border-border transition-all duration-300"
+      style={{
+        width: isSidebarCollapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)',
+        top: 'var(--impersonation-bar-h)',
+        height: 'calc(100dvh - var(--impersonation-bar-h))',
+        zIndex: 'var(--z-sidebar)',
+      } as React.CSSProperties}
+      aria-label="Main navigation"
     >
-      {/* Brand Logo Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800">
+      {/* Brand Logo Header — same height as the app header */}
+      <div
+        className="flex items-center justify-between px-4 border-b border-border shrink-0"
+        style={{ height: 'var(--header-h)' }}
+      >
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 rounded-xl gradient-glow flex items-center justify-center text-white font-bold text-lg shadow-lg shrink-0">
+          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-bold text-lg shrink-0">
             C
           </div>
           {!isSidebarCollapsed && (
             <div className="flex flex-col">
-              <span className="font-extrabold text-base tracking-tight text-gray-900 dark:text-white">
-                Campus<span className="text-indigo-500">OS</span>
-              </span>
-              <span className="text-[10px] text-gray-400 font-medium tracking-wide uppercase">
-                Enterprise ERP
+              <span className="font-bold text-[15px] tracking-tight text-text-primary leading-tight">
+                CampusOS
               </span>
             </div>
           )}
         </div>
-        <button
-          onClick={toggleSidebar}
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-          title="Toggle Navigation"
-        >
-          {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
       </div>
 
-      {/* Institution Name Pill */}
+      {/* Institution Switcher */}
       {!isSidebarCollapsed && (
-        <div className="mx-3 my-3 p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/50">
-          <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 truncate">
-            {currentSession.institutionName}
-          </p>
-          <p className="text-[10px] text-indigo-500/80 dark:text-indigo-400/80 font-mono">
-            {currentSession.tenantId}
-          </p>
+        <div className="px-4 py-4 shrink-0">
+          <div className="p-3 rounded-lg bg-primary-soft border border-primary/20 flex items-start gap-3 cursor-pointer hover:bg-primary/10 transition">
+            <div className="w-8 h-8 rounded bg-white flex items-center justify-center text-primary font-bold text-xs shrink-0 shadow-sm">
+              UP
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-text-primary truncate">
+                {currentSession.institutionName || 'UPES University'}
+              </p>
+              <p className="text-[11px] text-text-secondary truncate">
+                Dehradun Campus
+              </p>
+            </div>
+            <ChevronDown size={14} className="text-text-secondary mt-1 shrink-0" />
+          </div>
         </div>
       )}
 
-      {/* Navigation List */}
-      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-        {navItems.map((item, idx) => {
-          const Icon = item.icon;
-          const isSelected = activeTab === item.tabId;
+      {/* Navigation List — this is the only scrollable section */}
+      <nav className="flex-1 min-h-0 px-3 py-2 overflow-y-auto sidebar-nav-scroll space-y-6" aria-label="Sidebar navigation">
+        {navGroups.map((group, groupIdx) => (
+          <div key={groupIdx} className="space-y-1">
+            {!isSidebarCollapsed && (
+              <p className="px-3 text-[11px] font-semibold text-text-muted tracking-wider uppercase mb-2">
+                {group.label}
+              </p>
+            )}
+            {group.items.map((item, idx) => {
+              const Icon = item.icon;
+              const href = item.tabId === 'dashboard' ? '/dashboard' : `/${item.tabId}`;
+              const isSelected = pathname === href;
 
-          return (
-            <button
-              key={idx}
-              onClick={() => onSelectTab && onSelectTab(item.tabId)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
-                isSelected
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20 font-bold'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <Icon size={18} className="shrink-0" />
-              {!isSidebarCollapsed && (
-                <span className="truncate flex-1 text-left">{item.label}</span>
-              )}
-              {!isSidebarCollapsed && item.badge && (
-                <span
-                  className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+              return (
+                <a
+                  key={idx}
+                  href={href}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all group ${
                     isSelected
-                      ? 'bg-white/20 text-white'
-                      : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
-                  }`}
+                      ? 'bg-primary-soft text-primary font-medium'
+                      : 'text-text-secondary hover:bg-surface-muted hover:text-text-primary'
+                  } ${isSidebarCollapsed ? 'justify-center' : ''}`}
+                  title={isSidebarCollapsed ? item.label : undefined}
+                  aria-current={isSelected ? 'page' : undefined}
                 >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+                  <Icon size={18} className="shrink-0" />
+                  {!isSidebarCollapsed && (
+                    <span className="truncate flex-1 text-left">{item.label}</span>
+                  )}
+                </a>
+              );
+            })}
+          </div>
+        ))}
+        {/* Bottom padding so last nav item is not obscured by footer */}
+        <div className="h-2" aria-hidden="true" />
       </nav>
 
-      {/* User Footer */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs border border-indigo-400 shrink-0">
-          MA
-        </div>
+      {/* User Footer — fixed at bottom, never scrolls */}
+      <div className="p-4 border-t border-border flex items-center gap-3 hover:bg-surface-muted cursor-pointer transition shrink-0">
+        <img
+          src={currentSession.avatarUrl}
+          alt=""
+          className="w-9 h-9 rounded-full object-cover shrink-0"
+        />
         {!isSidebarCollapsed && (
           <div className="flex flex-col min-w-0 flex-1">
-            <span className="text-xs font-bold text-gray-900 dark:text-white truncate">
+            <span className="text-[13px] font-semibold text-text-primary truncate">
               {currentSession.name}
             </span>
-            <span className="text-[10px] font-mono text-indigo-500 truncate">
-              {currentSession.email}
+            <span className="text-[11px] text-text-secondary truncate">
+              {roleLabel}
             </span>
           </div>
+        )}
+        {!isSidebarCollapsed && (
+          <ChevronRight size={16} className="text-text-muted shrink-0" />
         )}
       </div>
     </aside>

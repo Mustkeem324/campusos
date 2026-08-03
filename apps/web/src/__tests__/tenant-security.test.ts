@@ -1,30 +1,116 @@
-import { describe, it, expect } from 'vitest';
-import { getAuditLogs, recordAuditLog } from '../lib/audit-service';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { prisma, getTenantDb } from '../lib/db';
+import { generateRandomToken } from '../lib/auth';
 
-describe('Phase 1 Tenant Security & Isolation Engine', () => {
-  it('should enforce strict tenant isolation in audit log queries', () => {
-    // Record log for Tenant A
-    recordAuditLog({
-      tenantId: 'inst_tenant_A',
-      userId: 'usr_A1',
-      action: 'COURSE_CREATE',
-      entity: 'Course',
+describe('Phase 3: Multi-Tenancy & Security Isolation Engine', () => {
+  let tenantA_Id: string;
+  let tenantB_Id: string;
+  
+  beforeAll(async () => {
+    // Create Tenant A
+    const tenantA = await prisma.institution.create({
+      data: {
+        name: 'Test University A',
+        code: `TU_A_${Date.now()}`,
+        subdomain: `tua-${Date.now()}`,
+        status: 'ACTIVE',
+      }
     });
+    tenantA_Id = tenantA.id;
 
-    // Record log for Tenant B
-    recordAuditLog({
-      tenantId: 'inst_tenant_B',
-      userId: 'usr_B1',
-      action: 'FEE_INVOICE_CREATE',
-      entity: 'Invoice',
+    // Create Tenant B
+    const tenantB = await prisma.institution.create({
+      data: {
+        name: 'Test University B',
+        code: `TU_B_${Date.now()}`,
+        subdomain: `tub-${Date.now()}`,
+        status: 'ACTIVE',
+      }
     });
+    tenantB_Id = tenantB.id;
+    
+    // Seed some data bypassing the tenant wrapper (raw admin level)
+    await prisma.course.createMany({
+      data: [
+        { tenantId: tenantA_Id, title: 'Intro to CS (A)', code: 'CS101A', departmentId: tenantA_Id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
+        { tenantId: tenantA_Id, title: 'Data Structures (A)', code: 'CS102A', departmentId: tenantA_Id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
+        { tenantId: tenantB_Id, title: 'Intro to Math (B)', code: 'MTH101B', departmentId: tenantB_Id, lectureCredits: 3, tutorialCredits: 1, practicalCredits: 0 },
+      ]
+    });
+  });
 
-    // Tenant A queries audit logs
-    const tenantALogs = getAuditLogs('inst_tenant_A');
-    expect(tenantALogs.every((log) => log.tenantId === 'inst_tenant_A')).toBe(true);
+  it('Tenant A cannot read Tenant B data', async () => {
+    const dbA = getTenantDb(tenantA_Id);
+    
+    // Attempt to query all courses
+    const allCoursesVisibleToA = await dbA.course.findMany();
+    
+    expect(allCoursesVisibleToA.length).toBe(2);
+    expect(allCoursesVisibleToA.every(c => c.tenantId === tenantA_Id)).toBe(true);
+    
+    // Attempt to directly read a Tenant B course
+    const bCourse = await prisma.course.findFirst({ where: { tenantId: tenantB_Id } });
+    const illegalRead = await dbA.course.findUnique({ where: { id: bCourse!.id } });
+    
+    expect(illegalRead).toBeNull();
+  });
 
-    // Verify Tenant A CANNOT see any Tenant B records
-    const crossTenantLeak = tenantALogs.some((log) => log.tenantId === 'inst_tenant_B');
-    expect(crossTenantLeak).toBe(false);
+  it('Tenant A cannot update Tenant B data', async () => {
+    const dbA = getTenantDb(tenantA_Id);
+    const bCourse = await prisma.course.findFirst({ where: { tenantId: tenantB_Id } });
+    
+    // Attempt to update Tenant B's course
+    try {
+      await dbA.course.update({
+        where: { id: bCourse!.id },
+        data: { title: 'Hacked by A' }
+      });
+      // Should not reach here if isolation works (Prisma throws RecordNotFound)
+      expect(true).toBe(false);
+    } catch (error: any) {
+      expect(error.code).toBe('P2025'); // Record not found
+    }
+    
+    // Verify it wasn't updated
+    const verifyB = await prisma.course.findUnique({ where: { id: bCourse!.id } });
+    expect(verifyB!.title).toBe('Intro to Math (B)');
+  });
+
+  it('Tenant A cannot delete Tenant B data', async () => {
+    const dbA = getTenantDb(tenantA_Id);
+    const bCourse = await prisma.course.findFirst({ where: { tenantId: tenantB_Id } });
+    
+    try {
+      await dbA.course.delete({
+        where: { id: bCourse!.id }
+      });
+      expect(true).toBe(false);
+    } catch (error: any) {
+      expect(error.code).toBe('P2025');
+    }
+  });
+
+  it('New records automatically inherit the active tenant context', async () => {
+    const dbA = getTenantDb(tenantA_Id);
+    
+    const newCourse = await dbA.course.create({
+      data: {
+        title: 'Physics 101',
+        code: 'PHY101',
+        departmentId: tenantA_Id,
+        lectureCredits: 3,
+        tutorialCredits: 0,
+        practicalCredits: 0,
+      }
+    });
+    
+    // The tenantId should have been injected seamlessly
+    expect(newCourse.tenantId).toBe(tenantA_Id);
+  });
+
+  afterAll(async () => {
+    // Cleanup
+    await prisma.institution.delete({ where: { id: tenantA_Id } });
+    await prisma.institution.delete({ where: { id: tenantB_Id } });
   });
 });

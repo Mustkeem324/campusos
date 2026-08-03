@@ -24,14 +24,33 @@ import {
 export function RoleDashboard() {
   const { currentSession } = useAuthStore();
   const role = currentSession.role;
+  const [data, setData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const res = await fetch('/api/dashboard');
+        if (!res.ok) throw new Error('Failed to fetch dashboard data');
+        const json = await res.json();
+        setData(json);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
 
   const renderSuperAdmin = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Active Institutions" value="48" change="+6 this month" icon={Building2} color="indigo" />
-        <StatCard title="Total Platform Users" value="142,850" change="+12.4%" icon={Users} color="emerald" />
-        <StatCard title="System API Latency" value="184 ms" change="p95 SLA < 300ms" icon={Sparkles} color="sky" />
-        <StatCard title="Monthly Recurring Rev" value="$84,200" change="+18% YoY" icon={DollarSign} color="amber" />
+        <StatCard title="Active Institutions" value={data?.activeInstitutions || 0} change="Current billing cycle" icon={Building2} color="indigo" />
+        <StatCard title="Total Platform Users" value={(data?.totalUsers || 0).toLocaleString()} change="All tenants" icon={Users} color="emerald" />
+        <StatCard title="System API Latency" value="Not telemetry" change="N/A" icon={Sparkles} color="sky" />
+        <StatCard title="Monthly Recurring Rev" value="Unavailable" change="N/A" icon={DollarSign} color="amber" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -64,13 +83,13 @@ export function RoleDashboard() {
   const renderInstAdmin = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Students Enrolled" value="14,200" change="Term 2 Active" icon={GraduationCap} color="indigo" />
-        <StatCard title="Faculty & Staff" value="840" change="4 Departments" icon={Users} color="emerald" />
-        <StatCard title="Course Offerings" value="312" change="Registration Open" icon={BookOpen} color="sky" />
-        <StatCard title="Term Fee Collection" value="$1.84M" change="84% collected" icon={DollarSign} color="amber" />
+        <StatCard title="Total Students Enrolled" value={(data?.students || 0).toLocaleString()} change="Active records" icon={GraduationCap} color="indigo" />
+        <StatCard title="Faculty & Staff" value={(data?.faculty || 0).toLocaleString()} change="Across depts" icon={Users} color="emerald" />
+        <StatCard title="Course Offerings" value={(data?.courses || 0).toLocaleString()} change="Active curriculum" icon={BookOpen} color="sky" />
+        <StatCard title="Term Fee Collection" value={`$${(data?.termFeeCollection || 0).toLocaleString()}`} change="Successful payments" icon={DollarSign} color="amber" />
       </div>
 
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl">
+      <div className="p-6 rounded-2xl bg-primary text-white shadow-xl">
         <h3 className="text-lg font-extrabold mb-1">Academic Year 2026-2 Term 2 Configuration</h3>
         <p className="text-xs text-indigo-100 mb-4">
           Course registration window closes in 4 days. Elective auto-allotment algorithm scheduled for Friday.
@@ -90,9 +109,9 @@ export function RoleDashboard() {
   const renderHOD = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Dept Courses Offered" value="42" change="CS & Engineering" icon={BookOpen} color="indigo" />
-        <StatCard title="Faculty Workload Avg" value="14.2 hrs/wk" change="Balanced" icon={UserCheck} color="emerald" />
-        <StatCard title="Defaulter Attendance" value="18 Students" change="<75% Threshold" icon={AlertTriangle} color="amber" />
+        <StatCard title="Dept Courses Offered" value={data?.coursesOffered || 0} change="Assigned department" icon={BookOpen} color="indigo" />
+        <StatCard title="Faculty Workload Avg" value={data?.facultyWorkloadAvg || "N/A"} change="Calculated" icon={UserCheck} color="emerald" />
+        <StatCard title="Defaulter Attendance" value={data?.defaulterAttendance || 0} change="<75% Threshold" icon={AlertTriangle} color="amber" />
       </div>
 
       <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
@@ -108,10 +127,10 @@ export function RoleDashboard() {
   const renderFaculty = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Today's Lectures" value="3 Classes" change="Next at 11:00 AM" icon={Calendar} color="indigo" />
-        <StatCard title="Attendance Marked" value="94%" change="2 sessions pending" icon={CheckSquare} color="emerald" />
-        <StatCard title="Assignments to Grade" value="28 Submissions" change="Rubric active" icon={FileText} color="amber" />
-        <StatCard title="Open Student Doubts" value="5 Threads" change="CS401 Forum" icon={Users} color="sky" />
+        <StatCard title="Today's Lectures" value={data?.todayClasses || 0} change="Scheduled today" icon={Calendar} color="indigo" />
+        <StatCard title="Attendance Marked" value={`${data?.attendanceMarked || 0}%`} change="Recent avg" icon={CheckSquare} color="emerald" />
+        <StatCard title="Assignments to Grade" value={data?.assignmentsToGrade || 0} change="Pending review" icon={FileText} color="amber" />
+        <StatCard title="Open Student Doubts" value={data?.openStudentDoubts || 0} change="Community forum" icon={Users} color="sky" />
       </div>
 
       <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
@@ -128,13 +147,13 @@ export function RoleDashboard() {
   const renderStudent = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Current CGPA" value="3.84 / 4.0" change="Top 5% in Batch" icon={Award} color="emerald" />
-        <StatCard title="Attendance Health" value="88.5%" change="+13.5% above cutoff" icon={CheckSquare} color="indigo" />
-        <StatCard title="Enrolled Credits" value="22 Credits" change="Term 2 Enrolled" icon={BookOpen} color="sky" />
-        <StatCard title="Fee Dues Pending" value="$0.00" change="All Receipts Paid" icon={CheckCircle2} color="emerald" />
+        <StatCard title="Current CGPA" value={data?.cgpa || 0} change="Based on results" icon={Award} color="emerald" />
+        <StatCard title="Attendance Health" value={`${data?.attendanceHealth || 0}%`} change="Overall" icon={CheckSquare} color="indigo" />
+        <StatCard title="Enrolled Credits" value={data?.enrolledCredits || 0} change="Current Term" icon={BookOpen} color="sky" />
+        <StatCard title="Fee Dues Pending" value={`$${(data?.feeDuesPending || 0).toLocaleString()}`} change="Pending Invoices" icon={AlertTriangle} color={data?.feeDuesPending > 0 ? "amber" : "emerald"} />
       </div>
 
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xl">
+      <div className="p-5 rounded-2xl bg-primary text-white shadow-xl">
         <div className="flex items-center justify-between">
           <div>
             <span className="text-xs uppercase font-mono tracking-wider text-emerald-200 font-bold">Course Registration Window</span>
@@ -152,9 +171,9 @@ export function RoleDashboard() {
   const renderParent = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="Child Attendance" value="91.2%" change="Alex Vance (B.Tech CS)" icon={CheckSquare} color="emerald" />
-        <StatCard title="Latest Term Grade" value="SGPA 3.9" change="Term 1 Marksheet Verified" icon={GraduationCap} color="indigo" />
-        <StatCard title="Upcoming Fee Due" value="$0.00" change="Paid on Jan 14" icon={DollarSign} color="emerald" />
+        <StatCard title="Child Attendance" value={`${data?.childAttendance || 0}%`} change="Overall" icon={CheckSquare} color="emerald" />
+        <StatCard title="Latest Term Grade" value={`SGPA ${data?.latestTermGrade || 0}`} change="Verified" icon={GraduationCap} color="indigo" />
+        <StatCard title="Upcoming Fee Due" value={`$${(data?.upcomingFeeDue || 0).toLocaleString()}`} change="Pending" icon={DollarSign} color="emerald" />
       </div>
 
       <div className="p-5 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
@@ -176,10 +195,10 @@ export function RoleDashboard() {
   const renderWarden = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Total Hostel Rooms" value="240 Beds" change="Hostel Block A" icon={Building2} color="indigo" />
-        <StatCard title="Occupancy Rate" value="96%" change="230 Resident Students" icon={Users} color="emerald" />
-        <StatCard title="Students Out of Campus" value="14 Students" change="Approved Outpasses" icon={Clock} color="amber" />
-        <StatCard title="Open Mess Complaints" value="2 Tickets" change="SLA < 24h" icon={AlertTriangle} color="sky" />
+        <StatCard title="Total Hostel Rooms" value={data?.totalHostelRooms || 0} change="Capacity config" icon={Building2} color="indigo" />
+        <StatCard title="Occupancy Rate" value={`${data?.occupancyRate || 0}%`} change="Current term" icon={Users} color="emerald" />
+        <StatCard title="Students Out of Campus" value={data?.studentsOutOfCampus || 0} change="Approved Outpasses" icon={Clock} color="amber" />
+        <StatCard title="Open Mess Complaints" value={data?.openComplaints || 0} change="Hostel tickets" icon={AlertTriangle} color="sky" />
       </div>
     </div>
   );
@@ -187,40 +206,50 @@ export function RoleDashboard() {
   const renderAccountant = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Today's Collections" value="$42,800" change="Razorpay + UPI + Cash" icon={DollarSign} color="emerald" />
-        <StatCard title="Total Dues Pending" value="$124,500" change="184 Student Invoices" icon={AlertTriangle} color="amber" />
-        <StatCard title="Reconciled Webhooks" value="99.8%" change="Idempotency Verified" icon={ShieldCheck} color="indigo" />
-        <StatCard title="Scholarship Disbursed" value="$45,000" change="State Merit Scheme" icon={Award} color="sky" />
+        <StatCard title="Today's Collections" value={`$${(data?.todaysCollections || 0).toLocaleString()}`} change="All methods" icon={DollarSign} color="emerald" />
+        <StatCard title="Total Dues Pending" value={`$${(data?.totalDuesPending || 0).toLocaleString()}`} change="Pending invoices" icon={AlertTriangle} color="amber" />
+        <StatCard title="Reconciled Webhooks" value={`${data?.reconciledWebhooks || 0}%`} change="Idempotency Verified" icon={ShieldCheck} color="indigo" />
+        <StatCard title="Scholarship Disbursed" value={`$${(data?.scholarshipDisbursed || 0).toLocaleString()}`} change="Current FY" icon={Award} color="sky" />
       </div>
     </div>
   );
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-gray-900 dark:text-white">
-            {role.replace('_', ' ')} Dashboard
-          </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Welcome back, {currentSession.name} • {currentSession.institutionName}
-          </p>
+      {loading ? (
+        <div className="flex justify-center p-12">
+          <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
         </div>
-        <div className="text-right">
-          <span className="text-[11px] font-mono font-bold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-            Tenant: {currentSession.tenantId}
-          </span>
-        </div>
-      </div>
+      ) : error ? (
+        <div className="p-6 rounded-2xl bg-red-50 text-red-600 text-sm">Failed to load dashboard: {error}</div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-extrabold text-gray-900 dark:text-white">
+                {role.replace('_', ' ')} Dashboard
+              </h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Welcome back, {currentSession.name} • {currentSession.institutionName}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[11px] font-mono font-bold px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
+                Tenant: {currentSession.tenantId}
+              </span>
+            </div>
+          </div>
 
-      {role === 'SUPER_ADMIN' && renderSuperAdmin()}
-      {role === 'INSTITUTION_ADMIN' && renderInstAdmin()}
-      {role === 'HOD' && renderHOD()}
-      {role === 'FACULTY' && renderFaculty()}
-      {role === 'STUDENT' && renderStudent()}
-      {role === 'PARENT' && renderParent()}
-      {role === 'WARDEN' && renderWarden()}
-      {role === 'ACCOUNTANT' && renderAccountant()}
+          {role === 'SUPER_ADMIN' && renderSuperAdmin()}
+          {role === 'INSTITUTION_ADMIN' && renderInstAdmin()}
+          {role === 'HOD' && renderHOD()}
+          {role === 'FACULTY' && renderFaculty()}
+          {role === 'STUDENT' && renderStudent()}
+          {role === 'PARENT' && renderParent()}
+          {role === 'WARDEN' && renderWarden()}
+          {role === 'ACCOUNTANT' && renderAccountant()}
+        </>
+      )}
     </div>
   );
 }

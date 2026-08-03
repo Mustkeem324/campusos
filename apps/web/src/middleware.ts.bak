@@ -1,0 +1,26 @@
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get('campusos_session')?.value;
+  const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
+  const isApiRoute = request.nextUrl.pathname.startsWith('/api');
+  const isPublicRoute = request.nextUrl.pathname === '/';
+
+  // Allow static files, api routes, and public pages to bypass middleware
+  if (isApiRoute || isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // Middleware runs in the Edge runtime, where environment-secret resolution can
+  // differ from the Node.js route handlers that sign this token. Treat it only as
+  // a routing hint. The dashboard layout validates the JWT and its database-backed
+  // session before rendering any authenticated content.
+  if (!token && !isAuthRoute) return NextResponse.redirect(new URL('/login', request.url));
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
