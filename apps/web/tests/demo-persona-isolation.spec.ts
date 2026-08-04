@@ -51,8 +51,8 @@ test.describe('Phase 92: Demo Persona Isolation & Guided Experience', () => {
     await expect(page.locator('h1')).toContainText('Welcome back, Rohan Verma');
     await expect(page).toContainText('Student Portal');
 
-    // Verify Student Quick Actions
-    await expect(page.locator('a', { hasText: 'Student Benefits & Perks' })).toBeVisible();
+    // Verify Student Quick Actions (role-specific, student-relevant links)
+    await expect(page.locator('a', { hasText: 'Open timetable' })).toBeVisible();
   });
 
   test('Parent demo login resolves Anita Verma identity and linked ward data', async ({ page }) => {

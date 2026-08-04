@@ -3,6 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '../../lib/auth-store';
+import { dashboardDefinitionForRole } from '../../lib/dashboard/registry';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -66,105 +67,52 @@ export function Sidebar() {
 
   const getRoleNavGroups = (): NavGroup[] => {
     const role = currentSession?.role || 'STUDENT';
+    const definition = dashboardDefinitionForRole(role);
 
-    if (role === 'STUDENT') {
-      return [
-        {
-          label: 'ACADEMICS',
-          items: [
-            { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard/student' },
-            { label: 'Learning (LMS)', icon: BookOpen, tabId: 'lms' },
-            { label: 'Assignments', icon: FileText, tabId: 'assignments' },
-            { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
-            { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
-            { label: 'Registration', icon: CheckSquare, tabId: 'registration' },
-            { label: 'Examinations', icon: FileText, tabId: 'examinations' },
-            { label: 'Results', icon: GraduationCap, tabId: 'results' },
-            { label: 'Microcredentials', icon: Award, tabId: 'microcredentials' },
-          ]
-        },
-        {
-          label: 'CAMPUS SERVICES',
-          items: [
-            { label: 'Helpdesk', icon: HelpCircle, tabId: 'helpdesk' },
-            { label: 'Hostel', icon: Building2, tabId: 'hostel' },
-            { label: 'Library (OPAC)', icon: Library, tabId: 'opac' },
-            { label: 'Transport', icon: Bus, tabId: 'transport' },
-            { label: 'Digital ID', icon: UserCheck, tabId: 'digital-id' },
-            { label: 'Student Benefits', icon: Award, tabId: 'student-benefits' },
-            { label: 'Forum', icon: MessageCircle, tabId: 'forum' },
-          ]
-        },
-        {
-          label: 'FINANCE & ACCOUNT',
-          items: [
-            { label: 'Fees & Payments', icon: DollarSign, tabId: 'payments' },
-            { label: 'Scholarships', icon: Award, tabId: 'scholarships' },
-            { label: 'Receipts', icon: FileText, tabId: 'receipts' },
-            { label: 'Documents', icon: FileText, tabId: 'documents' },
-            { label: 'My Profile', icon: User, tabId: 'student-profile' },
-          ]
-        }
-      ];
-    }
+    return definition.navigation.map((group) => ({
+      label: group.label,
+      items: group.items.map((item) => ({
+        label: item.label,
+        icon: iconForHref(item.href),
+        tabId: item.href.replace(/^\//, ''),
+      })),
+    }));
+  };
 
-    if (role === 'INSTITUTION_ADMIN' || role === 'SUPER_ADMIN') {
-      return [
-        {
-          label: 'ADMINISTRATION',
-          items: [
-            { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard/admin' },
-            { label: 'Admissions Hub', icon: GraduationCap, tabId: 'platform/admissions' },
-            { label: 'Departments', icon: Building2, tabId: 'departments' },
-            { label: 'Governance', icon: Scale, tabId: 'governance' },
-            { label: 'Legal & Risk', icon: Shield, tabId: 'legal-risk' },
-            { label: 'AI Governance', icon: Brain, tabId: 'ai-governance' },
-            { label: 'Data Migration', icon: Database, tabId: 'data-migration' },
-            { label: 'Sustainability', icon: Leaf, tabId: 'sustainability' },
-            { label: 'Audit Logs', icon: FileText, tabId: 'audit' },
-          ]
-        },
-        {
-          label: 'SETTINGS',
-          items: [
-            { label: 'Settings', icon: Settings, tabId: 'settings' },
-          ]
-        }
-      ];
-    }
-
-    if (role === 'PARENT') {
-      return [
-        {
-          label: 'PARENT PORTAL',
-          items: [
-            { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard/parent' },
-            { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
-            { label: 'Results', icon: GraduationCap, tabId: 'results' },
-            { label: 'Fees & Dues', icon: DollarSign, tabId: 'payments' },
-            { label: 'Notices', icon: MessageSquare, tabId: 'community' },
-            { label: 'Support', icon: HelpCircle, tabId: 'helpdesk' },
-          ]
-        }
-      ];
-    }
-
-    // Default structure for FACULTY
-    return [
-      {
-        label: 'FACULTY WORKSPACE',
-        items: [
-          { label: 'Dashboard', icon: LayoutDashboard, tabId: 'dashboard/faculty' },
-          { label: 'My Courses (LMS)', icon: BookOpen, tabId: 'lms' },
-          { label: 'Timetable', icon: Calendar, tabId: 'timetable' },
-          { label: 'Attendance', icon: CheckSquare, tabId: 'attendance' },
-          { label: 'Assignments', icon: FileText, tabId: 'assignments' },
-          { label: 'Examinations', icon: FileText, tabId: 'examinations' },
-          { label: 'Results', icon: GraduationCap, tabId: 'results' },
-          { label: 'Community', icon: MessageSquare, tabId: 'community' },
-        ]
-      }
-    ];
+  const iconForHref = (href: string): React.ElementType => {
+    if (href.startsWith('/dashboard')) return LayoutDashboard;
+    if (href.startsWith('/lms') || href.startsWith('/learning')) return BookOpen;
+    if (href.startsWith('/assignments')) return FileText;
+    if (href.startsWith('/timetable')) return Calendar;
+    if (href.startsWith('/attendance')) return CheckSquare;
+    if (href.startsWith('/registration')) return CheckSquare;
+    if (href.startsWith('/examinations')) return FileText;
+    if (href.startsWith('/results')) return GraduationCap;
+    if (href.startsWith('/microcredentials')) return Award;
+    if (href.startsWith('/helpdesk')) return HelpCircle;
+    if (href.startsWith('/hostel')) return Building2;
+    if (href.startsWith('/opac')) return Library;
+    if (href.startsWith('/transport')) return Bus;
+    if (href.startsWith('/digital-id')) return UserCheck;
+    if (href.startsWith('/student-benefits')) return Award;
+    if (href.startsWith('/forum')) return MessageCircle;
+    if (href.startsWith('/payments') || href.startsWith('/receipts')) return DollarSign;
+    if (href.startsWith('/scholarships')) return Award;
+    if (href.startsWith('/documents')) return FileText;
+    if (href.startsWith('/student-profile')) return User;
+    if (href.startsWith('/platform/admissions')) return GraduationCap;
+    if (href.startsWith('/departments')) return Building2;
+    if (href.startsWith('/governance')) return Scale;
+    if (href.startsWith('/legal-risk')) return Shield;
+    if (href.startsWith('/ai-governance')) return Brain;
+    if (href.startsWith('/data-migration')) return Database;
+    if (href.startsWith('/sustainability')) return Leaf;
+    if (href.startsWith('/audit')) return FileText;
+    if (href.startsWith('/settings')) return Settings;
+    if (href.startsWith('/community')) return MessageSquare;
+    if (href.startsWith('/support')) return HelpCircle;
+    if (href.startsWith('/notifications')) return MessageSquare;
+    return LayoutDashboard;
   };
 
   const navGroups = getRoleNavGroups();

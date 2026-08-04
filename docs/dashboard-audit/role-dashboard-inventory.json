@@ -1,0 +1,82 @@
+{
+  "phase": 95,
+  "auditedAt": "2026-08-05",
+  "lastReviewedCommit": "0109e10cba1d11f15c428db98b562772ce2a9e5d",
+  "rolesDiscovered": [
+    { "role": "SUPER_ADMIN", "source": "Prisma RoleType enum" },
+    { "role": "INSTITUTION_ADMIN", "source": "Prisma RoleType enum" },
+    { "role": "REGISTRAR", "source": "Prisma RoleType enum" },
+    { "role": "DEAN", "source": "Prisma RoleType enum" },
+    { "role": "HOD", "source": "Prisma RoleType enum" },
+    { "role": "FACULTY", "source": "Prisma RoleType enum" },
+    { "role": "STUDENT", "source": "Prisma RoleType enum" },
+    { "role": "PARENT", "source": "Prisma RoleType enum" },
+    { "role": "FINANCE_OFFICER", "source": "Prisma RoleType enum" },
+    { "role": "ACCOUNTANT", "source": "Prisma RoleType enum" },
+    { "role": "HR_ADMIN", "source": "Prisma RoleType enum" },
+    { "role": "WARDEN", "source": "Prisma RoleType enum" },
+    { "role": "LIBRARIAN", "source": "Prisma RoleType enum" },
+    { "role": "TRANSPORT_MANAGER", "source": "Prisma RoleType enum" },
+    { "role": "PLACEMENT_OFFICER", "source": "Prisma RoleType enum" },
+    { "role": "ADMISSIONS_COUNSELLOR", "source": "Prisma RoleType enum" },
+    { "role": "EXAMINATION_CONTROLLER", "source": "Prisma RoleType enum" }
+  ],
+  "dashboardRoutesDiscovered": [
+    { "route": "/dashboard", "kind": "redirect", "resolvedBy": "dashboardPathForRole()" },
+    { "route": "/dashboard/student", "kind": "page", "file": "apps/web/src/app/dashboard/student/page.tsx" },
+    { "route": "/dashboard/faculty", "kind": "page", "file": "apps/web/src/app/dashboard/faculty/page.tsx" },
+    { "route": "/dashboard/parent", "kind": "page", "file": "apps/web/src/app/dashboard/parent/page.tsx" },
+    { "route": "/dashboard/admin", "kind": "page", "file": "apps/web/src/app/dashboard/admin/page.tsx" }
+  ],
+  "dashboardApiRoutesDiscovered": [
+    { "route": "GET /api/dashboard", "file": "apps/web/src/app/api/dashboard/route.ts", "contract": "DashboardPayload { role, metrics, activity }" },
+    { "route": "GET /api/dashboard/student", "file": "apps/web/src/app/api/dashboard/student/route.ts" },
+    { "route": "GET /api/dashboard/faculty", "file": "apps/web/src/app/api/dashboard/faculty/route.ts" },
+    { "route": "GET /api/dashboard/parent", "file": "apps/web/src/app/api/dashboard/parent/route.ts" },
+    { "route": "GET /api/dashboard/admin", "file": "apps/web/src/app/api/dashboard/admin/route.ts" }
+  ],
+  "roleToRouteMatrix": {
+    "SUPER_ADMIN": "/dashboard/admin",
+    "INSTITUTION_ADMIN": "/dashboard/admin",
+    "FACULTY": "/dashboard/faculty",
+    "STUDENT": "/dashboard/student",
+    "PARENT": "/dashboard/parent",
+    "REGISTRAR": "/dashboard",
+    "DEAN": "/dashboard",
+    "HOD": "/dashboard",
+    "FINANCE_OFFICER": "/dashboard",
+    "ACCOUNTANT": "/dashboard",
+    "HR_ADMIN": "/dashboard",
+    "WARDEN": "/dashboard",
+    "LIBRARIAN": "/dashboard",
+    "TRANSPORT_MANAGER": "/dashboard",
+    "PLACEMENT_OFFICER": "/dashboard",
+    "ADMISSIONS_COUNSELLOR": "/dashboard",
+    "EXAMINATION_CONTROLLER": "/dashboard"
+  },
+  "rootCausesOfRoleMixing": [
+    "Single generic RoleDashboard.tsx component with role conditionals, hard-coded fake schedule/alerts/quick links, used by the Student page.",
+    "/api/dashboard/student, /api/dashboard/parent, /api/dashboard/faculty return hard-coded fake metrics ('3.80 / 4.0', '88%', '₹0.00') instead of computed records.",
+    "/api/dashboard generic fallback returns institution-wide metrics to ANY unhandled role.",
+    "dashboardPathForRole() returns '/dashboard' for REGISTRAR/DEAN/HOD/etc., causing a redirect-to-self loop.",
+    "Sidebar defaults every unhandled role to the FACULTY navigation.",
+    "Role dashboard pages lived OUTSIDE the (dashboard) route group, so they rendered without the shared application shell (sidebar/header/demo banner).",
+    "Client-only RoleDashboardGuard with no server-side page-level role enforcement (API routes enforce independently)."
+  ],
+  "dataLeakageRisks": [
+    "Generic /api/dashboard fallback exposes institution-wide user/courseOffering/notice counts to any authenticated role.",
+    "SUPER_ADMIN branch of /api/dashboard uses unscoped prisma.institution.count() (platform-wide) without tenant context.",
+    "Dashboard pages fetched role payloads client-side and rendered any field present in the response (no contract shaping at the page).",
+    "LiveScheduleWidget hard-coded a faculty name and course code visible to the student dashboard."
+  ],
+  "navigationIssues": [
+    "REGISTRAR, DEAN, HOD, FINANCE_OFFICER, ACCOUNTANT, HR_ADMIN, WARDEN, LIBRARIAN, TRANSPORT_MANAGER, PLACEMENT_OFFICER, ADMISSIONS_COUNSELLOR, EXAMINATION_CONTROLLER all received the FACULTY sidebar.",
+    "Role dashboard pages rendered outside the shell, so sidebar navigation was not visible on /dashboard/*."
+  ],
+  "cacheAndPersonaSwitchingRisks": [
+    "Zustand auth store persists currentSession in localStorage (campusos-auth-storage); persona switching calls setSession which replaces the session.",
+    "Dashboard fetch uses cache: 'no-store'; no React Query/SWR keys in the role dashboard path.",
+    "No dashboard-level data persisted in sessionStorage; no stale-role flash identified in the student flow.",
+    "Recommend adding userId+tenantId+activeRole to any future dashboard cache keys."
+  ]
+}

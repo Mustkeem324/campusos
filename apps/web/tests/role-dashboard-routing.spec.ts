@@ -42,10 +42,12 @@ test.describe('Role-Based Dashboard Routing & Data Isolation', () => {
     await page.waitForURL('/dashboard/student');
 
     await expect(page.locator('h1')).toContainText('Rohan Verma');
-    await expect(page.locator('text=Good Standing')).toBeVisible();
+    await expect(page.locator('text=Student Workspace')).toBeVisible();
     const response = await page.request.get('/api/dashboard/student?studentId=another-student');
     await expect(response.status()).toBe(200);
-    await expect((await response.json()).studentUser.name).toBe('Rohan Verma');
+    const payload = await response.json();
+    // The session identity always wins over any query parameter.
+    await expect(payload.identity.name).toBe('Rohan Verma');
   });
 
   test('Parent login opens /dashboard/parent with Anita Verma identity and linked Rohan Verma', async ({ page }) => {

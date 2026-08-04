@@ -1,0 +1,24 @@
+{
+  "completedDashboards": [
+    {
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "status": "VERIFIED",
+      "locked": true,
+      "lastReviewedCommit": "0109e10cba1d11f15c428db98b562772ce2a9e5d",
+      "dataContract": "StudentDashboardData",
+      "serverSideEnforcement": true,
+      "negativePermissionTests": true,
+      "screenshotsCaptured": true,
+      "completedAt": "2026-08-05"
+    }
+  ],
+  "lockedUntilChange": [
+    "A confirmed regression exists",
+    "A permission requirement changes",
+    "A data contract changes",
+    "A shared design-system change affects it",
+    "Accessibility tests fail",
+    "The user explicitly requests a change"
+  ]
+}

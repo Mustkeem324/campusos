@@ -1,0 +1,22 @@
+{
+  "manifest": [
+    {
+      "id": "student-dashboard-desktop",
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "viewport": "desktop 1440x900",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "browser automation",
+      "checks": ["identity", "page title", "sidebar", "widgets", "no overflow", "no console errors"]
+    },
+    {
+      "id": "student-dashboard-mobile",
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "viewport": "mobile 390x844",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "browser automation",
+      "checks": ["single column", "no horizontal overflow", "44px touch targets", "drawer navigation"]
+    }
+  ]
+}
