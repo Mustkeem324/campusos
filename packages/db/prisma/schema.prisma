@@ -40,6 +40,9 @@ model Institution {
   CommunityPost          CommunityPost[]
   CommunityReaction      CommunityReaction[]
   CommunityReply         CommunityReply[]
+  CommunityReport        CommunityReport[]
+  CommunityModerationAction CommunityModerationAction[]
+  CommunityAcknowledgement CommunityAcknowledgement[]
   courses                Course[]
   departments            Department[]
   emailQueues            EmailQueue[]
@@ -209,6 +212,10 @@ model User {
   CommunityPost          CommunityPost[]
   CommunityReaction      CommunityReaction[]
   CommunityReply         CommunityReply[]
+  CommunityVote          CommunityVote[]
+  CommunityReport        CommunityReport[]
+  CommunityAcknowledgement CommunityAcknowledgement[]
+  CommunityFollow        CommunityFollow[]
   consentRecords         ConsentRecord[]
   guardianProfile        Guardian?
   legalAcceptances       LegalAcceptance[]
@@ -909,62 +916,95 @@ model ApiKey {
 }
 
 model CommunityPost {
-  id              String              @id @default(uuid()) @db.Uuid
-  tenantId        String              @map("tenant_id") @db.Uuid
-  authorId        String              @map("author_id") @db.Uuid
+  id              String                      @id @default(uuid()) @db.Uuid
+  tenantId        String                      @map("tenant_id") @db.Uuid
+  authorId        String                      @map("author_id") @db.Uuid
   type            PostType
   title           String?
   content         String
-  visibility      String              @default("INSTITUTION")
-  isPinned        Boolean             @default(false) @map("is_pinned")
-  isLocked        Boolean             @default(false) @map("is_locked")
-  commentsEnabled Boolean             @default(true) @map("comments_enabled")
-  expiresAt       DateTime?           @map("expires_at")
-  createdAt       DateTime            @default(now()) @map("created_at")
-  updatedAt       DateTime            @updatedAt @map("updated_at")
+  visibility      String                      @default("INSTITUTION")
+  status          String                      @default("PUBLISHED")
+  isPinned        Boolean                     @default(false) @map("is_pinned")
+  isLocked        Boolean                     @default(false) @map("is_locked")
+  commentsEnabled Boolean                     @default(true) @map("comments_enabled")
+  viewCount       Int                         @default(0) @map("view_count")
+  editedAt        DateTime?                   @map("edited_at")
+  deletedAt       DateTime?                   @map("deleted_at")
+  expiresAt       DateTime?                   @map("expires_at")
+  scheduledAt     DateTime?                   @map("scheduled_at")
+  publishedAt     DateTime?                   @map("published_at")
+  createdAt       DateTime                    @default(now()) @map("created_at")
+  updatedAt       DateTime                    @updatedAt @map("updated_at")
   bookmarks       CommunityBookmark[]
   poll            CommunityPoll?
-  author          User                @relation(fields: [authorId], references: [id])
-  institution     Institution         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  author          User                        @relation(fields: [authorId], references: [id])
+  institution     Institution                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reactions       CommunityReaction[]
   replies         CommunityReply[]
+  votes           CommunityVote[]
+  reports         CommunityReport[]
+  acknowledgements CommunityAcknowledgement[]
+  follows         CommunityFollow[]
 
   @@index([tenantId, createdAt])
   @@index([tenantId, type])
+  @@index([tenantId, status])
   @@map("community_posts")
 }
 
 model CommunityReply {
-  id          String           @id @default(uuid()) @db.Uuid
-  tenantId    String           @map("tenant_id") @db.Uuid
-  postId      String           @map("post_id") @db.Uuid
-  authorId    String           @map("author_id") @db.Uuid
-  parentId    String?          @map("parent_id") @db.Uuid
+  id          String              @id @default(uuid()) @db.Uuid
+  tenantId    String              @map("tenant_id") @db.Uuid
+  postId      String              @map("post_id") @db.Uuid
+  authorId    String              @map("author_id") @db.Uuid
+  parentId    String?             @map("parent_id") @db.Uuid
   content     String
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  author      User             @relation(fields: [authorId], references: [id])
-  parent      CommunityReply?  @relation("ReplyToReply", fields: [parentId], references: [id])
-  children    CommunityReply[] @relation("ReplyToReply")
-  post        CommunityPost    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  institution Institution      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  isHidden    Boolean             @default(false) @map("is_hidden")
+  editedAt    DateTime?           @map("edited_at")
+  deletedAt   DateTime?           @map("deleted_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  author      User                @relation(fields: [authorId], references: [id])
+  parent      CommunityReply?     @relation("ReplyToReply", fields: [parentId], references: [id])
+  children    CommunityReply[]    @relation("ReplyToReply")
+  post        CommunityPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  institution Institution         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reactions   CommunityReaction[] @relation("ReplyReactions")
 
   @@index([postId, createdAt])
   @@map("community_replies")
 }
 
 model CommunityReaction {
-  id          String        @id @default(uuid()) @db.Uuid
-  tenantId    String        @map("tenant_id") @db.Uuid
-  postId      String        @map("post_id") @db.Uuid
-  userId      String        @map("user_id") @db.Uuid
+  id          String         @id @default(uuid()) @db.Uuid
+  tenantId    String         @map("tenant_id") @db.Uuid
+  postId      String?        @map("post_id") @db.Uuid
+  replyId     String?        @map("reply_id") @db.Uuid
+  userId      String         @map("user_id") @db.Uuid
   type        String
-  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  institution Institution   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user        User          @relation(fields: [userId], references: [id])
+  createdAt   DateTime       @default(now()) @map("created_at")
+  post        CommunityPost? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reply       CommunityReply? @relation("ReplyReactions", fields: [replyId], references: [id], onDelete: Cascade)
+  institution Institution    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId, type])
+  @@unique([replyId, userId, type])
   @@map("community_reactions")
+}
+
+model CommunityVote {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  postId    String        @map("post_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  value     Int           // 1 = upvote, -1 = downvote
+  createdAt DateTime      @default(now()) @map("created_at")
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@map("community_votes")
 }
 
 model CommunityPoll {
@@ -1006,12 +1046,72 @@ model CommunityBookmark {
   tenantId  String        @map("tenant_id") @db.Uuid
   postId    String        @map("post_id") @db.Uuid
   userId    String        @map("user_id") @db.Uuid
+  note      String?
   createdAt DateTime      @default(now()) @map("created_at")
   post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User          @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId])
   @@map("community_bookmarks")
+}
+
+model CommunityReport {
+  id          String                      @id @default(uuid()) @db.Uuid
+  tenantId    String                      @map("tenant_id") @db.Uuid
+  postId      String                      @map("post_id") @db.Uuid
+  reporterId  String                      @map("reporter_id") @db.Uuid
+  reason      String
+  details     String?
+  status      String                      @default("PENDING")
+  createdAt   DateTime                    @default(now()) @map("created_at")
+  updatedAt   DateTime                    @updatedAt @map("updated_at")
+  post        CommunityPost               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter    User                        @relation(fields: [reporterId], references: [id])
+  institution Institution                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actions     CommunityModerationAction[]
+
+  @@map("community_reports")
+}
+
+model CommunityModerationAction {
+  id          String          @id @default(uuid()) @db.Uuid
+  tenantId    String          @map("tenant_id") @db.Uuid
+  reportId    String          @map("report_id") @db.Uuid
+  moderatorId String          @map("moderator_id") @db.Uuid
+  action      String
+  reason      String?
+  createdAt   DateTime        @default(now()) @map("created_at")
+  report      CommunityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  institution Institution     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("community_moderation_actions")
+}
+
+model CommunityAcknowledgement {
+  id          String        @id @default(uuid()) @db.Uuid
+  tenantId    String        @map("tenant_id") @db.Uuid
+  postId      String        @map("post_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+  post        CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id])
+  institution Institution   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("community_acknowledgements")
+}
+
+model CommunityFollow {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  postId    String        @map("post_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at")
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+  @@map("community_follows")
 }
 
 model Examinations {

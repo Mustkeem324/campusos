@@ -24,7 +24,12 @@ const TENANT_MODELS = [
   'ChatReaction', 'ChatBookmark', 'ChatPinnedMessage', 'ChatReport',
   'ChatModerationCase', 'ChatModerationAction', 'ChatUserRestriction',
   'ChatAuditEvent', 'ChatNotificationPref', 'ChatLinkPreview', 'ChatPoll',
-  'ChatReadReceipt', 'ChatPollOption', 'ChatPollVote'
+  'ChatReadReceipt', 'ChatPollOption', 'ChatPollVote',
+  // Community Hub models
+  'CommunityPost', 'CommunityReply', 'CommunityReaction', 'CommunityVote',
+  'CommunityPoll', 'CommunityPollOption', 'CommunityBookmark',
+  'CommunityReport', 'CommunityModerationAction', 'CommunityAcknowledgement',
+  'CommunityFollow'
 ];
 
 /**

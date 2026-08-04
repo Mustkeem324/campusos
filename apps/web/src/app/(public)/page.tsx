@@ -3,6 +3,7 @@ import { HeroSection } from '@/components/public/homepage/HeroSection';
 import { InstitutionTypeSection } from '@/components/public/homepage/InstitutionTypeSection';
 import { PlatformSystemsSection } from '@/components/public/homepage/PlatformSystemsSection';
 import { RoleExperienceSection } from '@/components/public/homepage/RoleExperienceSection';
+import { ProductTourSection } from '@/components/public/homepage/ProductTourSection';
 import { WorkflowSection } from '@/components/public/homepage/WorkflowSection';
 import { ImplementationJourney } from '@/components/public/homepage/ImplementationJourney';
 import { SecuritySection } from '@/components/public/homepage/SecuritySection';
@@ -19,6 +20,7 @@ export default function Homepage() {
       <InstitutionTypeSection />
       <PlatformSystemsSection />
       <RoleExperienceSection />
+      <ProductTourSection />
       <WorkflowSection />
       <RegionalCapabilities />
       <ImplementationJourney />
