@@ -22,7 +22,8 @@ import {
   FileCheck,
   BellRing,
   TrendingUp,
-  Award
+  Award,
+  Gift
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -378,8 +379,8 @@ function QuickAccess({ role }: { role: string }) {
 function getQuickLinks(role: string): QuickLink[] {
   if (role === 'STUDENT') return [
     { href: '/student/learning', label: 'My learning', description: 'Courses, lessons, and deadlines', icon: BookOpen },
+    { href: '/student/benefits', label: 'Student Benefits & Perks', description: '$3,500+ free developer tools & cloud credits', icon: Gift },
     { href: '/student/results', label: 'Academic results', description: 'Published grades and credits', icon: GraduationCap },
-    { href: '/attendance', label: 'Attendance', description: 'Review recorded attendance', icon: CalendarDays },
     { href: '/fees', label: 'Fees & Receipts', description: 'Invoices and payment status', icon: ReceiptText },
   ];
   if (role === 'FACULTY') return [
