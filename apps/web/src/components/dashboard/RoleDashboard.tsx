@@ -38,7 +38,7 @@ type DashboardData = {
 
 const roleName = (role: string) => role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-export function RoleDashboard() {
+export function RoleDashboard({ endpoint = '/api/dashboard/student' }: { endpoint?: string }) {
   const { currentSession } = useAuthStore();
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -50,7 +50,7 @@ export function RoleDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/dashboard', { cache: 'no-store' });
+      const response = await fetch(endpoint, { cache: 'no-store' });
       const payload: unknown = await response.json();
       if (!response.ok || !isDashboardData(payload)) throw new Error('Dashboard data is unavailable.');
       setData(payload);
@@ -59,7 +59,7 @@ export function RoleDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [endpoint]);
 
   React.useEffect(() => { void loadDashboard(); }, [loadDashboard]);
 

@@ -1,281 +1,855 @@
 'use client';
-import React, { useState } from 'react';
+
+import type { ElementType, KeyboardEvent } from 'react';
+import { useId, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, AlertCircle, Clock, BookOpen } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BarChart3,
+  BookOpenCheck,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  CreditCard,
+  FileCheck2,
+  GraduationCap,
+  IndianRupee,
+  Landmark,
+  MessageSquareText,
+  Settings2,
+  ShieldCheck,
+  UserRoundCheck,
+  UsersRound,
+  WalletCards,
+} from 'lucide-react';
 
-const roles = [
-  { id: 'leadership', label: 'Leadership' },
-  { id: 'admin', label: 'Administrator' },
-  { id: 'faculty', label: 'Faculty' },
-  { id: 'student', label: 'Student' },
-  { id: 'parent', label: 'Parent' },
-  { id: 'finance', label: 'Finance' }
-];
+type RoleId =
+  | 'leadership'
+  | 'administrator'
+  | 'faculty'
+  | 'student'
+  | 'parent'
+  | 'finance';
 
-export function RoleExperienceSection() {
-  const [activeRole, setActiveRole] = useState('student');
+type MetricTone = 'default' | 'success' | 'warning' | 'danger';
+
+type PreviewStatus = 'Completed' | 'Live' | 'Pending' | 'Upcoming' | 'Review';
+
+type RoleMetric = {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: MetricTone;
+};
+
+type PreviewItem = {
+  title: string;
+  meta: string;
+  status: PreviewStatus;
+};
+
+type RoleExperience = {
+  id: RoleId;
+  label: string;
+  title: string;
+  description: string;
+  href: string;
+  ctaLabel: string;
+  icon: ElementType;
+  benefits: readonly string[];
+  preview: {
+    title: string;
+    subtitle: string;
+    metrics: readonly RoleMetric[];
+    sectionTitle: string;
+    items: readonly PreviewItem[];
+    attention: {
+      title: string;
+      description: string;
+      action: string;
+    };
+  };
+};
+
+const roleExperiences: readonly RoleExperience[] = [
+  {
+    id: 'leadership',
+    label: 'Leadership',
+    title: 'Leadership Intelligence',
+    description:
+      'Give institutional leaders a consolidated view of academic performance, financial health, operational risk and strategic priorities.',
+    href: '/roles/leadership',
+    ctaLabel: 'Explore leadership experience',
+    icon: Landmark,
+    benefits: [
+      'Institution-wide performance overview',
+      'Strategic risk and exception monitoring',
+      'Multi-campus comparison views',
+      'Governance and approval visibility',
+    ],
+    preview: {
+      title: 'Leadership Overview',
+      subtitle: 'Institution-wide performance and strategic priorities',
+      metrics: [
+        {
+          label: 'Active programmes',
+          value: '42',
+          detail: 'Across 8 academic schools',
+        },
+        {
+          label: 'Pending approvals',
+          value: '7',
+          detail: 'Require leadership review',
+          tone: 'warning',
+        },
+        {
+          label: 'Priority risks',
+          value: '3',
+          detail: 'Academic and operational',
+          tone: 'danger',
+        },
+      ],
+      sectionTitle: 'Institutional priorities',
+      items: [
+        {
+          title: 'Academic performance review',
+          meta: 'Semester analysis prepared by the Registrar',
+          status: 'Review',
+        },
+        {
+          title: 'Annual operating plan',
+          meta: 'Finance and HR inputs received',
+          status: 'Pending',
+        },
+        {
+          title: 'New programme proposal',
+          meta: 'School of Computing',
+          status: 'Upcoming',
+        },
+      ],
+      attention: {
+        title: 'Leadership attention',
+        description:
+          'Three strategic indicators require review before the next governance meeting.',
+        action: 'Review institutional risks',
+      },
+    },
+  },
+  {
+    id: 'administrator',
+    label: 'Administrator',
+    title: 'Administrative Workspace',
+    description:
+      'Coordinate institutional configuration, user access, academic structures, approvals and operational workflows from one secure workspace.',
+    href: '/roles/administrators',
+    ctaLabel: 'Explore administrator experience',
+    icon: Settings2,
+    benefits: [
+      'Central user and role administration',
+      'Academic structure configuration',
+      'Cross-department workflow management',
+      'Audit-ready activity visibility',
+    ],
+    preview: {
+      title: 'Administration Overview',
+      subtitle: 'Configuration, access and operational workflow status',
+      metrics: [
+        {
+          label: 'Open requests',
+          value: '26',
+          detail: 'Across institutional teams',
+          tone: 'warning',
+        },
+        {
+          label: 'New user records',
+          value: '14',
+          detail: 'Awaiting verification',
+        },
+        {
+          label: 'System notices',
+          value: '3',
+          detail: 'Configuration updates',
+          tone: 'danger',
+        },
+      ],
+      sectionTitle: 'Administrative queue',
+      items: [
+        {
+          title: 'Faculty access requests',
+          meta: '6 accounts awaiting approval',
+          status: 'Pending',
+        },
+        {
+          title: 'Academic term configuration',
+          meta: 'Autumn term setup',
+          status: 'Review',
+        },
+        {
+          title: 'Department data import',
+          meta: 'School of Management',
+          status: 'Completed',
+        },
+      ],
+      attention: {
+        title: 'Configuration required',
+        description:
+          'The upcoming academic term has three incomplete workflow settings.',
+        action: 'Review configuration',
+      },
+    },
+  },
+  {
+    id: 'faculty',
+    label: 'Faculty',
+    title: 'Faculty Workspace',
+    description:
+      'Help educators manage classes, attendance, assignments, grading and student support without unnecessary administrative overhead.',
+    href: '/roles/faculty',
+    ctaLabel: 'Explore faculty experience',
+    icon: GraduationCap,
+    benefits: [
+      'Fast class and attendance workflows',
+      'Assignment and rubric-based grading',
+      'Course communication tools',
+      'Authorised student-risk indicators',
+    ],
+    preview: {
+      title: 'Faculty Overview',
+      subtitle: 'Teaching schedule, grading and student support',
+      metrics: [
+        {
+          label: "Today's classes",
+          value: '4',
+          detail: 'Next class at 11:00',
+        },
+        {
+          label: 'Pending grading',
+          value: '18',
+          detail: '6 submissions due today',
+          tone: 'warning',
+        },
+        {
+          label: 'Students requiring review',
+          value: '3',
+          detail: 'Assigned courses only',
+          tone: 'danger',
+        },
+      ],
+      sectionTitle: "Today's teaching schedule",
+      items: [
+        {
+          title: 'CS-301 · Data Structures',
+          meta: '09:00 · Computer Lab 4',
+          status: 'Completed',
+        },
+        {
+          title: 'CS-305 · Design of Algorithms',
+          meta: '11:00 · Lecture Hall A',
+          status: 'Live',
+        },
+        {
+          title: 'CS-312 · Database Systems',
+          meta: '14:00 · Room B-204',
+          status: 'Upcoming',
+        },
+      ],
+      attention: {
+        title: 'Action required',
+        description:
+          'Three students in an assigned course are below the configured attendance threshold.',
+        action: 'Review assigned students',
+      },
+    },
+  },
+  {
+    id: 'student',
+    label: 'Student',
+    title: 'Student Workspace',
+    description:
+      'Give students one place to manage classes, attendance, assignments, examinations, fees and campus services.',
+    href: '/roles/students',
+    ctaLabel: 'Explore student experience',
+    icon: BookOpenCheck,
+    benefits: [
+      'Live timetable and learning access',
+      'Attendance and academic progress',
+      'Assignments, examinations and results',
+      'Fees, documents and student services',
+    ],
+    preview: {
+      title: 'Student Overview',
+      subtitle: 'Classes, academic progress and upcoming tasks',
+      metrics: [
+        {
+          label: 'Overall attendance',
+          value: '88.5%',
+          detail: 'Above required threshold',
+          tone: 'success',
+        },
+        {
+          label: 'Upcoming tasks',
+          value: '5',
+          detail: 'Two due this week',
+          tone: 'warning',
+        },
+        {
+          label: 'Fee status',
+          value: 'Paid',
+          detail: 'Current term',
+          tone: 'success',
+        },
+      ],
+      sectionTitle: "Today's schedule",
+      items: [
+        {
+          title: 'Physics Laboratory',
+          meta: '10:00 · Laboratory 302',
+          status: 'Upcoming',
+        },
+        {
+          title: 'Calculus I',
+          meta: '11:30 · Online classroom',
+          status: 'Live',
+        },
+        {
+          title: 'Data Structures Tutorial',
+          meta: '14:00 · Room C-105',
+          status: 'Upcoming',
+        },
+      ],
+      attention: {
+        title: 'Assignment due soon',
+        description:
+          'The Physics Laboratory report is due tomorrow at 5:00 PM.',
+        action: 'Open assignment',
+      },
+    },
+  },
+  {
+    id: 'parent',
+    label: 'Parent',
+    title: 'Parent and Guardian Portal',
+    description:
+      'Help authorised guardians follow a linked student’s attendance, published results, fees and important institutional notices.',
+    href: '/roles/parents',
+    ctaLabel: 'Explore parent experience',
+    icon: UserRoundCheck,
+    benefits: [
+      'Verified linked-student access',
+      'Attendance and progress visibility',
+      'Published fee and result information',
+      'Institutional notices and communication',
+    ],
+    preview: {
+      title: 'Guardian Overview',
+      subtitle: 'Authorised information for the linked student',
+      metrics: [
+        {
+          label: 'Attendance',
+          value: '88.5%',
+          detail: 'Linked student',
+          tone: 'success',
+        },
+        {
+          label: 'Outstanding fees',
+          value: '₹0',
+          detail: 'No current balance',
+          tone: 'success',
+        },
+        {
+          label: 'New notices',
+          value: '2',
+          detail: 'Published by the institution',
+        },
+      ],
+      sectionTitle: 'Recent student updates',
+      items: [
+        {
+          title: 'Attendance summary published',
+          meta: 'Current academic month',
+          status: 'Completed',
+        },
+        {
+          title: 'Mid-term result available',
+          meta: 'Published by Examination Office',
+          status: 'Review',
+        },
+        {
+          title: 'Parent-teacher meeting',
+          meta: 'Friday · 3:30 PM',
+          status: 'Upcoming',
+        },
+      ],
+      attention: {
+        title: 'Guardian notice',
+        description:
+          'A new academic progress update is available for the linked student.',
+        action: 'Review progress',
+      },
+    },
+  },
+  {
+    id: 'finance',
+    label: 'Finance',
+    title: 'Finance Operations',
+    description:
+      'Support fee configuration, collection, reconciliation, refunds, concessions and institutional financial reporting.',
+    href: '/roles/finance',
+    ctaLabel: 'Explore finance experience',
+    icon: IndianRupee,
+    benefits: [
+      'Fee structures and invoice workflows',
+      'Collection and reconciliation',
+      'Refund and concession approvals',
+      'Role-aware financial reporting',
+    ],
+    preview: {
+      title: 'Finance Overview',
+      subtitle: 'Collections, reconciliation and financial exceptions',
+      metrics: [
+        {
+          label: "Today's collections",
+          value: '₹18.4L',
+          detail: 'Across online and counter payments',
+          tone: 'success',
+        },
+        {
+          label: 'Pending reconciliation',
+          value: '12',
+          detail: 'Transactions require review',
+          tone: 'warning',
+        },
+        {
+          label: 'Refund requests',
+          value: '6',
+          detail: 'Awaiting authorised action',
+        },
+      ],
+      sectionTitle: 'Finance operations queue',
+      items: [
+        {
+          title: 'Payment gateway settlement',
+          meta: 'Settlement batch PG-2408',
+          status: 'Review',
+        },
+        {
+          title: 'Scholarship adjustment',
+          meta: '18 eligible student records',
+          status: 'Pending',
+        },
+        {
+          title: 'Daily collection report',
+          meta: 'Generated at 5:30 PM',
+          status: 'Completed',
+        },
+      ],
+      attention: {
+        title: 'Reconciliation exception',
+        description:
+          'Three transactions require manual verification before settlement closure.',
+        action: 'Review exceptions',
+      },
+    },
+  },
+] as const;
+
+const metricToneClasses: Record<MetricTone, string> = {
+  default: 'text-[#101828]',
+  success: 'text-[#078A57]',
+  warning: 'text-[#B85C00]',
+  danger: 'text-[#C43224]',
+};
+
+const statusClasses: Record<PreviewStatus, string> = {
+  Completed: 'border-[#B7E4D3] bg-[#EAF8F3] text-[#067A4E]',
+  Live: 'border-[#B9CEF8] bg-[#EDF3FF] text-[#1754E8]',
+  Pending: 'border-[#F2D0A3] bg-[#FFF6E8] text-[#A95500]',
+  Upcoming: 'border-[#D9E1EC] bg-[#F3F6FA] text-[#5F6C7B]',
+  Review: 'border-[#D5C9F4] bg-[#F3EFFF] text-[#6941C6]',
+};
+
+function RoleTabs({
+  activeRole,
+  onRoleChange,
+  tabIdPrefix,
+}: {
+  activeRole: RoleId;
+  onRoleChange: (role: RoleId) => void;
+  tabIdPrefix: string;
+}) {
+  const roleIds = roleExperiences.map((role) => role.id);
+
+  function handleKeyDown(
+    event: KeyboardEvent<HTMLButtonElement>,
+    currentRole: RoleId,
+  ) {
+    const currentIndex = roleIds.indexOf(currentRole);
+    let nextIndex = currentIndex;
+
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % roleIds.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + roleIds.length) % roleIds.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = roleIds.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+
+    const nextRole = roleIds[nextIndex];
+    onRoleChange(nextRole);
+
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`${tabIdPrefix}-tab-${nextRole}`)
+        ?.focus();
+    });
+  }
 
   return (
-    <section className="bg-[#101B33] py-24 md:py-32 overflow-hidden">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 xl:px-12">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-white mb-8">
-            Tailored experiences for every role
-          </h2>
-          
-          {/* Tabs */}
-          <div className="flex flex-wrap justify-center gap-2 max-w-[800px] mx-auto">
-            {roles.map(role => (
-              <button
-                key={role.id}
-                onClick={() => setActiveRole(role.id)}
-                className={`h-[44px] px-5 rounded-lg text-[15px] font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-[#1854E8] ${
-                  activeRole === role.id 
-                    ? 'bg-white text-[#101B33]' 
-                    : 'bg-transparent text-[#BEC7D7] hover:bg-white/10 hover:text-white border border-transparent hover:border-white/20'
-                }`}
-              >
-                {role.label}
-              </button>
-            ))}
+    <div
+      role="tablist"
+      aria-label="CampusOS role experiences"
+      className="mx-auto flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.04] p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {roleExperiences.map((role) => {
+        const isActive = role.id === activeRole;
+
+        return (
+          <button
+            key={role.id}
+            id={`${tabIdPrefix}-tab-${role.id}`}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`${tabIdPrefix}-panel-${role.id}`}
+            tabIndex={isActive ? 0 : -1}
+            onClick={() => onRoleChange(role.id)}
+            onKeyDown={(event) => handleKeyDown(event, role.id)}
+            className={[
+              'min-h-11 shrink-0 rounded-xl px-4 text-sm font-semibold',
+              'transition-[background-color,color,box-shadow]',
+              'focus-visible:outline-none focus-visible:ring-2',
+              'focus-visible:ring-[#8CB2FF] focus-visible:ring-offset-2',
+              'focus-visible:ring-offset-[#101B33]',
+              isActive
+                ? 'bg-white text-[#101B33] shadow-sm'
+                : 'text-[#BEC7D7] hover:bg-white/[0.08] hover:text-white',
+            ].join(' ')}
+          >
+            {role.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RoleDescription({ role }: { role: RoleExperience }) {
+  const Icon = role.icon;
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex h-13 w-13 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07] text-[#8CB2FF]">
+        <Icon className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+      </div>
+
+      <p className="mt-6 text-xs font-bold uppercase tracking-[0.12em] text-[#8CB2FF]">
+        {role.label} experience
+      </p>
+
+      <h3 className="mt-3 text-3xl font-bold tracking-[-0.03em] text-white sm:text-4xl">
+        {role.title}
+      </h3>
+
+      <p className="mt-5 max-w-[560px] text-base leading-7 text-[#BEC7D7]">
+        {role.description}
+      </p>
+
+      <ul className="mt-8 space-y-4">
+        {role.benefits.map((benefit) => (
+          <li
+            key={benefit}
+            className="flex items-start gap-3 text-[15px] leading-6 text-white"
+          >
+            <CheckCircle2
+              className="mt-0.5 h-5 w-5 shrink-0 text-[#4DD1A1]"
+              strokeWidth={2.2}
+              aria-hidden="true"
+            />
+
+            <span>{benefit}</span>
+          </li>
+        ))}
+      </ul>
+
+      <Link
+        href={role.href}
+        className="group mt-9 inline-flex min-h-12 w-fit items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[#101B33] transition-colors hover:bg-[#EDF3FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#182642]"
+      >
+        {role.ctaLabel}
+
+        <ArrowRight
+          className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
+          aria-hidden="true"
+        />
+      </Link>
+    </div>
+  );
+}
+
+function MetricCard({ metric }: { metric: RoleMetric }) {
+  const tone = metric.tone ?? 'default';
+
+  return (
+    <div className="rounded-xl border border-[#DEE5EF] bg-white p-4 shadow-[0_5px_18px_rgba(16,24,40,0.04)]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#667085]">
+        {metric.label}
+      </p>
+
+      <p
+        className={`mt-2 text-xl font-bold tracking-[-0.025em] ${metricToneClasses[tone]}`}
+      >
+        {metric.value}
+      </p>
+
+      <p className="mt-1.5 text-[10px] leading-4 text-[#7C889A]">
+        {metric.detail}
+      </p>
+    </div>
+  );
+}
+
+function RoleDashboardPreview({ role }: { role: RoleExperience }) {
+  return (
+    <div className="relative mx-auto w-full max-w-[760px]">
+      <div className="absolute -inset-4 rounded-[28px] bg-[#24467B]/30 blur-2xl" />
+
+      <div className="relative overflow-hidden rounded-2xl border border-[#CCD7E6] bg-white shadow-[0_28px_70px_rgba(0,0,0,0.24)]">
+        <div className="flex min-h-14 items-center justify-between border-b border-[#DEE5EF] bg-white px-4 sm:px-5">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-[#101828]">
+              {role.preview.title}
+            </p>
+
+            <p className="mt-0.5 truncate text-[9px] font-semibold uppercase tracking-[0.09em] text-[#8A95A6]">
+              Illustrative CampusOS workspace
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2" aria-hidden="true">
+            <div className="hidden min-h-8 items-center gap-1.5 rounded-lg border border-[#DEE5EF] bg-[#F7F9FC] px-2.5 text-[10px] font-medium text-[#667085] sm:flex">
+              <CalendarDays className="h-3.5 w-3.5" />
+              Today
+            </div>
+
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1754E8] text-[10px] font-bold text-white">
+              {role.label.slice(0, 2).toUpperCase()}
+            </div>
           </div>
         </div>
 
-        {/* Role Content Box */}
-        <div className="bg-[#182642] border border-[#2A3B5C] rounded-2xl p-6 md:p-10 lg:p-12 shadow-2xl">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
-            {/* Left Description */}
-            <div className="lg:col-span-5 flex flex-col">
-              {activeRole === 'student' && (
-                <>
-                  <h3 className="text-3xl font-bold text-white mb-4">Student Workspace</h3>
-                  <p className="text-[16px] text-[#BEC7D7] leading-[1.6] mb-8">
-                    Empower students with a unified portal to track attendance, submit assignments, pay fees, and access course materials securely from any device.
-                  </p>
-                  <div className="flex flex-col gap-4 mb-10">
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Live timetable and online classes
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Real-time attendance tracking
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Assessment and results portal
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Fee payment gateway
-                    </div>
-                  </div>
-                  <Link 
-                    href="/roles/students" 
-                    className="inline-flex items-center gap-2 text-[15px] font-semibold text-white hover:text-[#BEC7D7] transition-colors"
-                  >
-                    Explore student experience <ArrowRight size={18} />
-                  </Link>
-                </>
-              )}
+        <div className="bg-[#F5F7FB] p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-[#101828]">
+                {role.preview.title}
+              </h4>
 
-              {activeRole === 'faculty' && (
-                <>
-                  <h3 className="text-3xl font-bold text-white mb-4">Faculty Portal</h3>
-                  <p className="text-[16px] text-[#BEC7D7] leading-[1.6] mb-8">
-                    Equip educators with the tools they need to manage classrooms, grade assessments, and track student outcomes without administrative overhead.
-                  </p>
-                  <div className="flex flex-col gap-4 mb-10">
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Fast attendance entry
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Assignment grading rubric
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Student at-risk alerts
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Leave and payroll access
-                    </div>
-                  </div>
-                  <Link 
-                    href="/roles/faculty" 
-                    className="inline-flex items-center gap-2 text-[15px] font-semibold text-white hover:text-[#BEC7D7] transition-colors"
-                  >
-                    Explore faculty experience <ArrowRight size={18} />
-                  </Link>
-                </>
-              )}
-
-              {/* Fallback for other roles for now */}
-              {['leadership', 'admin', 'parent', 'finance'].includes(activeRole) && (
-                <>
-                  <h3 className="text-3xl font-bold text-white mb-4 capitalize">{activeRole} Portal</h3>
-                  <p className="text-[16px] text-[#BEC7D7] leading-[1.6] mb-8">
-                    Purpose-built tools and dashboards designed specifically for the workflows, permissions, and data requirements of {activeRole}s.
-                  </p>
-                  <div className="flex flex-col gap-4 mb-10">
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Role-specific analytics
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Secure data isolation
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Custom approval workflows
-                    </div>
-                    <div className="flex items-center gap-3 text-[15px] text-white">
-                      <CheckCircle2 size={18} className="text-[#078A57]" /> Actionable alerts
-                    </div>
-                  </div>
-                  <Link 
-                    href={`/roles/${activeRole}s`} 
-                    className="inline-flex items-center gap-2 text-[15px] font-semibold text-white hover:text-[#BEC7D7] transition-colors"
-                  >
-                    Explore {activeRole} experience <ArrowRight size={18} />
-                  </Link>
-                </>
-              )}
+              <p className="mt-1 text-[10px] text-[#667085] sm:text-xs">
+                {role.preview.subtitle}
+              </p>
             </div>
 
-            {/* Right Preview */}
-            <div className="lg:col-span-7 flex justify-center lg:justify-end">
-              <div className="w-full max-w-[700px] bg-white rounded-xl shadow-2xl overflow-hidden border border-[#DEE5EF] flex flex-col">
-                <div className="h-12 border-b border-[#DEE5EF] bg-white flex items-center px-4 justify-between">
-                  <div className="font-semibold text-[14px] text-[#101828]">
-                    {activeRole === 'student' ? 'Student Dashboard' : activeRole === 'faculty' ? 'Faculty Portal' : 'Dashboard'}
+            <span className="hidden rounded-full border border-[#C8D8F5] bg-[#EDF3FF] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-[#1754E8] sm:inline-flex">
+              Fictional data
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 min-[430px]:grid-cols-3">
+            {role.preview.metrics.map((metric) => (
+              <MetricCard key={metric.label} metric={metric} />
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(190px,0.75fr)]">
+            <div className="rounded-xl border border-[#DEE5EF] bg-white p-4 shadow-[0_5px_18px_rgba(16,24,40,0.04)]">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-xs font-semibold text-[#101828] sm:text-sm">
+                  {role.preview.sectionTitle}
+                </h4>
+
+                <span className="text-[10px] font-semibold text-[#1754E8]">
+                  View all
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-2.5">
+                {role.preview.items.map((item) => (
+                  <div
+                    key={`${item.title}-${item.meta}`}
+                    className="flex items-start justify-between gap-3 rounded-lg border border-[#E3E8F0] bg-[#FAFBFC] p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-semibold text-[#101828]">
+                        {item.title}
+                      </p>
+
+                      <p className="mt-1 truncate text-[9px] text-[#667085]">
+                        {item.meta}
+                      </p>
+                    </div>
+
+                    <span
+                      className={[
+                        'inline-flex min-h-6 shrink-0 items-center rounded-full',
+                        'border px-2 text-[8px] font-bold uppercase tracking-[0.06em]',
+                        statusClasses[item.status],
+                      ].join(' ')}
+                    >
+                      {item.status}
+                    </span>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-[#DEE5EF]"></div>
-                    <div className="w-3 h-3 rounded-full bg-[#DEE5EF]"></div>
-                    <div className="w-3 h-3 rounded-full bg-[#DEE5EF]"></div>
-                  </div>
-                </div>
-
-                <div className="p-5 bg-[#F5F7FB] flex-1">
-                  {activeRole === 'student' && (
-                    <div className="flex flex-col gap-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF]">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Overall Attendance</div>
-                          <div className="text-[18px] font-bold text-[#101828]">88.5%</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF]">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Fee Status</div>
-                          <div className="text-[12px] font-bold text-[#078A57] bg-[#e6f4ed] inline-block px-1.5 py-0.5 rounded mt-1">Paid</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF] hidden md:block">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Upcoming Exam</div>
-                          <div className="text-[13px] font-bold text-[#101828]">In 12 Days</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF] hidden md:block">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Library Dues</div>
-                          <div className="text-[13px] font-bold text-[#101828]">₹0</div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-white p-4 rounded-lg border border-[#DEE5EF]">
-                          <h4 className="text-[13px] font-semibold mb-3">Today&apos;s Timetable</h4>
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-3 p-2 bg-[#F5F7FB] rounded border-l-2 border-[#1854E8]">
-                              <Clock size={14} className="text-[#5F6B7A]" />
-                              <div>
-                                <div className="text-[12px] font-semibold">10:00 AM - Physics Lab</div>
-                                <div className="text-[10px] text-[#5F6B7A]">Prof. Sharma • Room 302</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 p-2 bg-[#EEF3FF] rounded border-l-2 border-[#1854E8]">
-                              <BookOpen size={14} className="text-[#1854E8]" />
-                              <div>
-                                <div className="text-[12px] font-semibold">11:30 AM - Calculus I <span className="bg-[#1854E8] text-white text-[9px] px-1 rounded ml-1">Live</span></div>
-                                <div className="text-[10px] text-[#5F6B7A]">Prof. Gupta • Online</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-white p-4 rounded-lg border border-[#DEE5EF]">
-                          <h4 className="text-[13px] font-semibold mb-3">Pending Assignments</h4>
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center justify-between p-2 border border-[#DEE5EF] rounded">
-                              <div>
-                                <div className="text-[12px] font-semibold">Physics Lab Report</div>
-                                <div className="text-[10px] text-[#D66A00]">Due Tomorrow</div>
-                              </div>
-                              <button className="text-[11px] bg-[#1854E8] text-white px-2 py-1 rounded">Submit</button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeRole === 'faculty' && (
-                    <div className="flex flex-col gap-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF]">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Today&apos;s Classes</div>
-                          <div className="text-[18px] font-bold text-[#101828]">4</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF]">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Pending Grading</div>
-                          <div className="text-[18px] font-bold text-[#D66A00]">28</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-[#DEE5EF] col-span-2">
-                          <div className="text-[11px] text-[#5F6B7A] mb-1">Next Class</div>
-                          <div className="text-[13px] font-bold text-[#101828]">10:00 AM - Data Structures (B.Tech Y2)</div>
-                        </div>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-lg border border-[#DEE5EF]">
-                        <h4 className="text-[13px] font-semibold mb-3 flex items-center justify-between">
-                          <span>Mark Attendance - Data Structures</span>
-                          <span className="text-[#1854E8] text-[11px]">Select All Present</span>
-                        </h4>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between p-2 border border-[#DEE5EF] rounded bg-[#F5F7FB]">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[#DEE5EF]"></div>
-                              <span className="text-[12px] font-semibold">Aarav Patel (CS001)</span>
-                            </div>
-                            <div className="flex gap-1">
-                              <span className="bg-[#078A57] text-white text-[10px] px-2 py-1 rounded">P</span>
-                              <span className="bg-white border border-[#DEE5EF] text-[#5F6B7A] text-[10px] px-2 py-1 rounded">A</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between p-2 border border-[#DEE5EF] rounded">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[#DEE5EF]"></div>
-                              <span className="text-[12px] font-semibold">Diya Sharma (CS002)</span>
-                            </div>
-                            <div className="flex gap-1">
-                              <span className="bg-white border border-[#DEE5EF] text-[#5F6B7A] text-[10px] px-2 py-1 rounded">P</span>
-                              <span className="bg-[#D92D20] text-white text-[10px] px-2 py-1 rounded">A</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button className="w-full mt-3 bg-[#1854E8] text-white text-[12px] font-semibold py-2 rounded">Submit Attendance</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {['leadership', 'admin', 'parent', 'finance'].includes(activeRole) && (
-                    <div className="flex flex-col gap-4">
-                      <div className="bg-white p-6 rounded-lg border border-[#DEE5EF] flex items-center justify-center min-h-[250px]">
-                        <div className="text-center">
-                          <div className="w-12 h-12 rounded-full bg-[#EEF3FF] text-[#1854E8] flex items-center justify-center mx-auto mb-3">
-                            <CheckCircle2 size={24} />
-                          </div>
-                          <div className="text-[14px] font-semibold text-[#101828] mb-1">{activeRole} Dashboard Preview</div>
-                          <div className="text-[12px] text-[#5F6B7A]">Interactive preview loading...</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
             </div>
 
+            <div className="space-y-4">
+              <div className="rounded-xl bg-[#101D38] p-4 text-white shadow-[0_8px_24px_rgba(16,29,56,0.16)]">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle
+                    className="h-4 w-4 text-[#FFCB69]"
+                    aria-hidden="true"
+                  />
+
+                  <h4 className="text-xs font-semibold">
+                    {role.preview.attention.title}
+                  </h4>
+                </div>
+
+                <p className="mt-2 text-[10px] leading-4 text-[#C4CDDD]">
+                  {role.preview.attention.description}
+                </p>
+
+                <div className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-semibold text-white">
+                  {role.preview.attention.action}
+                  <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#D8E3F2] bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck
+                    className="h-4 w-4 text-[#078A57]"
+                    aria-hidden="true"
+                  />
+
+                  <h4 className="text-[11px] font-semibold text-[#101828]">
+                    Role-aware access
+                  </h4>
+                </div>
+
+                <p className="mt-2 text-[9px] leading-4 text-[#667085]">
+                  Information and actions are limited to the responsibilities
+                  and permissions of this role.
+                </p>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="border-t border-[#DEE5EF] bg-white px-4 py-2.5 text-center text-[9px] text-[#7C889A]">
+          Illustrative product interface. Availability depends on institutional
+          configuration.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function RoleExperienceSection() {
+  const [activeRole, setActiveRole] = useState<RoleId>('student');
+  const tabIdPrefix = useId().replace(/:/g, '');
+
+  const selectedRole =
+    roleExperiences.find((role) => role.id === activeRole) ??
+    roleExperiences[0];
+
+  return (
+    <section
+      className="overflow-hidden bg-[#101B33] px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-32"
+      aria-labelledby="role-experience-heading"
+    >
+      <div className="mx-auto max-w-[1280px]">
+        <header className="mx-auto max-w-[800px] text-center">
+          <div className="inline-flex min-h-8 items-center rounded-full border border-white/15 bg-white/[0.06] px-4 text-xs font-bold uppercase tracking-[0.12em] text-[#AFC7EE]">
+            Role-aware workspaces
+          </div>
+
+          <h2
+            id="role-experience-heading"
+            className="mt-6 text-balance text-3xl font-bold tracking-[-0.03em] text-white sm:text-4xl lg:text-[48px] lg:leading-[1.12]"
+          >
+            Purpose-built experiences for every institutional role
+          </h2>
+
+          <p className="mx-auto mt-5 max-w-[720px] text-base leading-7 text-[#BEC7D7] sm:text-lg sm:leading-8">
+            Each CampusOS workspace presents the information, actions and
+            approvals relevant to that user’s responsibilities.
+          </p>
+        </header>
+
+        <div className="mx-auto mt-10 max-w-fit">
+          <RoleTabs
+            activeRole={activeRole}
+            onRoleChange={setActiveRole}
+            tabIdPrefix={tabIdPrefix}
+          />
+        </div>
+
+        <div
+          id={`${tabIdPrefix}-panel-${selectedRole.id}`}
+          role="tabpanel"
+          aria-labelledby={`${tabIdPrefix}-tab-${selectedRole.id}`}
+          tabIndex={0}
+          className="mt-10 rounded-3xl border border-[#2A3B5C] bg-[#182642] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8CB2FF] sm:p-8 lg:p-12"
+        >
+          <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.32fr)] lg:gap-14">
+            <RoleDescription role={selectedRole} />
+            <RoleDashboardPreview role={selectedRole} />
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-xs text-[#91A0B8]">
+          <span className="inline-flex items-center gap-2">
+            <ShieldCheck
+              className="h-4 w-4 text-[#56D4A7]"
+              aria-hidden="true"
+            />
+            Permission-aware information
+          </span>
+
+          <span className="inline-flex items-center gap-2">
+            <UsersRound
+              className="h-4 w-4 text-[#83ACFF]"
+              aria-hidden="true"
+            />
+            Separate role experiences
+          </span>
+
+          <span className="inline-flex items-center gap-2">
+            <BarChart3
+              className="h-4 w-4 text-[#A696FF]"
+              aria-hidden="true"
+            />
+            Connected institutional workflows
+          </span>
         </div>
       </div>
     </section>

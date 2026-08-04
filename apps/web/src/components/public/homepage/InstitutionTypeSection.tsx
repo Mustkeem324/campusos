@@ -1,90 +1,241 @@
-import React from 'react';
+import type { ElementType } from 'react';
 import Link from 'next/link';
-import { 
-  Building, Library, Layers, 
-  Cpu, HeartPulse, Globe, ArrowRight 
+import {
+  ArrowRight,
+  BookOpenCheck,
+  Building2,
+  Cpu,
+  Globe2,
+  GraduationCap,
+  HeartPulse,
+  Layers3,
 } from 'lucide-react';
 
-const institutionTypes = [
+type InstitutionType = {
+  id: string;
+  title: string;
+  description: string;
+  capabilities: readonly string[];
+  icon: ElementType;
+  href: string;
+  featured?: boolean;
+};
+
+const institutionTypes: readonly InstitutionType[] = [
   {
+    id: 'universities',
     title: 'Universities',
-    description: 'Manage multiple faculties, constituent colleges, large-scale examinations, and complex governance structures.',
-    icon: Building,
-    href: '/solutions/universities'
+    description:
+      'Coordinate faculties, campuses, academic programmes, examinations and institution-wide governance.',
+    capabilities: [
+      'Multi-campus administration',
+      'Institution-wide reporting',
+      'Central academic governance',
+    ],
+    icon: Building2,
+    href: '/solutions/universities',
+    featured: true,
   },
   {
+    id: 'autonomous-colleges',
     title: 'Autonomous Colleges',
-    description: 'Handle independent curriculum design, grading systems, and end-to-end examination management.',
-    icon: Library,
-    href: '/solutions/autonomous-colleges'
+    description:
+      'Manage independent curricula, academic regulations, assessments and result-publication workflows.',
+    capabilities: [
+      'Curriculum configuration',
+      'Examination workflows',
+      'Outcome-based education',
+    ],
+    icon: BookOpenCheck,
+    href: '/solutions/autonomous-colleges',
   },
   {
+    id: 'college-groups',
     title: 'College Groups',
-    description: 'Centralised control over multiple institutes with unified reporting and shared resources.',
-    icon: Layers,
-    href: '/solutions/college-groups'
+    description:
+      'Operate multiple institutions through shared governance, central reporting and configurable local control.',
+    capabilities: [
+      'Central administration',
+      'Shared institutional services',
+      'Consolidated analytics',
+    ],
+    icon: Layers3,
+    href: '/solutions/college-groups',
   },
   {
+    id: 'engineering-colleges',
     title: 'Engineering Colleges',
-    description: 'Track lab sessions, NBA compliance, project evaluations, and specialized placement drives.',
+    description:
+      'Support laboratories, projects, technical programmes, placements and academic-quality workflows.',
+    capabilities: [
+      'Lab and project tracking',
+      'Programme outcome reporting',
+      'Placement operations',
+    ],
     icon: Cpu,
-    href: '/solutions/engineering-colleges'
+    href: '/solutions/engineering-colleges',
   },
   {
+    id: 'medical-institutions',
     title: 'Medical Institutions',
-    description: 'Manage clinical rotations, hospital duty rosters, compliance, and specialized attendance.',
+    description:
+      'Coordinate academic schedules, clinical rotations, duty rosters and specialised attendance requirements.',
+    capabilities: [
+      'Clinical rotation planning',
+      'Duty-roster management',
+      'Specialised attendance',
+    ],
     icon: HeartPulse,
-    href: '/solutions/medical-colleges'
+    href: '/solutions/medical-colleges',
   },
   {
-    title: 'Online & Distance Learning',
-    description: 'Deliver asynchronous content, manage remote proctoring, and support global cohorts.',
-    icon: Globe,
-    href: '/solutions/online-learning'
-  }
+    id: 'online-learning',
+    title: 'Online and Distance Learning',
+    description:
+      'Deliver flexible learning experiences for remote students, distributed faculty and global cohorts.',
+    capabilities: [
+      'Digital course delivery',
+      'Remote assessments',
+      'Learner engagement',
+    ],
+    icon: Globe2,
+    href: '/solutions/online-learning',
+  },
 ];
+
+function InstitutionCard({ institution }: { institution: InstitutionType }) {
+  const Icon = institution.icon;
+
+  return (
+    <article
+      className={[
+        'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white p-6',
+        'transition-[transform,border-color,box-shadow] duration-200',
+        'hover:-translate-y-1 hover:border-[#B8CCEF] hover:shadow-[0_20px_50px_rgba(16,42,91,0.10)]',
+        'focus-within:border-[#1754E8]',
+        institution.featured
+          ? 'border-[#AFC7F4] shadow-[0_16px_42px_rgba(23,84,232,0.10)]'
+          : 'border-[#DFE6F0] shadow-[0_8px_28px_rgba(16,24,40,0.05)]',
+      ].join(' ')}
+    >
+      {institution.featured && (
+        <div className="absolute right-5 top-5 rounded-full border border-[#C8D8F5] bg-[#EDF3FF] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-[#1754E8]">
+          Broadest scope
+        </div>
+      )}
+
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#D5E1F5] bg-[#EDF3FF] text-[#1754E8]">
+        <Icon className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+      </div>
+
+      <h3 className="mt-6 pr-20 text-xl font-bold tracking-[-0.02em] text-[#101828]">
+        {institution.title}
+      </h3>
+
+      <p className="mt-3 text-[15px] leading-7 text-[#5F6C7B]">
+        {institution.description}
+      </p>
+
+      <ul className="mt-6 space-y-2.5">
+        {institution.capabilities.map((capability) => (
+          <li
+            key={capability}
+            className="flex items-start gap-2.5 text-sm leading-6 text-[#475467]"
+          >
+            <span
+              className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#1754E8]"
+              aria-hidden="true"
+            />
+
+            <span>{capability}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-auto pt-7">
+        <Link
+          href={institution.href}
+          aria-label={`Explore CampusOS for ${institution.title}`}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-[#1754E8] transition-colors hover:text-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4"
+        >
+          Explore this solution
+
+          <ArrowRight
+            className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
+            aria-hidden="true"
+          />
+        </Link>
+      </div>
+    </article>
+  );
+}
 
 export function InstitutionTypeSection() {
   return (
-    <section className="bg-white py-24 md:py-32">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 xl:px-12">
-        <div className="text-center mb-16">
-          <span className="text-[12px] md:text-[13px] font-semibold text-[#1854E8] tracking-[0.08em] uppercase mb-4 block">
-            DESIGNED FOR EVERY TYPE OF INSTITUTION
-          </span>
-          <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-[#101B33] mb-6">
-            Purpose-built for higher education
+    <section
+      className="bg-white px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-32"
+      aria-labelledby="institution-types-heading"
+    >
+      <div className="mx-auto max-w-[1280px]">
+        <header className="mx-auto max-w-[780px] text-center">
+          <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#C8D8F5] bg-[#EDF3FF] px-4 text-xs font-bold uppercase tracking-[0.12em] text-[#1754E8]">
+            <GraduationCap className="h-4 w-4" aria-hidden="true" />
+            Built for higher education
+          </div>
+
+          <h2
+            id="institution-types-heading"
+            className="mt-6 text-balance text-3xl font-bold tracking-[-0.03em] text-[#101A32] sm:text-4xl lg:text-[48px] lg:leading-[1.12]"
+          >
+            Configurable for every institutional model
           </h2>
-          <p className="text-[17px] text-[#5F6B7A] max-w-[680px] mx-auto">
-            CampusOS adapts to the operational, academic and compliance needs of your institution.
+
+          <p className="mx-auto mt-6 max-w-[720px] text-base leading-7 text-[#5F6C7B] sm:text-lg sm:leading-8">
+            CampusOS adapts to different academic structures, operational
+            responsibilities and governance models without forcing every
+            institution into the same workflow.
           </p>
+        </header>
+
+        <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:mt-16 lg:grid-cols-3">
+          {institutionTypes.map((institution) => (
+            <InstitutionCard
+              key={institution.id}
+              institution={institution}
+            />
+          ))}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-          {institutionTypes.map((type, index) => {
-            const Icon = type.icon;
-            return (
-              <Link 
-                key={index} 
-                href={type.href}
-                className="group flex flex-col bg-white border border-[#DEE5EF] rounded-[14px] p-6 hover:border-[#1854E8] hover:shadow-sm transition-all duration-200 min-h-[230px]"
-              >
-                <div className="w-[44px] h-[44px] rounded-lg bg-[#EEF3FF] text-[#1854E8] flex items-center justify-center mb-5 shrink-0">
-                  <Icon size={22} />
-                </div>
-                <h3 className="text-[18px] font-semibold text-[#101828] mb-3">
-                  {type.title}
-                </h3>
-                <p className="text-[14px] text-[#5F6B7A] leading-[1.5] mb-6 flex-1">
-                  {type.description}
-                </p>
-                <div className="mt-auto flex items-center gap-2 text-[14px] font-semibold text-[#1854E8]">
-                  Learn more <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-            );
-          })}
+        <div className="mt-12 flex flex-col gap-6 rounded-3xl border border-[#D8E2EF] bg-[#F7F9FC] px-6 py-8 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-10">
+          <div className="max-w-[760px]">
+            <h3 className="text-xl font-bold tracking-[-0.02em] text-[#101828]">
+              Your institution operates differently?
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-[#5F6C7B] sm:text-[15px]">
+              Explore how CampusOS can be configured around your academic
+              structure, campuses, programmes, operational workflows and
+              regional requirements.
+            </p>
+          </div>
+
+          <Link
+            href="/contact"
+            className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1754E8] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(23,84,232,0.22)] transition-colors hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4 focus-visible:ring-offset-[#F7F9FC]"
+          >
+            Discuss your requirements
+
+            <ArrowRight
+              className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
+              aria-hidden="true"
+            />
+          </Link>
         </div>
+
+        <p className="mx-auto mt-6 max-w-[840px] text-center text-xs leading-5 text-[#8A95A6]">
+          Available functionality may vary by institution configuration,
+          deployment model, region and selected CampusOS modules.
+        </p>
       </div>
     </section>
   );

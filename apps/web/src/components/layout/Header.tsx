@@ -24,7 +24,7 @@ export function Header() {
         className="app-header fixed right-0 bg-surface border-b border-border transition-all duration-300 flex items-center justify-between px-3 sm:px-4"
         style={{
           height: 'var(--header-h)',
-          top: 'var(--impersonation-bar-h)',
+          top: 'calc(var(--impersonation-bar-h) + var(--demo-banner-h))',
           left: isSidebarCollapsed ? 'var(--sidebar-collapsed-w)' : 'var(--sidebar-w)',
           zIndex: 'var(--z-header)',
         } as React.CSSProperties}

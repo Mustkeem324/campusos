@@ -36,10 +36,11 @@
 
     /* ── Layout coordination tokens ── */
     --impersonation-bar-h: 0px;
+    --demo-banner-h: 56px;
     --header-h: 60px;
     --sidebar-w: 230px;
     --sidebar-collapsed-w: 72px;
-    --layout-top: calc(var(--impersonation-bar-h) + var(--header-h));
+    --layout-top: calc(var(--impersonation-bar-h) + var(--demo-banner-h) + var(--header-h));
     --content-max-w: 1600px;
 
     /* ── Z-index scale ── */
@@ -136,6 +137,56 @@
 /* ── Prevent body horizontal overflow ── */
 html, body {
   overflow-x: clip;
+}
+
+/* The demo bar is deliberately a self-contained grid: account and tour UI live
+   in their own layers and never participate in this layout. */
+.demo-environment-banner {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) auto minmax(360px, 1fr);
+  align-items: center;
+  column-gap: 24px;
+  width: 100%;
+  min-height: var(--demo-banner-h);
+  padding: 8px 24px;
+  color: #fff;
+  background: #101D38;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+.demo-environment-banner > * { min-width: 0; }
+.demo-banner-notice { justify-self: start; display: flex; align-items: center; gap: 10px; color: #27c93f; }
+.demo-banner-notice > div { display: grid; gap: 1px; }
+.demo-banner-notice strong { font-size: 13px; line-height: 18px; }
+.demo-banner-notice span { color: #bec7d7; font-size: 12px; line-height: 16px; }
+.demo-banner-persona { justify-self: center; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 13px; font-weight: 600; color: #dbeafe; }
+.demo-banner-actions { justify-self: end; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+.demo-banner-button { min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; font-size: 13px; font-weight: 700; transition: background-color .15s ease, border-color .15s ease; }
+.demo-switch-persona { color: #fff; background: #1754e8; }
+.demo-switch-persona:hover { background: #1140b8; }
+.demo-options-trigger { color: #e2e8f0; background: #182642; border-color: #2a3b5c; }
+.demo-options-trigger:hover { color: #fff; background: #2a3b5c; }
+.demo-exit { color: #ffb4ae; background: rgb(217 45 32 / 20%); border-color: rgb(217 45 32 / 55%); }
+.demo-exit:hover { color: #fff; background: rgb(217 45 32 / 40%); }
+.demo-mobile-options { display: none; color: #fff; background: #1754e8; }
+.demo-options-menu { width: 224px; padding: 6px; border: 1px solid #2a3b5c; border-radius: 12px; background: #101d38; box-shadow: 0 16px 32px rgb(0 0 0 / 30%); }
+.demo-menu-item, .demo-sheet-action { width: 100%; min-height: 40px; padding: 0 10px; border-radius: 7px; display: flex; align-items: center; gap: 10px; color: #d7dfec; font-size: 13px; font-weight: 600; text-align: left; }
+.demo-menu-item:hover, .demo-menu-item:focus-visible { color: #fff; background: #182642; }
+.demo-menu-exit { display: none; color: #ffb4ae; }
+.demo-options-sheet-backdrop { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: end; background: rgb(0 0 0 / 60%); }
+.demo-options-sheet { width: 100%; padding: 20px; border-top: 1px solid #2a3b5c; border-radius: 24px 24px 0 0; color: #fff; background: #101d38; }
+.demo-sheet-heading { display: flex; align-items: start; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid #2a3b5c; }
+.demo-sheet-heading div { display: grid; gap: 3px; }.demo-sheet-heading strong { color: #27c93f; font-size: 13px; }.demo-sheet-heading span { font-size: 14px; font-weight: 700; }.demo-sheet-heading button { padding: 4px; color: #bec7d7; }
+.demo-sheet-items { display: grid; gap: 8px; padding-top: 14px; }.demo-sheet-action { min-height: 44px; padding: 0 14px; border: 1px solid #2a3b5c; background: #182642; justify-content: center; text-align: center; }.demo-sheet-primary { color: #fff; background: #1754e8; border-color: #1754e8; }.demo-sheet-exit { color: #ffb4ae; border-color: rgb(217 45 32 / 55%); background: rgb(217 45 32 / 20%); }
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root { --demo-banner-h: 112px; }
+  .demo-environment-banner { grid-template-columns: minmax(0, 1fr) auto; row-gap: 12px; }
+  .demo-banner-actions { grid-column: 1 / -1; justify-self: stretch; justify-content: flex-end; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) { .demo-exit { display: none; } .demo-menu-exit { display: flex; } .demo-banner-notice span { font-size: 0; } .demo-banner-notice span::after { content: 'All records are fictional.'; font-size: 12px; } }
+@media (max-width: 767px) {
+  .demo-environment-banner { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; padding-inline: 16px; }
+  .demo-banner-notice span { display: none; }.demo-banner-persona { font-size: 12px; }.demo-switch-persona, .demo-options-trigger, .demo-exit { display: none; }.demo-mobile-options { display: inline-flex; min-height: 44px; padding-inline: 12px; }
 }
 
 /* Mobile app shell: navigation becomes an off-canvas dialog rather than

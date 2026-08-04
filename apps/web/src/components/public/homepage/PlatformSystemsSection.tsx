@@ -1,148 +1,382 @@
-import React from 'react';
+import type { ElementType } from 'react';
 import Link from 'next/link';
-import { 
-  GraduationCap, UserPlus, IndianRupee, Settings, 
-  Users, MessageSquare, LineChart, ArrowRight, Check 
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  GraduationCap,
+  IndianRupee,
+  LineChart,
+  MessageSquare,
+  Settings,
+  Sparkles,
+  UserPlus,
+  Users,
 } from 'lucide-react';
 
-const systems = [
+type PlatformSystem = {
+  id: string;
+  title: string;
+  description: string;
+  icon: ElementType;
+  modules: readonly string[];
+  roles: readonly string[];
+  href: string;
+  featured?: boolean;
+};
+
+const systems: readonly PlatformSystem[] = [
   {
+    id: 'academics',
     title: 'Academics',
     icon: GraduationCap,
-    description: 'Complete curriculum, learning and assessment management.',
-    modules: ['Curriculum Planning', 'Timetable Generation', 'LMS & Assignments', 'Examination Management', 'Outcome Based Education (OBE)'],
-    roles: ['Faculty', 'Students', 'Admins'],
-    href: '/platform/academics'
+    description:
+      'Coordinate curricula, teaching schedules, learning activities, assessments and academic outcomes.',
+    modules: [
+      'Curriculum planning',
+      'Timetable generation',
+      'Assignments and learning activities',
+      'Examination management',
+      'Outcome-based education',
+    ],
+    roles: ['Faculty', 'Students', 'Academic administrators'],
+    href: '/platform/academics',
   },
   {
+    id: 'admissions',
     title: 'Admissions',
     icon: UserPlus,
-    description: 'End-to-end applicant lifecycle and enrollment management.',
-    modules: ['Custom Application Forms', 'Lead Management (CRM)', 'Merit List Generation', 'Fee Collection & Seat Allotment', 'Document Verification'],
-    roles: ['Admissions Team', 'Applicants'],
-    href: '/platform/admissions'
+    description:
+      'Manage applicant enquiries, applications, document reviews, selection and enrolment workflows.',
+    modules: [
+      'Configurable application forms',
+      'Applicant enquiry management',
+      'Merit and selection workflows',
+      'Seat allocation',
+      'Document verification',
+    ],
+    roles: ['Admissions teams', 'Applicants', 'Reviewers'],
+    href: '/platform/admissions',
   },
   {
+    id: 'finance',
     title: 'Finance',
     icon: IndianRupee,
-    description: 'Comprehensive fee collection, accounting and payroll.',
-    modules: ['Fee Management & Invoicing', 'Payment Gateway Integration', 'Scholarships & Concessions', 'Asset Management', 'Expense Tracking'],
-    roles: ['Finance Dept', 'Students', 'Staff'],
-    href: '/platform/finance'
+    description:
+      'Manage institutional fee structures, collections, concessions, refunds and financial records.',
+    modules: [
+      'Fee structures and invoicing',
+      'Payment gateway workflows',
+      'Scholarships and concessions',
+      'Refund management',
+      'Financial reporting',
+    ],
+    roles: ['Finance teams', 'Students', 'Authorised staff'],
+    href: '/platform/finance',
   },
   {
+    id: 'operations',
     title: 'Campus Operations',
     icon: Settings,
-    description: 'Streamline physical infrastructure and student services.',
-    modules: ['Hostel & Dormitory Allocation', 'Transport & Fleet Routing', 'Library Management (OPAC)', 'Gate Pass & Visitor Security', 'Helpdesk Ticketing'],
-    roles: ['Operations', 'Students', 'Staff'],
-    href: '/platform/operations'
+    description:
+      'Coordinate physical infrastructure, campus services, accommodation, transport and service requests.',
+    modules: [
+      'Hostel and room allocation',
+      'Transport and fleet operations',
+      'Library services',
+      'Visitor and gate-pass workflows',
+      'Helpdesk and service requests',
+    ],
+    roles: ['Operations teams', 'Students', 'Campus staff'],
+    href: '/platform/operations',
   },
   {
-    title: 'People & HR',
+    id: 'people',
+    title: 'People and HR',
     icon: Users,
-    description: 'Manage staff lifecycle, attendance and performance.',
-    modules: ['Employee Onboarding', 'Biometric Attendance', 'Leave Management', 'Appraisal & Promotions', 'Payroll Generation'],
-    roles: ['HR Team', 'Staff', 'Leadership'],
-    href: '/platform/people'
+    description:
+      'Support employee records, attendance, leave, performance and institution-wide workforce processes.',
+    modules: [
+      'Employee onboarding',
+      'Attendance management',
+      'Leave workflows',
+      'Performance reviews',
+      'Payroll coordination',
+    ],
+    roles: ['HR teams', 'Employees', 'Leadership'],
+    href: '/platform/people',
   },
   {
+    id: 'communication',
     title: 'Communication',
     icon: MessageSquare,
-    description: 'Secure, targeted messaging across the institution.',
-    modules: ['Internal Email System', 'SMS & Push Notifications', 'Secure Chat Communities', 'Event Announcements', 'Disciplinary Notices'],
-    roles: ['All Users'],
-    href: '/platform/communication'
+    description:
+      'Deliver targeted announcements, notifications and secure communication across institutional groups.',
+    modules: [
+      'Targeted announcements',
+      'Email and notification workflows',
+      'Secure group communication',
+      'Event communication',
+      'Policy and disciplinary notices',
+    ],
+    roles: ['Students', 'Faculty', 'Staff', 'Administrators'],
+    href: '/platform/communication',
   },
   {
-    title: 'Analytics & Intelligence',
+    id: 'analytics',
+    title: 'Analytics and Intelligence',
     icon: LineChart,
-    description: 'Data-driven insights for proactive institutional decision making.',
-    modules: ['NAAC & NIRF Reporting', 'Student At-Risk Prediction', 'Financial Health Dashboards', 'Faculty Workload Analysis', 'Custom Query Builder'],
-    roles: ['Leadership', 'Administrators'],
+    description:
+      'Bring institutional information together through role-aware dashboards, reports and operational insights.',
+    modules: [
+      'Institutional reporting',
+      'Student-risk indicators',
+      'Financial performance dashboards',
+      'Faculty workload analysis',
+      'Configurable reporting views',
+    ],
+    roles: ['Leadership', 'Administrators', 'Authorised analysts'],
     href: '/platform/analytics',
-    featured: true
-  }
+    featured: true,
+  },
 ];
 
-export function PlatformSystemsSection() {
+function ModuleList({ modules }: { modules: readonly string[] }) {
   return (
-    <section className="bg-[#F5F7FB] py-24 md:py-32">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 xl:px-12">
-        <div className="text-center mb-16">
-          <span className="text-[12px] md:text-[13px] font-semibold text-[#1854E8] tracking-[0.08em] uppercase mb-4 block">
-            THE PLATFORM
+    <ul className="mt-4 space-y-2.5">
+      {modules.map((module) => (
+        <li
+          key={module}
+          className="flex items-start gap-2.5 text-sm leading-6 text-[#475467]"
+        >
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E9F8F2]">
+            <Check
+              className="h-3.5 w-3.5 text-[#078A57]"
+              strokeWidth={2.6}
+              aria-hidden="true"
+            />
           </span>
-          <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-[#101B33] mb-6">
-            Seven interconnected core systems
-          </h2>
-          <p className="text-[17px] text-[#5F6B7A] max-w-[680px] mx-auto">
-            A complete suite of applications that work together natively, eliminating data silos and redundant data entry.
+
+          <span>{module}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RoleList({ roles }: { roles: readonly string[] }) {
+  return (
+    <div className="mt-6 flex flex-wrap gap-2" aria-label="Relevant user roles">
+      {roles.map((role) => (
+        <span
+          key={role}
+          className="inline-flex min-h-7 items-center rounded-full border border-[#DDE4EE] bg-[#F7F9FC] px-3 text-[11px] font-semibold text-[#5F6C7B]"
+        >
+          {role}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PlatformSystemCard({ system }: { system: PlatformSystem }) {
+  const Icon = system.icon;
+
+  return (
+    <article className="group flex h-full flex-col rounded-3xl border border-[#DFE6F0] bg-white p-6 shadow-[0_8px_28px_rgba(16,24,40,0.05)] transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-[#B8CCEF] hover:shadow-[0_20px_48px_rgba(16,42,91,0.10)] sm:p-7">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#D5E1F5] bg-[#EDF3FF] text-[#1754E8]">
+          <Icon className="h-6 w-6" strokeWidth={2} aria-hidden="true" />
+        </div>
+
+        <div>
+          <h3 className="text-xl font-bold tracking-[-0.02em] text-[#101828]">
+            {system.title}
+          </h3>
+
+          <p className="mt-2 text-[14px] leading-6 text-[#5F6C7B]">
+            {system.description}
           </p>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {systems.map((system, index) => {
-            const Icon = system.icon;
-            const isFeatured = system.featured;
-            
-            return (
-              <div 
-                key={index}
-                className={`flex flex-col bg-white rounded-[14px] p-8 transition-all duration-200 shadow-sm ${
-                  isFeatured 
-                    ? 'border-2 border-[#1854E8] lg:col-span-3 xl:col-span-1 xl:row-span-2' 
-                    : 'border border-[#DEE5EF] hover:border-[#C9D3E1]'
-                }`}
-              >
-                <div className="flex items-center gap-4 mb-4">
-                  <div className={`w-[48px] h-[48px] rounded-lg flex items-center justify-center shrink-0 ${
-                    isFeatured ? 'bg-[#1854E8] text-white' : 'bg-[#EEF3FF] text-[#1854E8]'
-                  }`}>
-                    <Icon size={24} />
-                  </div>
-                  <h3 className="text-[20px] font-semibold text-[#101828]">
-                    {system.title}
-                  </h3>
-                </div>
-                
-                <p className="text-[15px] text-[#5F6B7A] mb-6">
-                  {system.description}
-                </p>
+      <div className="mt-7 flex-1 border-t border-[#E4E9F0] pt-6">
+        <p className="text-xs font-bold uppercase tracking-[0.11em] text-[#344054]">
+          Core capabilities
+        </p>
 
-                <div className="mb-8 flex-1">
-                  <div className="text-[12px] font-bold text-[#101828] uppercase tracking-wider mb-3">Key Modules</div>
-                  <ul className="space-y-2.5">
-                    {system.modules.map((mod, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[14px] text-[#5F6B7A]">
-                        <Check size={16} className="text-[#078A57] mt-0.5 shrink-0" />
-                        <span>{mod}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+        <ModuleList modules={system.modules} />
+      </div>
 
-                <div className="mt-auto">
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {system.roles.map((role, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded bg-[#F5F7FB] border border-[#DEE5EF] text-[12px] font-medium text-[#5F6B7A]">
-                        {role}
-                      </span>
-                    ))}
-                  </div>
-                  <Link 
-                    href={system.href}
-                    className={`inline-flex items-center gap-2 text-[15px] font-semibold transition-colors ${
-                      isFeatured ? 'text-[#1854E8] hover:text-[#123FC0]' : 'text-[#1854E8] hover:text-[#123FC0]'
-                    }`}
-                  >
-                    Explore system <ArrowRight size={16} />
-                  </Link>
-                </div>
-              </div>
-            );
-          })}
+      <RoleList roles={system.roles} />
+
+      <div className="mt-7 border-t border-[#E4E9F0] pt-5">
+        <Link
+          href={system.href}
+          aria-label={`Explore the ${system.title} system`}
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-[#1754E8] transition-colors hover:text-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4"
+        >
+          Explore system
+
+          <ArrowRight
+            className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
+            aria-hidden="true"
+          />
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function FeaturedAnalyticsCard({
+  system,
+}: {
+  system: PlatformSystem;
+}) {
+  const Icon = system.icon;
+
+  return (
+    <article className="relative overflow-hidden rounded-3xl border border-[#29466F] bg-[#101D38] px-6 py-8 text-white shadow-[0_24px_60px_rgba(16,29,56,0.18)] sm:px-8 lg:px-10 lg:py-10">
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-center">
+        <div>
+          <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-white/15 bg-white/[0.06] px-3.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[#D9E5F7]">
+            <Sparkles className="h-3.5 w-3.5 text-[#86AFFF]" aria-hidden="true" />
+            Connected intelligence layer
+          </div>
+
+          <div className="mt-6 flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07] text-[#8CB2FF]">
+              <Icon className="h-7 w-7" strokeWidth={2} aria-hidden="true" />
+            </div>
+
+            <div>
+              <h3 className="text-2xl font-bold tracking-[-0.025em] sm:text-3xl">
+                {system.title}
+              </h3>
+
+              <p className="mt-3 max-w-[560px] text-[15px] leading-7 text-[#BBC7D9]">
+                {system.description}
+              </p>
+            </div>
+          </div>
+
+          <RoleList roles={system.roles} />
+
+          <Link
+            href={system.href}
+            aria-label={`Explore the ${system.title} system`}
+            className="group mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[#101D38] transition-colors hover:bg-[#EEF3FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#101D38]"
+          >
+            Explore analytics
+
+            <ArrowRight
+              className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
+              aria-hidden="true"
+            />
+          </Link>
         </div>
+
+        <div className="rounded-2xl border border-white/12 bg-white/[0.05] p-5 sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.11em] text-[#AFC2DF]">
+            Connected capabilities
+          </p>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {system.modules.map((module) => (
+              <div
+                key={module}
+                className="flex min-h-[72px] items-start gap-3 rounded-xl border border-white/10 bg-[#152542] p-4"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#203A68] text-[#91B5FF]">
+                  <BarChart3
+                    className="h-4 w-4"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  />
+                </div>
+
+                <span className="pt-1 text-sm font-medium leading-5 text-[#E3EAF4]">
+                  {module}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export function PlatformSystemsSection() {
+  const standardSystems = systems.filter((system) => !system.featured);
+  const featuredSystem = systems.find((system) => system.featured);
+
+  return (
+    <section
+      className="bg-[#F7F9FC] px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-32"
+      aria-labelledby="platform-systems-heading"
+    >
+      <div className="mx-auto max-w-[1280px]">
+        <header className="mx-auto max-w-[780px] text-center">
+          <div className="inline-flex min-h-8 items-center rounded-full border border-[#C8D8F5] bg-[#EDF3FF] px-4 text-xs font-bold uppercase tracking-[0.12em] text-[#1754E8]">
+            The CampusOS platform
+          </div>
+
+          <h2
+            id="platform-systems-heading"
+            className="mt-6 text-balance text-3xl font-bold tracking-[-0.03em] text-[#101A32] sm:text-4xl lg:text-[48px] lg:leading-[1.12]"
+          >
+            Seven systems connected through one institutional platform
+          </h2>
+
+          <p className="mx-auto mt-6 max-w-[720px] text-base leading-7 text-[#5F6C7B] sm:text-lg sm:leading-8">
+            Bring academic, administrative, financial and campus workflows
+            together while maintaining the role, permission and operational
+            context of every user.
+          </p>
+        </header>
+
+        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2 lg:mt-16 lg:grid-cols-3">
+          {standardSystems.map((system) => (
+            <PlatformSystemCard key={system.id} system={system} />
+          ))}
+        </div>
+
+        {featuredSystem && (
+          <div className="mt-6">
+            <FeaturedAnalyticsCard system={featuredSystem} />
+          </div>
+        )}
+
+        <div className="mt-12 flex flex-col gap-6 rounded-3xl border border-[#D8E2EF] bg-white px-6 py-8 shadow-[0_10px_32px_rgba(16,24,40,0.04)] sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-10">
+          <div className="max-w-[760px]">
+            <h3 className="text-xl font-bold tracking-[-0.02em] text-[#101828]">
+              Explore how CampusOS systems work together
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-[#5F6C7B] sm:text-[15px]">
+              Review the complete platform architecture, shared data model,
+              role-based workspaces and connected institutional workflows.
+            </p>
+          </div>
+
+          <Link
+            href="/platform"
+            className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1754E8] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(23,84,232,0.22)] transition-colors hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4"
+          >
+            View the full platform
+
+            <ArrowRight
+              className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
+              aria-hidden="true"
+            />
+          </Link>
+        </div>
+
+        <p className="mx-auto mt-6 max-w-[900px] text-center text-xs leading-5 text-[#8A95A6]">
+          Capability availability may vary by institution configuration,
+          deployment model, region and selected CampusOS modules.
+        </p>
       </div>
     </section>
   );

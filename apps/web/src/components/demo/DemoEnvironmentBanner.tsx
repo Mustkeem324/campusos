@@ -1,190 +1,151 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  ShieldAlert, 
-  RotateCcw, 
-  HelpCircle, 
-  LogOut, 
-  UserCheck, 
-  SlidersHorizontal,
-  X
-} from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  CheckSquare,
+  HelpCircle,
+  LogOut,
+  RefreshCw,
+  RotateCcw,
+  Settings2,
+  ShieldAlert,
+  UserRoundCog,
+  X,
+} from 'lucide-react';
 import { useAuthStore } from '../../lib/auth-store';
 
 interface DemoEnvironmentBannerProps {
   onRestartTutorial?: () => void;
 }
 
-const roleName = (role: string) => 
-  role ? role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Student';
+const roleName = (role: string) => role
+  ? role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase())
+  : 'Student';
 
 export function DemoEnvironmentBanner({ onRestartTutorial }: DemoEnvironmentBannerProps) {
   const { currentSession, setSession } = useAuthStore();
   const router = useRouter();
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState<React.CSSProperties>();
 
-  const isDemoUser = currentSession?.email?.includes('.demo@') || currentSession?.tenantId === '00000000-0000-0000-0000-000000000000';
+  const isDemoUser = currentSession?.email?.includes('.demo@')
+    || currentSession?.tenantId === '00000000-0000-0000-0000-000000000000';
+
+  const closeOptions = () => {
+    setIsOptionsOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  };
+
+  useEffect(() => {
+    if (!isOptionsOpen) return;
+    const updatePosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setMenuPosition({ position: 'fixed', top: Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 236)), right: Math.max(12, window.innerWidth - rect.right), zIndex: 'var(--z-dropdown)' });
+    };
+    const onPointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node) && !triggerRef.current?.contains(event.target as Node)) closeOptions();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { closeOptions(); return; }
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') || []);
+      if (!items.length) return;
+      event.preventDefault();
+      const activeIndex = items.indexOf(document.activeElement as HTMLElement);
+      const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowDown' ? (activeIndex + 1 + items.length) % items.length : (activeIndex - 1 + items.length) % items.length;
+      items[nextIndex].focus();
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    requestAnimationFrame(() => menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isOptionsOpen]);
+
+  useEffect(() => {
+    if (!isMobileSheetOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileSheetOpen(false);
+      if (event.key !== 'Tab') return;
+      const focusable = sheetRef.current?.querySelectorAll<HTMLElement>('button, a[href]');
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    requestAnimationFrame(() => sheetRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus());
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      previousFocus?.focus();
+    };
+  }, [isMobileSheetOpen]);
 
   if (!isDemoUser) return null;
 
+  const personaName = currentSession?.name || 'Demo User';
+  const personaRole = roleName(currentSession?.role || '');
+
   const handleExitDemo = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {
-      // Ignore error on logout call
-    } finally {
-      setSession(null);
-      router.push('/login');
-    }
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* local cleanup still applies */ }
+    setSession(null);
+    router.push('/login');
   };
 
-  const personaLabel = `${currentSession?.name || 'Rohan Verma'} · ${roleName(currentSession?.role || '')}`;
+  const menuItems = (mobile = false) => <>
+    {mobile && <Link href="/login" className="demo-sheet-action demo-sheet-primary" onClick={() => setIsMobileSheetOpen(false)}><UserRoundCog size={16} /> Switch Persona</Link>}
+    {onRestartTutorial && <button type="button" className={mobile ? 'demo-sheet-action' : 'demo-menu-item'} role={mobile ? undefined : 'menuitem'} onClick={() => { mobile ? setIsMobileSheetOpen(false) : setIsOptionsOpen(false); onRestartTutorial(); }}><RotateCcw size={16} /> Restart Tour</button>}
+    <Link href="/demo/how-it-works" className={mobile ? 'demo-sheet-action' : 'demo-menu-item'} role={mobile ? undefined : 'menuitem'} onClick={() => mobile ? setIsMobileSheetOpen(false) : setIsOptionsOpen(false)}><HelpCircle size={16} /> How CampusOS Works</Link>
+    <Link href="/demo/scenarios" className={mobile ? 'demo-sheet-action' : 'demo-menu-item'} role={mobile ? undefined : 'menuitem'} onClick={() => mobile ? setIsMobileSheetOpen(false) : setIsOptionsOpen(false)}><CheckSquare size={16} /> Demo Checklist</Link>
+    <Link href="/demo/progress" className={mobile ? 'demo-sheet-action' : 'demo-menu-item'} role={mobile ? undefined : 'menuitem'} onClick={() => mobile ? setIsMobileSheetOpen(false) : setIsOptionsOpen(false)}><RefreshCw size={16} /> Reset Demo Progress</Link>
+    {!mobile && <button type="button" className="demo-menu-item demo-menu-exit" role="menuitem" onClick={handleExitDemo}><LogOut size={16} /> Exit Demo</button>}
+    {mobile && <button type="button" className="demo-sheet-action demo-sheet-exit" onClick={handleExitDemo}><LogOut size={16} /> Exit Demo</button>}
+  </>;
 
-  return (
-    <>
-      <div 
-        className="bg-[#101D38] text-white border-b border-[#2A3B5C] px-4 sm:px-6 h-12 md:h-14 flex items-center sticky top-0 z-40 shadow-sm"
-        role="region"
-        aria-label="Demo Environment Banner"
-      >
-        <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between gap-4 text-xs">
-          
-          {/* Left Notice */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            <span className="inline-flex items-center gap-1.5 font-bold text-[#27C93F] bg-[#182642] px-2.5 py-1 rounded-md border border-[#2A3B5C] shrink-0">
-              <ShieldAlert size={14} className="text-[#27C93F]" /> Demo Environment
-            </span>
-            <span className="text-[#BEC7D7] hidden lg:inline truncate">
-              All people and records shown here are fictional.
-            </span>
-          </div>
-
-          {/* Centre Persona */}
-          <div className="hidden md:flex items-center justify-center font-medium text-xs bg-[#182642] px-3 py-1 rounded-md border border-[#2A3B5C] text-[#A5D6FF] shrink-0">
-            <strong className="text-white font-bold">{personaLabel}</strong>
-          </div>
-
-          {/* Right Desktop Actions */}
-          <div className="hidden md:flex items-center gap-2 shrink-0">
-            {/* Primary Action: Switch Persona */}
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 text-white bg-[#1754E8] hover:bg-[#1140B8] font-bold px-3 py-1.5 rounded-lg transition-colors shadow-sm"
-            >
-              <UserCheck size={14} /> Switch Persona
-            </Link>
-
-            {/* Secondary Action: Restart Tour */}
-            {onRestartTutorial && (
-              <button
-                onClick={onRestartTutorial}
-                className="inline-flex items-center gap-1.5 text-[#BEC7D7] hover:text-white bg-[#182642] hover:bg-[#2A3B5C] border border-[#2A3B5C] font-semibold px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <RotateCcw size={14} /> Restart Tour
-              </button>
-            )}
-
-            {/* Secondary Action: How It Works */}
-            <Link
-              href="/demo/how-it-works"
-              className="inline-flex items-center gap-1.5 text-[#A5D6FF] hover:text-white bg-[#182642] hover:bg-[#2A3B5C] border border-[#2A3B5C] font-semibold px-3 py-1.5 rounded-lg transition-colors"
-            >
-              <HelpCircle size={14} /> How It Works
-            </Link>
-
-            {/* Destructive Action: Exit Demo */}
-            <button
-              onClick={handleExitDemo}
-              className="inline-flex items-center gap-1.5 text-[#FF8282] hover:text-white bg-[#D92D20]/20 hover:bg-[#D92D20]/40 border border-[#D92D20]/30 font-semibold px-2.5 py-1.5 rounded-lg transition-colors ml-1"
-              title="Exit Demo"
-            >
-              <LogOut size={14} /> Exit Demo
-            </button>
-          </div>
-
-          {/* Mobile Single Demo Options Trigger */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              onClick={() => setIsMobileSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#1754E8] px-3 py-1.5 rounded-lg shadow-sm"
-            >
-              <SlidersHorizontal size={14} /> Demo Options
-            </button>
-          </div>
-
-        </div>
+  return <>
+    <section className="demo-environment-banner" role="region" aria-label="Demo environment controls">
+      <div className="demo-banner-notice">
+        <ShieldAlert aria-hidden="true" size={18} />
+        <div><strong>Demo Environment</strong><span>All records shown here are fictional.</span></div>
       </div>
+      <div className="demo-banner-persona" aria-label={`Current demo persona: ${personaName}, ${personaRole}`}>
+        <span>{personaName}</span><span aria-hidden="true">·</span><span>{personaRole}</span>
+      </div>
+      <div className="demo-banner-actions">
+        <Link href="/login" className="demo-banner-button demo-switch-persona"><UserRoundCog size={16} /> Switch Persona</Link>
+        <button ref={triggerRef} type="button" className="demo-banner-button demo-options-trigger" aria-haspopup="menu" aria-expanded={isOptionsOpen} onClick={() => setIsOptionsOpen((open) => !open)}><Settings2 size={16} /> Demo Options</button>
+        <button type="button" className="demo-banner-button demo-exit" onClick={handleExitDemo}><LogOut size={16} /> Exit Demo</button>
+        <button type="button" className="demo-banner-button demo-mobile-options" aria-haspopup="dialog" onClick={() => setIsMobileSheetOpen(true)}><Settings2 size={16} /> Demo Options</button>
+      </div>
+    </section>
 
-      {/* Mobile Demo Options Bottom Sheet */}
-      {isMobileSheetOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col justify-end md:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Demo Options Sheet"
-        >
-          <div className="bg-[#101D38] text-white rounded-t-3xl p-6 border-t border-[#2A3B5C] space-y-4">
-            
-            <div className="flex items-center justify-between border-b border-[#2A3B5C] pb-3">
-              <div>
-                <span className="text-xs font-bold text-[#27C93F] uppercase tracking-wider">Demo Environment</span>
-                <p className="text-sm font-bold text-white mt-0.5">{personaLabel}</p>
-              </div>
-
-              <button
-                onClick={() => setIsMobileSheetOpen(false)}
-                className="text-[#BEC7D7] hover:text-white p-1.5 rounded-lg"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="space-y-2.5 pt-2">
-              <Link
-                href="/login"
-                onClick={() => setIsMobileSheetOpen(false)}
-                className="w-full py-3 px-4 rounded-xl bg-[#1754E8] text-white font-bold text-xs flex items-center justify-center gap-2"
-              >
-                <UserCheck size={16} /> Switch Persona
-              </Link>
-
-              {onRestartTutorial && (
-                <button
-                  onClick={() => {
-                    setIsMobileSheetOpen(false);
-                    onRestartTutorial();
-                  }}
-                  className="w-full py-3 px-4 rounded-xl bg-[#182642] text-[#BEC7D7] font-semibold text-xs border border-[#2A3B5C] flex items-center justify-center gap-2"
-                >
-                  <RotateCcw size={16} /> Restart Tour
-                </button>
-              )}
-
-              <Link
-                href="/demo/how-it-works"
-                onClick={() => setIsMobileSheetOpen(false)}
-                className="w-full py-3 px-4 rounded-xl bg-[#182642] text-[#A5D6FF] font-semibold text-xs border border-[#2A3B5C] flex items-center justify-center gap-2"
-              >
-                <HelpCircle size={16} /> How It Works
-              </Link>
-
-              <button
-                onClick={() => {
-                  setIsMobileSheetOpen(false);
-                  handleExitDemo();
-                }}
-                className="w-full py-3 px-4 rounded-xl bg-[#D92D20]/20 text-[#FF8282] border border-[#D92D20]/40 font-bold text-xs flex items-center justify-center gap-2"
-              >
-                <LogOut size={16} /> Exit Demo
-              </button>
-            </div>
-
-          </div>
+    {isOptionsOpen && typeof document !== 'undefined' && createPortal(
+      <div ref={menuRef} className="demo-options-menu" style={menuPosition} role="menu" aria-label="Demo Options">{menuItems()}</div>, document.body,
+    )}
+    {isMobileSheetOpen && typeof document !== 'undefined' && createPortal(
+      <div className="demo-options-sheet-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsMobileSheetOpen(false); }}>
+        <div ref={sheetRef} className="demo-options-sheet" role="dialog" aria-modal="true" aria-label="Demo Options Sheet">
+          <div className="demo-sheet-heading"><div><strong>Demo Environment</strong><span>{personaName} · {personaRole}</span></div><button type="button" aria-label="Close Demo Options" onClick={() => setIsMobileSheetOpen(false)}><X size={20} /></button></div>
+          <div className="demo-sheet-items">{menuItems(true)}</div>
         </div>
-      )}
-    </>
-  );
+      </div>, document.body,
+    )}
+  </>;
 }

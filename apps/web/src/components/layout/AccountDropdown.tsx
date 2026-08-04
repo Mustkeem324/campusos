@@ -32,6 +32,7 @@ export function AccountDropdown() {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      useAuthStore.getState().setSession(null);
       window.location.href = '/login';
     } catch (e) {
       console.error('Logout failed');

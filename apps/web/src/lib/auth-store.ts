@@ -25,12 +25,9 @@ export const useAuthStore = create<AuthState>()(
 
   setSession: (session: UserSession | null) => set({ currentSession: session }),
 
-  setRole: (role: UserRole) =>
-    set((state) => ({
-      currentSession: state.currentSession
-        ? { ...state.currentSession, role }
-        : null,
-    })),
+  // Role changes are server operations (session rotation), never a browser-side
+  // state mutation. This remains a no-op for legacy callers.
+  setRole: (_role: UserRole) => undefined,
 
   toggleDarkMode: () =>
     set((state) => {

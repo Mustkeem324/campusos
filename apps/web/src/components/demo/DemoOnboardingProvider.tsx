@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   ChevronRight, 
@@ -236,7 +237,7 @@ export function DemoOnboardingProvider({ children }: { children: React.ReactNode
       {children}
 
       {/* Guided Tour Modal Overlay */}
-      {isOpen && currentSession && (
+      {isOpen && currentSession && typeof document !== 'undefined' && createPortal(
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           role="dialog"
@@ -327,7 +328,7 @@ export function DemoOnboardingProvider({ children }: { children: React.ReactNode
 
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 }

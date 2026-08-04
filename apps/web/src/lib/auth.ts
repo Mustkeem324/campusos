@@ -53,11 +53,11 @@ export async function getSessionFromCookies(): Promise<TokenPayload | null> {
       include: { user: true },
     });
 
-    if (!session || session.expiresAt < new Date()) {
+    if (!session || session.expiresAt < new Date() || session.userId !== payload.userId) {
       return null;
     }
 
-    if (!session.user.isActive) {
+    if (!session.user.isActive || session.user.tenantId !== payload.tenantId || session.user.role !== payload.role) {
        return null;
     }
 

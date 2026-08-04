@@ -1,102 +1,277 @@
 import React from 'react';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import {
+  ArrowRight,
+  Building2,
+  Check,
+  Cloud,
+  Database,
+  Server,
+  ShieldCheck,
+} from 'lucide-react';
 
-const plans = [
+type PricingPlan = {
+  id: string;
+  name: string;
+  audience: string;
+  description: string;
+  features: readonly string[];
+  deployment: string;
+  deploymentNote: string;
+  featured?: boolean;
+};
+
+const plans: readonly PricingPlan[] = [
   {
+    id: 'starter',
     name: 'Starter',
-    profile: 'For small colleges',
-    desc: 'Core operational tools to digitise paper-based processes.',
-    features: ['Academics & Timetabling', 'Basic Admissions Form', 'Student & Faculty Portals', 'Fee Collection Gateway', 'Email Notifications', 'Standard Support'],
-    deploy: 'Cloud-hosted multi-tenant'
+    audience: 'For small colleges',
+    description:
+      'Essential academic and administrative tools for institutions moving away from paper-based processes.',
+    features: [
+      'Academics and timetabling',
+      'Admissions and enquiry forms',
+      'Student and faculty portals',
+      'Fee collection workflows',
+      'Email notifications',
+      'Standard implementation support',
+    ],
+    deployment: 'Shared cloud environment',
+    deploymentNote: 'Secure multi-tenant architecture',
   },
   {
+    id: 'growth',
     name: 'Growth',
-    profile: 'For growing universities',
-    desc: 'Advanced modules for comprehensive institutional management.',
-    features: ['Everything in Starter', 'Advanced Exam & OBE Management', 'People & HR Module', 'Campus Operations & Hostel', 'Custom Analytics Dashboards', 'Priority Support'],
-    deploy: 'Cloud-hosted isolated database',
-    featured: true
+    audience: 'For growing universities',
+    description:
+      'Advanced academic, people and campus operations for institutions managing expanding workflows.',
+    features: [
+      'Everything included in Starter',
+      'Advanced examinations and OBE',
+      'People, HR and employee services',
+      'Hostel and campus operations',
+      'Custom analytics dashboards',
+      'Priority implementation support',
+    ],
+    deployment: 'Isolated cloud database',
+    deploymentNote: 'Dedicated institutional data layer',
+    featured: true,
   },
   {
+    id: 'enterprise',
     name: 'Enterprise',
-    profile: 'For large university groups',
-    desc: 'Unrestricted access, custom workflows and dedicated infrastructure.',
-    features: ['Everything in Growth', 'Multi-campus Central Control', 'Custom Module Development', 'ERP Integration APIs', 'White-labeled Mobile App', 'Dedicated Success Manager'],
-    deploy: 'Single-tenant or On-premise'
-  }
-];
+    audience: 'For large university groups',
+    description:
+      'Configurable workflows, integrations and deployment options for complex multi-campus institutions.',
+    features: [
+      'Everything included in Growth',
+      'Multi-campus central administration',
+      'Custom workflow and module extensions',
+      'ERP and third-party integration APIs',
+      'Institution-branded mobile experience',
+      'Dedicated customer success manager',
+    ],
+    deployment: 'Dedicated or institution-controlled',
+    deploymentNote: 'Subject to infrastructure assessment',
+  },
+] as const;
+
+const deploymentIcons = {
+  starter: Cloud,
+  growth: Database,
+  enterprise: Server,
+} as const;
+
+function PricingCard({ plan }: { plan: PricingPlan }) {
+  const DeploymentIcon =
+    deploymentIcons[plan.id as keyof typeof deploymentIcons] ?? Cloud;
+
+  return (
+    <article
+      className={[
+        'relative flex h-full flex-col rounded-3xl bg-white p-6 transition-[border-color,box-shadow,transform] duration-200 sm:p-7 lg:p-8',
+        plan.featured
+          ? 'border-2 border-[#1754E8] shadow-[0_24px_60px_rgba(16,42,91,0.14)] lg:-translate-y-3'
+          : 'border border-[#DDE4EE] shadow-[0_12px_35px_rgba(16,24,40,0.06)] hover:border-[#BCC9DB] hover:shadow-[0_18px_44px_rgba(16,24,40,0.09)]',
+      ].join(' ')}
+      aria-labelledby={`${plan.id}-plan-title`}
+    >
+      {plan.featured && (
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+          <span className="inline-flex min-h-7 items-center rounded-full border border-[#1754E8] bg-[#1754E8] px-4 text-[11px] font-bold uppercase tracking-[0.12em] text-white shadow-sm">
+            Recommended
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-[#1754E8]">
+            {plan.audience}
+          </p>
+
+          <h3
+            id={`${plan.id}-plan-title`}
+            className="mt-2 text-2xl font-bold tracking-[-0.02em] text-[#101828]"
+          >
+            {plan.name}
+          </h3>
+        </div>
+
+        <div
+          className={[
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+            plan.featured
+              ? 'bg-[#1754E8] text-white'
+              : 'bg-[#EDF3FF] text-[#1754E8]',
+          ].join(' ')}
+          aria-hidden="true"
+        >
+          {plan.featured ? (
+            <ShieldCheck className="h-5 w-5" strokeWidth={2.1} />
+          ) : (
+            <Building2 className="h-5 w-5" strokeWidth={2.1} />
+          )}
+        </div>
+      </div>
+
+      <p className="mt-5 min-h-[72px] text-[15px] leading-6 text-[#5F6C7B]">
+        {plan.description}
+      </p>
+
+      <Link
+        href={`/pricing?plan=${plan.id}`}
+        aria-label={`Request tailored pricing for the ${plan.name} plan`}
+        className={[
+          'group mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-center text-[15px] font-semibold transition-[background-color,border-color,color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2',
+          plan.featured
+            ? 'bg-[#1754E8] text-white shadow-[0_10px_24px_rgba(23,84,232,0.24)] hover:bg-[#103FC2]'
+            : 'border border-[#C9D3E1] bg-white text-[#101828] hover:border-[#1754E8] hover:bg-[#F6F9FF] hover:text-[#1754E8]',
+        ].join(' ')}
+      >
+        Request tailored pricing
+
+        <ArrowRight
+          className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </Link>
+
+      <div className="mt-8 flex-1">
+        <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-[#344054]">
+          Included capabilities
+        </h4>
+
+        <ul className="mt-5 space-y-3.5">
+          {plan.features.map((feature) => (
+            <li
+              key={feature}
+              className="flex items-start gap-3 text-[14px] leading-6 text-[#475467]"
+            >
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E9F8F2]">
+                <Check
+                  className="h-3.5 w-3.5 text-[#078A57]"
+                  strokeWidth={2.6}
+                  aria-hidden="true"
+                />
+              </span>
+
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-8 border-t border-[#E3E8F0] pt-6">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F1F4F9] text-[#475467]">
+            <DeploymentIcon
+              className="h-4.5 w-4.5"
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#667085]">
+              Deployment
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-[#101828]">
+              {plan.deployment}
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-[#7C889A]">
+              {plan.deploymentNote}
+            </p>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export function PricingSection() {
   return (
-    <section className="bg-white py-24 md:py-32">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 xl:px-12">
-        <div className="text-center mb-16">
-          <span className="text-[12px] md:text-[13px] font-semibold text-[#1854E8] tracking-[0.08em] uppercase mb-4 block">
-            TRANSPARENT PRICING
-          </span>
-          <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-[#101B33] mb-6">
-            Scale your digital infrastructure
+    <section
+      className="bg-[#F7F9FC] px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-32"
+      aria-labelledby="pricing-heading"
+    >
+      <div className="mx-auto max-w-[1280px]">
+        <header className="mx-auto max-w-[760px] text-center">
+          <div className="inline-flex min-h-8 items-center rounded-full border border-[#C8D7F5] bg-[#EDF3FF] px-4 text-xs font-bold uppercase tracking-[0.12em] text-[#1754E8]">
+            Flexible institutional plans
+          </div>
+
+          <h2
+            id="pricing-heading"
+            className="mt-6 text-balance text-3xl font-bold tracking-[-0.03em] text-[#101A32] sm:text-4xl lg:text-[48px] lg:leading-[1.12]"
+          >
+            Scale CampusOS with your institution
           </h2>
-          <p className="text-[17px] text-[#5F6B7A] max-w-[680px] mx-auto">
-            Choose a plan that fits your institution&apos;s size and complexity. We price based on active student enrollment, not per module.
+
+          <p className="mx-auto mt-6 max-w-[700px] text-pretty text-base leading-7 text-[#5F6C7B] sm:text-lg sm:leading-8">
+            Select the operating model that matches your institution’s scale,
+            workflow complexity and infrastructure requirements.
           </p>
+
+          <p className="mx-auto mt-4 max-w-[680px] text-sm leading-6 text-[#7C889A]">
+            Pricing is tailored around active enrollment, selected capabilities,
+            implementation scope and deployment requirements.
+          </p>
+        </header>
+
+        <div className="mx-auto mt-16 grid max-w-[1120px] grid-cols-1 items-stretch gap-6 md:grid-cols-3 lg:mt-20 lg:gap-7">
+          {plans.map((plan) => (
+            <PricingCard key={plan.id} plan={plan} />
+          ))}
         </div>
 
-        <div className="max-w-[1050px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
-          {plans.map((plan, index) => {
-            const isFeatured = plan.featured;
-            return (
-              <div 
-                key={index} 
-                className={`flex flex-col bg-white rounded-2xl p-7 lg:p-8 relative transition-all duration-200 ${
-                  isFeatured 
-                    ? 'border-2 border-[#1854E8] shadow-lg md:-mt-4 md:mb-[-16px]' 
-                    : 'border border-[#DEE5EF] shadow-sm mt-0'
-                }`}
-              >
-                {isFeatured && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1854E8] text-white text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-                    Recommended
-                  </div>
-                )}
-                
-                <h3 className="text-[22px] font-bold text-[#101828] mb-1">{plan.name}</h3>
-                <div className="text-[13px] font-semibold text-[#1854E8] mb-4">{plan.profile}</div>
-                <p className="text-[14px] text-[#5F6B7A] mb-6 h-12">{plan.desc}</p>
-                
-                <Link 
-                  href="/pricing"
-                  className={`w-full py-3 rounded-lg text-[15px] font-semibold text-center transition-colors mb-8 ${
-                    isFeatured 
-                      ? 'bg-[#1854E8] text-white hover:bg-[#123FC0]' 
-                      : 'bg-white border border-[#C9D3E1] text-[#101828] hover:bg-[#F5F7FB]'
-                  }`}
-                >
-                  Request tailored pricing
-                </Link>
+        <div className="mx-auto mt-12 max-w-[1120px] rounded-2xl border border-[#DDE4EE] bg-white px-6 py-6 shadow-[0_10px_30px_rgba(16,24,40,0.04)] sm:flex sm:items-center sm:justify-between sm:gap-8 lg:px-8">
+          <div>
+            <h3 className="text-lg font-semibold text-[#101828]">
+              Need a different deployment or module configuration?
+            </h3>
 
-                <div className="flex-1">
-                  <div className="text-[11px] font-bold text-[#101828] uppercase tracking-wider mb-4">Included Capabilities</div>
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((feat, i) => (
-                      <li key={i} className="flex items-start gap-2.5 text-[14px] text-[#5F6B7A]">
-                        <Check size={16} className="text-[#078A57] mt-0.5 shrink-0" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            <p className="mt-2 max-w-[720px] text-sm leading-6 text-[#5F6C7B]">
+              CampusOS can be configured around your campuses, academic
+              structure, integration requirements and implementation roadmap.
+            </p>
+          </div>
 
-                <div className="pt-6 border-t border-[#DEE5EF] mt-auto">
-                  <div className="text-[12px] font-medium text-[#5F6B7A]">
-                    <strong className="text-[#101828]">Deployment:</strong> {plan.deploy}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          <Link
+            href="/contact"
+            className="mt-5 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#C9D3E1] bg-white px-5 py-3 text-sm font-semibold text-[#101828] transition-colors hover:border-[#1754E8] hover:bg-[#F6F9FF] hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2 sm:mt-0"
+          >
+            Talk to our team
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </div>
+
+        <p className="mx-auto mt-6 max-w-[900px] text-center text-xs leading-5 text-[#8A95A6]">
+          Module availability, deployment options and implementation scope may
+          vary by institution, region and technical requirements.
+        </p>
       </div>
     </section>
   );
