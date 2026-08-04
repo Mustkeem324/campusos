@@ -29,7 +29,9 @@ const TENANT_MODELS = [
   'CommunityPost', 'CommunityReply', 'CommunityReaction', 'CommunityVote',
   'CommunityPoll', 'CommunityPollOption', 'CommunityBookmark',
   'CommunityReport', 'CommunityModerationAction', 'CommunityAcknowledgement',
-  'CommunityFollow'
+  'CommunityFollow',
+  // Demo Scenario models
+  'DemoScenarioInstance', 'DemoScenarioEvent'
 ];
 
 /**

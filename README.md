@@ -324,10 +324,41 @@ npx vitest run
 
 # 3. Run Playwright E2E Browser Tests
 npx playwright test tests/product-tour.spec.ts --project=chromium
+npx playwright test tests/demo-persona-isolation.spec.ts --project=chromium
+npx playwright test tests/demo-scenarios.spec.ts --project=chromium
+npx playwright test tests/student-profile-redesign.spec.ts --project=chromium
 
-# 4. Execute Next.js Production Build (Compiles 115+ Routes)
+# 4. Execute Next.js Production Build (Compiles 120+ Routes)
 npm run build
 ```
+
+---
+
+## 🏛️ Phase 92 & Phase 93 Platform Architecture Update
+
+### Phase 92 — Demo Persona Isolation, Dashboard Scoping & Role Guided Tutorials
+- **Persona Identity Isolation**: Strict server-side session identity resolution guaranteeing zero leakage of Rohan Verma's student details into Admin (`Aarav Mehta`) or Faculty (`Dr. Priya Sharma`) views.
+- **Parent Guardian Linkage**: `Anita Verma` accesses `Rohan Verma`'s academic record exclusively via verified `GuardianStudent` database relations.
+- **Persistent Utility Banner**: Compact, non-intrusive `DemoEnvironmentBanner` with role pill, 1-click role switcher, tutorial restarter, and mobile bottom-sheet drawer (`DemoOptionsSheet`).
+- **Role-Based Onboarding Tours**: Interactive 6-step guided onboarding tours (`DemoOnboardingProvider`) tailored for Admin, Faculty, Student, and Parent.
+- **"How CampusOS Works" Centre**: Interactive architecture diagram and role exploration checklists (`/demo/how-it-works`).
+- **Student Benefits & Developer Pack Hub**: Curated perks console (`/student-benefits`) offering $3,850+/year in free developer tools.
+
+### Phase 93 — Interactive Cross-Role Demo Scenario Engine & Reversible Story Mode
+- **Scenario Catalogue & Workspace**: 6 end-to-end institutional scenarios (`/demo/scenarios` & `/demo/scenarios/[scenarioId]`):
+  1. **Assignment Submission and Grading** (Student $\rightarrow$ Faculty $\rightarrow$ Student)
+  2. **Attendance Session and Student Update** (Faculty $\rightarrow$ Student $\rightarrow$ Parent)
+  3. **Fee Invoice and Sandbox Payment** (Admin $\rightarrow$ Student $\rightarrow$ Parent $\rightarrow$ Admin)
+  4. **Student Service Request** (Student $\rightarrow$ Admin $\rightarrow$ Student)
+  5. **Examination Marks and Result Review** (Faculty $\rightarrow$ Admin $\rightarrow$ Student $\rightarrow$ Parent)
+  6. **Admissions Application to Enrollment** (Admin)
+- **Transactional Reset Engine**: Atomic scenario reset (`DemoScenarioInstance` & `DemoScenarioEvent`) returning affected records to pre-scenario state without global tenant reseed.
+- **"What Changed in CampusOS?" Panel**: Educational authorization explainer detailing real-time RLS rules and audit events.
+
+### Student Profile Redesign
+- **Identity Header**: Clean initials avatar (`RV`), prominent student name, roll number (`STU-24-001`), admission ID (`3744`), and single non-duplicated scholarship badge.
+- **Consistent Metric Cards**: Replaced pastel colored cards with unified white surface cards (`#FFFFFF`), neutral border (`#DFE6F0`), and soft blue icon containers.
+- **Responsive Layout**: Controlled max-width (`1360px`), responsive 4-col detail grid, keyboard-navigable profile tabs (`Overview`, `Academic Journey`, `Attendance Ledger`, `Documents`, `Certificates`, `Requests`).
 
 ---
 
@@ -353,7 +384,7 @@ cp .env.example .env
 
 # 4. Sync Prisma Database Schema & Seed Data
 npx prisma db push
-node seed_demo_users.js
+node scripts/seed-demo.js
 
 # 5. Start the Development Server
 npm run dev
@@ -366,3 +397,4 @@ Open `http://localhost:3000` in your web browser to explore the homepage, intera
 ## 📄 License & Attribution
 
 CampusOS is proprietary enterprise software developed for higher education institutions worldwide. All rights reserved. Designed and built with extreme architectural precision by the Principal Enterprise SaaS Architect & Engineering Team.
+
