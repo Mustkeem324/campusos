@@ -1,0 +1,39 @@
+{
+  "phase": "Production Readiness",
+  "baselineCommit": "a57dd824dcfb04e95b49631d02e0243d88e0392f",
+  "allowedWritePaths": [
+    "package.json",
+    "package-lock.json",
+    "docs/production-readiness/**"
+  ],
+  "allowedTestPaths": [
+    "apps/web/tests/**",
+    "apps/web/src/__tests__/**"
+  ],
+  "readOnlyDependencies": [
+    "next",
+    "react",
+    "react-dom",
+    "@prisma/client",
+    "prisma"
+  ],
+  "protectedProductPaths": [
+    "apps/web/src/app/**",
+    "apps/web/src/components/**",
+    "apps/web/src/lib/dashboard/**",
+    "apps/web/src/lib/*.ts",
+    "apps/web/scripts/**",
+    "packages/db/prisma/schema.prisma"
+  ],
+  "blockedChanges": [
+    "Do not hide build errors",
+    "Do not disable TypeScript checking",
+    "Do not disable ESLint",
+    "Do not modify Prisma domain models",
+    "Do not change dashboard page designs",
+    "Do not change demo user identities",
+    "Do not add product features",
+    "Do not execute prisma migrate dev in production",
+    "Do not expose secrets"
+  ]
+}

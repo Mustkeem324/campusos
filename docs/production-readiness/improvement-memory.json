@@ -1,0 +1,69 @@
+{
+  "baselineCommit": "a57dd824dcfb04e95b49631d02e0243d88e0392f",
+  "currentCycle": 1,
+  "maximumCycles": 5,
+  "failuresFound": [
+    {
+      "cycle": 1,
+      "command": "npm run build",
+      "category": "DEPENDENCY",
+      "firstFailure": "Module not found: Can't resolve 'jsonwebtoken' (then 'bcryptjs', 'nodemailer') on clean root install",
+      "rootCause": "Runtime deps (bcryptjs/jsonwebtoken/nodemailer) declared only in apps/web/package.json and installed only in stray gitignored apps/web/node_modules; root package.json + package-lock.json (what Vercel npm ci installs) never contained them",
+      "reproducesOnMain": true,
+      "reproducesLocally": true,
+      "reproducesOnVercel": true
+    },
+    {
+      "cycle": 1,
+      "command": "npm run build (after dep fix)",
+      "category": "PRISMA_GENERATION",
+      "firstFailure": "Type error: Module '@prisma/client' has no exported member 'Institution' (demo-seed script)",
+      "rootCause": "Clean npm ci wipes the generated Prisma Client (node_modules/.prisma/client stub); root build had no step that regenerates Prisma Client before next build",
+      "reproducesOnVercel": true
+    },
+    {
+      "cycle": 1,
+      "command": "npm run typecheck (root)",
+      "category": "MISSING_ENVIRONMENT",
+      "firstFailure": "tsc --noEmit with no root tsconfig.json prints compiler-options help, exit 1",
+      "rootCause": "No root tsconfig.json exists; root typecheck script cannot resolve a project",
+      "reproducesOnVercel": false
+    }
+  ],
+  "fixesAccepted": [
+    {
+      "cycle": 1,
+      "file": "package.json",
+      "change": "Added bcryptjs ^3.0.3, jsonwebtoken ^9.0.3, nodemailer ^9.0.3 to dependencies (the three runtime deps actually imported by apps/web source)",
+      "verified": "npm ci installs them; build EXIT 0"
+    },
+    {
+      "cycle": 1,
+      "file": "package.json",
+      "change": "Added @playwright/test ^1.62.1 to devDependencies (needed by apps/web playwright.config.ts type-check during next build)",
+      "verified": "build EXIT 0"
+    },
+    {
+      "cycle": 1,
+      "file": "package.json",
+      "change": "Added prebuild script: prisma generate --schema=packages/db/prisma/schema.prisma (deterministic Prisma Client generation before every build)",
+      "verified": "clean npm run build runs generate then compiles 127/127 pages"
+    },
+    {
+      "cycle": 1,
+      "file": "package-lock.json",
+      "change": "Regenerated to include the new root dependencies",
+      "verified": "npm ci clean install EXIT 0"
+    }
+  ],
+  "fixesRolledBack": [],
+  "protectedFiles": [
+    "apps/web/src/**",
+    "packages/db/prisma/schema.prisma",
+    "docs/dashboard-audit/**"
+  ],
+  "deploymentAttempts": [],
+  "currentStatus": "Cycle 1 complete: root cause of Vercel build failure (exit 1) fixed and verified locally with the exact Vercel pipeline (npm ci -> prebuild prisma generate -> next build). Build 127/127 pages, 148/148 tests, lint clean. Vercel deployment not yet attempted in this cycle.",
+  "nextPriority": "Verify Vercel preview deployment with the fixed package.json, then fix root npm run typecheck (missing root tsconfig.json), then cycle-2 items (env validation, health endpoints, structured logging, CI gates).",
+  "resumePoint": "After local verification: create a Vercel preview deployment of commit with the package.json/lockfile fix and run smoke tests before any production deploy."
+}
