@@ -43,7 +43,21 @@
 | Lint / typecheck / vitest / build | ✅ |
 | Desktop + mobile screenshots | ✅ |
 
+## Cycle 2 (2026-08-05) — Student dashboard completion
+
+| Task | Status |
+|---|---|
+| DB audit of remaining Student sections (exams, results, services, library, hostel, transport, documents, notifications) | ✅ |
+| Deterministic seed generator `studentLife.ts` (notices, exams, published results, hostel, support cases, notifications) wired into index + cleanup | ✅ |
+| Contract extended: `examinations`, `publishedResults`, `studentServices`, `hostel`, `notifications` | ✅ |
+| Loader extended with tenant-scoped queries (exams scoped to enrolled terms; results only `published=true`) | ✅ |
+| StudentDashboard renders Examinations / Published results / Student services / Hostel / Notifications sections with empty states | ✅ |
+| Six explicit negative-isolation tests (other student, admin settings, finance, faculty grading, result publication, tenant config) | ✅ |
+| Playwright specs rewritten (API login, role-specific paths, strict-mode-safe selectors) + `dashboard-a11y.spec.ts` | ✅ |
+| Lint / typecheck / vitest (130) / Playwright (16) / production build (127 pages) | ✅ |
+| Screenshots at 375 / 768 / 1024 / 1366 / 1920 px (no horizontal overflow) | ✅ |
+
 ## Resume point
 
 Next execution step: **Audit + repair Administrator dashboard** (`/dashboard/admin`).
-Shared primitives (registry, shell, guards) are in place and reusable.
+Shared primitives (registry, shell, guards, typed errors) are in place and reusable.

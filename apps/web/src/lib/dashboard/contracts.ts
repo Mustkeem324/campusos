@@ -66,6 +66,88 @@ export type FeeSummary = {
   status: 'CLEAR' | 'PARTIAL' | 'OUTSTANDING' | 'UNKNOWN';
 };
 
+export type ExaminationItem = {
+  id: string;
+  name: string;
+  type: string;
+  examDate: string;
+  status: 'UPCOMING' | 'COMPLETED';
+};
+
+export type PublishedResultItem = {
+  id: string;
+  examinationName: string;
+  sgpa: number;
+  cgpa: number;
+  status: string;
+  publishedAt: string;
+};
+
+export type ServiceRequestItem = {
+  id: string;
+  caseNumber: string;
+  title: string;
+  category: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+};
+
+export type HostelSummary = {
+  hostelName: string;
+  building: string;
+  roomNumber: string;
+} | null;
+
+export type StudentNotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
+/**
+ * INSTITUTION_ADMIN / SUPER_ADMIN — administrator workspace.
+ * Identity always represents the authenticated administrator. Students appear
+ * only as tenant-scoped aggregates, never as the admin's own profile.
+ */
+export type AdminDashboardData = {
+  role: 'INSTITUTION_ADMIN' | 'SUPER_ADMIN';
+  identity: {
+    id: string;
+    name: string;
+    email: string;
+    title: string;
+  };
+  metrics: DashboardMetric[];
+  userSummary: {
+    students: number;
+    faculty: number;
+    parents: number;
+    administrators: number;
+    total: number;
+  };
+  academicsSummary: {
+    departments: number;
+    courses: number;
+    courseOfferings: number;
+    enrollments: number;
+  };
+  financeSummary: {
+    invoiceCount: number;
+    paymentCount: number;
+    collectedAmount: number;
+    outstandingAmount: number;
+  };
+  supportCases: ServiceRequestItem[];
+  notices: NoticeItem[];
+  riskAlerts: RiskAlert[];
+  quickActions: QuickAction[];
+  recentActivity: ActivityItem[];
+};
+
 /**
  * STUDENT — the only dashboard fully implemented in the Phase 95 first cycle.
  * Identity always represents the authenticated student persona.
@@ -88,7 +170,12 @@ export type StudentDashboardData = {
   attendance: { present: number; total: number; percentage: number | null } | null;
   assignments: AssignmentItem[];
   feeSummary: FeeSummary;
+  examinations: ExaminationItem[];
+  publishedResults: PublishedResultItem[];
+  studentServices: ServiceRequestItem[];
+  hostel: HostelSummary;
   notices: NoticeItem[];
+  notifications: StudentNotificationItem[];
   riskAlerts: RiskAlert[];
   quickActions: QuickAction[];
   recentActivity: ActivityItem[];

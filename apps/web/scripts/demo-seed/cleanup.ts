@@ -35,6 +35,20 @@ export async function resetDemoTenantData(prisma: PrismaClient, demoTenantId: st
   await prisma.submission.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.assignment.deleteMany({ where: { tenantId: demoTenantId } });
 
+  // Phase 95 student-life records (children first, then parents)
+  await prisma.studentCourseResult.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.studentSemesterResult.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.studentMarks.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.marksEntryBatch.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.examinations.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.examSchedule.deleteMany({ where: { exam: { tenantId: demoTenantId } } });
+  await prisma.exam.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.allocation.deleteMany({ where: { student: { tenantId: demoTenantId } } });
+  await prisma.roomHostel.deleteMany({ where: { hostel: { tenantId: demoTenantId } } });
+  await prisma.hostel.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.notice.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.notification.deleteMany({ where: { tenantId: demoTenantId } });
+
   await prisma.result.deleteMany({ where: { student: { tenantId: demoTenantId } } });
 
   await prisma.payment.deleteMany({ where: { tenantId: demoTenantId } });

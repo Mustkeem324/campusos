@@ -6,7 +6,6 @@ vi.mock('../lib/db', () => ({
   getTenantDb: (tenantId: string) => {
     // In-memory tenant-scoped fake that only ever returns rows for the tenant
     // and student id it was asked about.
-    const rows = new Map<string, unknown[]>();
     return {
       student: {
         findFirst: vi.fn(async ({ where }: { where: { id: string; userId: string; tenantId: string } }) => {
@@ -31,6 +30,11 @@ vi.mock('../lib/db', () => ({
       enrollment: { findMany: vi.fn(async () => []) },
       invoice: { findMany: vi.fn(async () => []) },
       notice: { findMany: vi.fn(async () => []) },
+      exam: { findMany: vi.fn(async () => []) },
+      studentSemesterResult: { findMany: vi.fn(async () => []) },
+      supportCase: { findMany: vi.fn(async () => []) },
+      allocation: { findFirst: vi.fn(async () => null) },
+      notification: { findMany: vi.fn(async () => []) },
       auditLog: { findMany: vi.fn(async () => []) },
     };
   },
@@ -80,7 +84,11 @@ describe('Phase 95: Student dashboard server-side authorization', () => {
     // Arrays are allowed to be empty (legitimate empty states).
     expect(Array.isArray(data.todayClasses)).toBe(true);
     expect(Array.isArray(data.assignments)).toBe(true);
+    expect(Array.isArray(data.examinations)).toBe(true);
+    expect(Array.isArray(data.publishedResults)).toBe(true);
+    expect(Array.isArray(data.studentServices)).toBe(true);
     expect(Array.isArray(data.notices)).toBe(true);
+    expect(Array.isArray(data.notifications)).toBe(true);
     expect(Array.isArray(data.quickActions)).toBe(true);
   });
 
@@ -91,5 +99,67 @@ describe('Phase 95: Student dashboard server-side authorization', () => {
       expect(action.href).not.toBe('#');
       expect(action.href).toMatch(/^\//);
     }
+  });
+
+  describe('Explicit role-leakage negatives', () => {
+    it('does not expose another student’s records (identity is always the authenticated student)', async () => {
+      const data = await getStudentDashboardData(studentContext());
+      // Identity is the authenticated persona only — never a linked or other student.
+      expect(data.identity.id).toBe('user-1');
+      expect(data.identity.rollNumber).toBe('CDU-2024-0001');
+      // No collection of other students may exist in the contract.
+      expect(data).not.toHaveProperty('otherStudents');
+      expect(data).not.toHaveProperty('studentDirectory');
+    });
+
+    it('does not expose admin/settings or tenant-configuration data', async () => {
+      const data = await getStudentDashboardData(studentContext());
+      expect(data).not.toHaveProperty('tenantConfiguration');
+      expect(data).not.toHaveProperty('users');
+      expect(data).not.toHaveProperty('accessRequests');
+      expect(data).not.toHaveProperty('integrationStatus');
+      expect(data).not.toHaveProperty('workflowExceptions');
+    });
+
+    it('does not expose finance reconciliation data', async () => {
+      const data = await getStudentDashboardData(studentContext());
+      expect(data).not.toHaveProperty('reconciliationQueue');
+      expect(data).not.toHaveProperty('refunds');
+      expect(data).not.toHaveProperty('concessions');
+      expect(data).not.toHaveProperty('paymentSettlements');
+      // The fee summary is the student's own invoices only.
+      expect(data.feeSummary.invoiceCount).toBe(0);
+    });
+
+    it('does not expose faculty grading or workload data', async () => {
+      const data = await getStudentDashboardData(studentContext());
+      expect(data).not.toHaveProperty('gradingQueue');
+      expect(data).not.toHaveProperty('facultyWorkload');
+      expect(data).not.toHaveProperty('marksEntryBatches');
+      expect(data).not.toHaveProperty('courseDelivery');
+    });
+
+    it('never surfaces unpublished results (only published=true semester results)', async () => {
+      const data = await getStudentDashboardData(studentContext());
+      // The loader only queries with published: true; a draft must never reach the contract.
+      expect(data.publishedResults).toEqual([]);
+      expect(data).not.toHaveProperty('draftResults');
+      expect(data).not.toHaveProperty('resultPublicationControls');
+    });
+
+    it('does not expose result-publication or examination-office controls', async () => {
+      const data = await getStudentDashboardData(studentContext());
+      expect(data).not.toHaveProperty('moderationQueue');
+      expect(data).not.toHaveProperty('withheldResults');
+      expect(data).not.toHaveProperty('revaluationRequests');
+      expect(data).not.toHaveProperty('examinationAudit');
+    });
+
+    it('rejects a cross-tenant student profile before fetching data', async () => {
+      // A context pointing at a profile in another tenant must not resolve.
+      await expect(
+        getStudentDashboardData(studentContext({ tenantId: 'tenant-2' })),
+      ).rejects.toThrow('profile could not be resolved');
+    });
   });
 });

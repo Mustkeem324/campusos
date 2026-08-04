@@ -1,22 +1,54 @@
 {
   "manifest": [
     {
-      "id": "student-dashboard-desktop",
+      "id": "student-dashboard-375px",
       "role": "STUDENT",
       "route": "/dashboard/student",
-      "viewport": "desktop 1440x900",
+      "viewport": "375x812",
       "capturedAt": "2026-08-05",
-      "captureMethod": "browser automation",
-      "checks": ["identity", "page title", "sidebar", "widgets", "no overflow", "no console errors"]
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/student-dashboard-375px.png",
+      "checks": ["identity", "sections visible", "no horizontal overflow"]
     },
     {
-      "id": "student-dashboard-mobile",
+      "id": "student-dashboard-768px",
       "role": "STUDENT",
       "route": "/dashboard/student",
-      "viewport": "mobile 390x844",
+      "viewport": "768x1024",
       "capturedAt": "2026-08-05",
-      "captureMethod": "browser automation",
-      "checks": ["single column", "no horizontal overflow", "44px touch targets", "drawer navigation"]
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/student-dashboard-768px.png",
+      "checks": ["identity", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "student-dashboard-1024px",
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "viewport": "1024x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/student-dashboard-1024px.png",
+      "checks": ["identity", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "student-dashboard-1366px",
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "viewport": "1366x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/student-dashboard-1366px.png",
+      "checks": ["identity", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "student-dashboard-1920px",
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "viewport": "1920x1080",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/student-dashboard-1920px.png",
+      "checks": ["identity", "sections visible", "no horizontal overflow"]
     }
   ]
 }

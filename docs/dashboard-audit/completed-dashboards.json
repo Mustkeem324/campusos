@@ -5,11 +5,13 @@
       "route": "/dashboard/student",
       "status": "VERIFIED",
       "locked": true,
-      "lastReviewedCommit": "0109e10cba1d11f15c428db98b562772ce2a9e5d",
+      "lastReviewedCommit": "4f63f06fb00e120902480042652d31040ce84f99",
       "dataContract": "StudentDashboardData",
       "serverSideEnforcement": true,
       "negativePermissionTests": true,
       "screenshotsCaptured": true,
+      "widgets": ["identity", "todayClasses", "attendance", "assignments", "feeSummary", "examinations", "publishedResults", "studentServices", "hostel", "notices", "notifications", "riskAlerts", "quickActions", "recentActivity"],
+      "reviewedAt": "2026-08-05 (cycle 2: exams/results/services/hostel/notifications added on real seeded data; exams scoped to enrolled terms; results only published=true)",
       "completedAt": "2026-08-05"
     }
   ],

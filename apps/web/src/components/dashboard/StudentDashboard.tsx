@@ -5,19 +5,18 @@ import Link from 'next/link';
 import {
   AlertCircle,
   ArrowRight,
-  BookOpen,
   CalendarDays,
   CheckCircle2,
   Clock3,
   FileText,
   GraduationCap,
-  RefreshCw,
   ReceiptText,
   BellRing,
-  Library,
   Building2,
-  Bus,
-  User,
+  ClipboardList,
+  LifeBuoy,
+  School,
+  Trophy,
 } from 'lucide-react';
 import type { StudentDashboardData } from '@/lib/dashboard/contracts';
 
@@ -115,6 +114,143 @@ export function StudentDashboard({ data }: { data: StudentDashboardData }) {
           detail={`${data.assignments.filter((a) => a.submitted).length} submitted`}
         />
       </section>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Examinations */}
+        <section className="lg:col-span-7 rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <SectionHeading icon={School} title="Examinations" href="/examinations" />
+          {data.examinations.length === 0 ? (
+            <EmptyState
+              title="No examinations scheduled"
+              description="Examination schedules published for your courses will appear here."
+              actionHref="/examinations"
+              actionLabel="View examinations"
+            />
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {data.examinations.map((exam) => (
+                <li key={exam.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-muted p-3.5">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                      <School size={18} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-text-primary">{exam.name}</p>
+                      <p className="mt-0.5 text-xs text-text-secondary">{exam.type.replace(/_/g, ' ')} • {formatDate(exam.examDate)}</p>
+                    </div>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                    exam.status === 'UPCOMING' ? 'bg-warning-soft text-warning' : 'bg-surface-muted text-text-muted'
+                  }`}>
+                    {exam.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Published results */}
+        <section className="lg:col-span-5 rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <SectionHeading icon={Trophy} title="Published results" href="/results" />
+          {data.publishedResults.length === 0 ? (
+            <EmptyState
+              title="No published results yet"
+              description="Results published by the examination office will appear here. Draft results are never shown."
+              actionHref="/results"
+              actionLabel="View results"
+            />
+          ) : (
+            <ul className="mt-4 divide-y divide-border">
+              {data.publishedResults.map((result) => (
+                <li key={result.id} className="flex items-start justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-text-primary">{result.examinationName}</p>
+                    <p className="mt-0.5 text-xs text-text-secondary">
+                      SGPA {result.sgpa.toFixed(2)} • CGPA {result.cgpa.toFixed(2)} • {result.status}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-success-soft px-2.5 py-1 text-[10px] font-bold text-success">
+                    Published
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-12">
+        {/* Student services */}
+        <section className="lg:col-span-7 rounded-2xl border border-border bg-white p-5 shadow-sm">
+          <SectionHeading icon={LifeBuoy} title="Student services" href="/helpdesk" />
+          {data.studentServices.length === 0 ? (
+            <EmptyState
+              title="No service requests"
+              description="Raise a request with student services and track its status here."
+              actionHref="/helpdesk"
+              actionLabel="Raise a request"
+            />
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {data.studentServices.map((service) => (
+                <li key={service.id} className="rounded-xl border border-border bg-surface-muted p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-text-primary">{service.title}</p>
+                      <p className="mt-0.5 text-xs text-text-secondary">
+                        {service.caseNumber} • {service.category}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">
+                      {service.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Hostel & services side panel */}
+        <section className="lg:col-span-5 space-y-6">
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+            <SectionHeading icon={Building2} title="Hostel" href="/hostel" />
+            {data.hostel ? (
+              <div className="mt-4 rounded-xl border border-border bg-surface-muted p-4">
+                <p className="text-sm font-bold text-text-primary">{data.hostel.hostelName}</p>
+                <p className="mt-0.5 text-xs text-text-secondary">{data.hostel.building}</p>
+                <p className="mt-2 inline-flex rounded-full bg-primary-soft px-2.5 py-1 text-[10px] font-bold text-primary">
+                  Room {data.hostel.roomNumber}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 rounded-xl bg-surface-muted p-4 text-sm text-text-secondary">
+                No hostel allocation assigned to your profile.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+            <SectionHeading icon={ClipboardList} title="Notifications" href="/notifications" />
+            {data.notifications.length === 0 ? (
+              <p className="mt-4 rounded-xl bg-surface-muted p-4 text-sm text-text-secondary">
+                You have no notifications.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-3">
+                {data.notifications.map((notification) => (
+                  <li key={notification.id} className="rounded-xl border border-border bg-surface-muted p-3">
+                    <p className="text-sm font-semibold text-text-primary">{notification.title}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-text-secondary">{notification.body}</p>
+                    <p className="mt-1.5 text-[11px] text-text-muted">{formatDate(notification.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Today's classes */}

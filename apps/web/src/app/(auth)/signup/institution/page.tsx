@@ -39,7 +39,7 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
-  Transport,
+  Bus,
   UserRound,
   UsersRound,
   WalletCards,
@@ -183,7 +183,7 @@ const moduleOptions: readonly ModuleOption[] = [
     name: 'Hostel and Transport',
     description:
       'Accommodation, allocation, fleet and transport operations.',
-    icon: Transport,
+    icon: Bus,
   },
 ];
 

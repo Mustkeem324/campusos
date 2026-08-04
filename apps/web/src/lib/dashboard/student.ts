@@ -3,6 +3,7 @@ import { getTenantDb } from '../db';
 import type { ActiveUserContext } from '../active-user-context';
 import type { StudentDashboardData } from './contracts';
 import { dashboardDefinitionForRole } from './registry';
+import { DashboardError } from './errors';
 
 const ATTENDANCE_THRESHOLD = 75;
 
@@ -18,7 +19,7 @@ const ATTENDANCE_THRESHOLD = 75;
  */
 export async function getStudentDashboardData(context: ActiveUserContext): Promise<StudentDashboardData> {
   if (context.activeRole !== RoleType.STUDENT || !context.studentProfileId) {
-    throw new Error('Unauthorized: Student role required');
+    throw new DashboardError('Unauthorized: Student role required', 403);
   }
 
   const { tenantId, userId, studentProfileId } = context;
@@ -34,10 +35,10 @@ export async function getStudentDashboardData(context: ActiveUserContext): Promi
   });
 
   if (!student) {
-    throw new Error('Your student profile could not be resolved.');
+    throw new DashboardError('Your student profile could not be resolved.', 403);
   }
 
-  const [user, attendanceRecords, enrollments, invoices, notices, activityLogs] = await Promise.all([
+  const [user, attendanceRecords, enrollments, invoices, notices, semesterResults, supportCases, hostelAllocation, notifications, activityLogs] = await Promise.all([
     db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
     db.attendanceRecord.findMany({
       where: { studentId: student.id, tenantId },
@@ -50,6 +51,7 @@ export async function getStudentDashboardData(context: ActiveUserContext): Promi
         courseOffering: {
           select: {
             id: true,
+            termId: true,
             course: { select: { code: true, title: true } },
             timetableSlots: {
               select: { id: true, dayOfWeek: true, startTime: true, endTime: true, room: { select: { roomNumber: true, building: true } } },
@@ -75,6 +77,28 @@ export async function getStudentDashboardData(context: ActiveUserContext): Promi
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: { id: true, title: true, content: true, createdAt: true },
+    }),
+    db.studentSemesterResult.findMany({
+      where: { studentId: student.id, tenantId, published: true },
+      include: { examination: { select: { name: true } } },
+      orderBy: { updatedAt: 'desc' },
+      take: 5,
+    }),
+    db.supportCase.findMany({
+      where: { tenantId, userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { id: true, caseNumber: true, title: true, category: true, status: true, priority: true, createdAt: true },
+    }),
+    db.allocation.findFirst({
+      where: { studentId: student.id },
+      include: { roomHostel: { include: { hostel: true } } },
+    }),
+    db.notification.findMany({
+      where: { tenantId, userId },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { id: true, title: true, body: true, type: true, isRead: true, createdAt: true },
     }),
     db.auditLog.findMany({
       where: { tenantId, userId },
@@ -164,6 +188,50 @@ export async function getStudentDashboardData(context: ActiveUserContext): Promi
   const definition = dashboardDefinitionForRole(RoleType.STUDENT);
   const quickActions = definition.quickActions.map((action) => ({ label: action.label, href: action.href }));
 
+  // Examinations: real schedules scoped to the terms the student is enrolled in.
+  // The query itself filters by the student's enrolled term ids, so exams from
+  // unrelated programmes or departments can never reach the contract.
+  const enrolledTermIds = Array.from(new Set(enrollments.map((enrollment) => enrollment.courseOffering.termId)));
+  const examinations = enrolledTermIds.length > 0
+    ? await db.exam.findMany({
+        where: { tenantId, termId: { in: enrolledTermIds } },
+        include: { schedules: { select: { id: true, examDate: true } } },
+        orderBy: { id: 'asc' },
+      })
+    : [];
+  const now = new Date();
+  const examinationItems: StudentDashboardData['examinations'] = examinations.flatMap((exam) =>
+    exam.schedules.map((schedule) => ({
+      id: schedule.id,
+      name: exam.name,
+      type: exam.type,
+      examDate: schedule.examDate.toISOString(),
+      status: schedule.examDate.getTime() < now.getTime() ? ('COMPLETED' as const) : ('UPCOMING' as const),
+    })),
+  );
+
+  // publishedAt: there is no dedicated publication timestamp on the result row,
+  // so the last-verified (updatedAt) timestamp is used as a close proxy.
+  const publishedResults: StudentDashboardData['publishedResults'] = semesterResults.map((result) => ({
+    id: result.id,
+    examinationName: result.examination.name,
+    sgpa: result.sgpa,
+    cgpa: result.cgpa,
+    status: result.status,
+    publishedAt: result.updatedAt.toISOString(),
+  }));
+
+  // Hostel allocation: the Allocation model has no tenant column; it is
+  // transitively scoped because the student was already resolved by
+  // id + userId + tenantId above.
+  const hostel: StudentDashboardData['hostel'] = hostelAllocation
+    ? {
+        hostelName: hostelAllocation.roomHostel.hostel.name,
+        building: hostelAllocation.roomHostel.hostel.building,
+        roomNumber: hostelAllocation.roomHostel.roomNumber,
+      }
+    : null;
+
   return {
     role: 'STUDENT',
     identity: {
@@ -182,11 +250,31 @@ export async function getStudentDashboardData(context: ActiveUserContext): Promi
     attendance,
     assignments,
     feeSummary: feeStatus,
+    examinations: examinationItems,
+    publishedResults,
+    studentServices: supportCases.map((supportCase) => ({
+      id: supportCase.id,
+      caseNumber: supportCase.caseNumber,
+      title: supportCase.title,
+      category: supportCase.category,
+      status: supportCase.status,
+      priority: supportCase.priority,
+      createdAt: supportCase.createdAt.toISOString(),
+    })),
+    hostel,
     notices: notices.map((notice) => ({
       id: notice.id,
       title: notice.title,
       content: notice.content,
       createdAt: notice.createdAt.toISOString(),
+    })),
+    notifications: notifications.map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      type: notification.type,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt.toISOString(),
     })),
     riskAlerts,
     quickActions,

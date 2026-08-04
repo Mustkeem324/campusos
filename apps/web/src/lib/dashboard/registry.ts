@@ -49,7 +49,7 @@ export type DashboardDefinition = {
 };
 
 /** Roles that currently have a fully implemented dashboard composition. */
-export const IMPLEMENTED_DASHBOARD_ROLES: RoleType[] = ['STUDENT'];
+export const IMPLEMENTED_DASHBOARD_ROLES: RoleType[] = ['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN'];
 
 /** All roles known to the domain model. */
 export const KNOWN_ROLES: RoleType[] = [
@@ -150,9 +150,69 @@ export const DASHBOARD_DEFINITIONS: Partial<Record<RoleType, DashboardDefinition
         items: [{ label: 'Settings', href: '/settings' }],
       },
     ],
-    quickActions: [],
-    widgets: [],
-    dataContract: 'AdminDashboardData (planned)',
+    quickActions: [
+      { label: 'Review users', href: '/settings' },
+      { label: 'Open admissions hub', href: '/platform/admissions' },
+      { label: 'View departments', href: '/departments' },
+      { label: 'Open audit logs', href: '/audit' },
+      { label: 'AI governance', href: '/ai-governance' },
+    ],
+    widgets: [
+      {
+        id: 'admin-metrics',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'users:manage:institution',
+        dataSource: 'getAdminDashboardData',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'admin-user-summary',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'users:manage:institution',
+        dataSource: 'getAdminDashboardData',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'admin-finance-summary',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'fees:manage:institution',
+        dataSource: 'getAdminDashboardData',
+        drillDown: '/receipts',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'admin-notices',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'notices:manage:institution',
+        dataSource: 'getAdminDashboardData',
+        drillDown: '/notifications',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'admin-support-cases',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'users:manage:institution',
+        dataSource: 'getAdminDashboardData',
+        drillDown: '/support/cases',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'admin-recent-activity',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'audit:read:institution',
+        dataSource: 'getAdminDashboardData',
+        drillDown: '/audit',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'admin-risk-alerts',
+        roles: ['INSTITUTION_ADMIN', 'SUPER_ADMIN'],
+        permission: 'fees:manage:institution',
+        dataSource: 'getAdminDashboardData',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+    ],
+    dataContract: 'AdminDashboardData',
   },
   SUPER_ADMIN: {
     role: 'SUPER_ADMIN',

@@ -10,8 +10,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Phase 95: Explicit Role Leakage', () => {
 
   test('Student sees only student-relevant content and no admin/finance panels', async ({ page }) => {
-    await page.goto('/login');
-    await page.locator('button', { hasText: 'Continue as Student' }).click();
+    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
+    expect(login.status()).toBe(200);
+
+    await page.goto('/dashboard');
     await page.waitForURL('/dashboard/student');
 
     // Student identity is the authenticated persona.
@@ -22,10 +24,37 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
     await expect(page.locator('text=Institution Administration Portal')).not.toBeVisible();
     await expect(page.locator('text=Pending Admissions')).not.toBeVisible();
     await expect(page.locator('text=Payroll')).not.toBeVisible();
+    await expect(page.locator('text=Finance reconciliation')).not.toBeVisible();
+    await expect(page.locator('text=User administration')).not.toBeVisible();
 
     // Student quick actions are student-relevant.
-    await expect(page.locator('a', { hasText: 'Open timetable' })).toBeVisible();
-    await expect(page.locator('a', { hasText: 'View attendance' })).toBeVisible();
+    await expect(page.locator('a', { hasText: 'Open timetable' }).first()).toBeVisible();
+    await expect(page.locator('a', { hasText: 'View attendance' }).first()).toBeVisible();
+
+    // Student-relevant sections from the real contract.
+    await expect(page.locator('text=Examinations').first()).toBeVisible();
+    await expect(page.locator('text=Published results').first()).toBeVisible();
+    await expect(page.locator('text=Student services').first()).toBeVisible();
+    await expect(page.locator('text=Hostel').first()).toBeVisible();
+  });
+
+  test('Student direct navigation to admin or faculty routes is rejected', async ({ page }) => {
+    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
+    expect(login.status()).toBe(200);
+
+    await page.goto('/dashboard');
+    await page.waitForURL('/dashboard/student');
+
+    // Direct URL access to the admin dashboard must not render admin content.
+    await page.goto('/dashboard/admin');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('text=Institution Administration Portal')).not.toBeVisible();
+    await expect(page.locator('h1')).not.toContainText('Aarav Mehta');
+
+    // Faculty grading workspace must also be inaccessible.
+    await page.goto('/dashboard/faculty');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('h1')).not.toContainText('Dr. Priya Sharma');
   });
 
   test('Student cannot read admin or faculty dashboard APIs', async ({ request }) => {
@@ -42,8 +71,10 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
   });
 
   test('Admin sees admin content and their own identity, not a student profile', async ({ page }) => {
-    await page.goto('/login');
-    await page.locator('button', { hasText: 'Continue as Admin' }).click();
+    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'ADMIN' } });
+    expect(login.status()).toBe(200);
+
+    await page.goto('/dashboard');
     await page.waitForURL('/dashboard/admin');
 
     await expect(page.locator('h1')).toContainText('Aarav Mehta');
@@ -64,14 +95,18 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
   });
 
   test('Persona switch replaces identity and hides previous-role content', async ({ page }) => {
-    await page.goto('/login');
-    await page.locator('button', { hasText: 'Continue as Student' }).click();
+    const studentLogin = await page.request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
+    expect(studentLogin.status()).toBe(200);
+
+    await page.goto('/dashboard');
     await page.waitForURL('/dashboard/student');
     await expect(page.locator('h1')).toContainText('Rohan Verma');
 
-    // Switch persona through the login console (server session rotation).
-    await page.goto('/login');
-    await page.locator('button', { hasText: 'Continue as Admin' }).click();
+    // Switch persona through the server demo-login API (session rotation).
+    const adminLogin = await page.request.post('/api/auth/demo-login', { data: { persona: 'ADMIN' } });
+    expect(adminLogin.status()).toBe(200);
+
+    await page.goto('/dashboard');
     await page.waitForURL('/dashboard/admin');
     await expect(page.locator('h1')).toContainText('Aarav Mehta');
 

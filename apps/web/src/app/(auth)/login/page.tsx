@@ -25,9 +25,9 @@ import {
 import { Logo } from '@/components/ui/Logo';
 import { DemoLoginConsole } from '@/components/auth/DemoLoginConsole';
 import { useAuthStore } from '../../../lib/auth-store';
+import type { UserSession } from '../../../lib/types';
 
-type AuthStore = ReturnType<typeof useAuthStore>;
-type AuthUser = Parameters<AuthStore['setSession']>[0];
+type AuthUser = UserSession;
 
 type AuthResponse = {
   error?: string;

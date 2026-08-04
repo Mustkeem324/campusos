@@ -2,7 +2,6 @@
 
 import type {
   KeyboardEvent as ReactKeyboardEvent,
-  LucideIcon,
   RefObject,
 } from 'react';
 import {
@@ -26,6 +25,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { Logo } from '@/components/ui/Logo';
 import { menuGroups } from './site-data';

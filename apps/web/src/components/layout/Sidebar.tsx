@@ -13,7 +13,6 @@ import {
   FileText,
   DollarSign,
   Building2,
-  Users,
   Shield,
   UserCheck,
   User,
@@ -21,9 +20,6 @@ import {
   HelpCircle,
   MessageCircle,
   Library,
-  Video,
-  CreditCard,
-  Globe,
   Award,
   Database,
   Scale,
@@ -31,8 +27,7 @@ import {
   Brain,
   Bus,
   Settings,
-  ChevronRight,
-  HeartHandshake
+  ChevronRight
 } from 'lucide-react';
 
 interface NavItem {
@@ -64,20 +59,6 @@ export function Sidebar() {
   }, []);
 
   React.useEffect(() => { setIsMobileOpen(false); }, [pathname]);
-
-  const getRoleNavGroups = (): NavGroup[] => {
-    const role = currentSession?.role || 'STUDENT';
-    const definition = dashboardDefinitionForRole(role);
-
-    return definition.navigation.map((group) => ({
-      label: group.label,
-      items: group.items.map((item) => ({
-        label: item.label,
-        icon: iconForHref(item.href),
-        tabId: item.href.replace(/^\//, ''),
-      })),
-    }));
-  };
 
   const iconForHref = (href: string): React.ElementType => {
     if (href.startsWith('/dashboard')) return LayoutDashboard;
@@ -113,6 +94,20 @@ export function Sidebar() {
     if (href.startsWith('/support')) return HelpCircle;
     if (href.startsWith('/notifications')) return MessageSquare;
     return LayoutDashboard;
+  };
+
+  const getRoleNavGroups = (): NavGroup[] => {
+    const role = currentSession?.role || 'STUDENT';
+    const definition = dashboardDefinitionForRole(role);
+
+    return definition.navigation.map((group) => ({
+      label: group.label,
+      items: group.items.map((item) => ({
+        label: item.label,
+        icon: iconForHref(item.href),
+        tabId: item.href.replace(/^\//, ''),
+      })),
+    }));
   };
 
   const navGroups = getRoleNavGroups();

@@ -23,6 +23,10 @@ but full role workspaces are scheduled in later cycles.
 
 | Feature | Reason blocked |
 |---|---|
+| Student library section (per-student loans) | Schema-blocked: `Loan` has no student/user link; cannot prove ownership |
+| Student transport section (assigned route) | Schema-blocked: `TransportRoute` has no student link |
+| Student documents section | Schema-blocked: `Document` has no student/user link |
+| Ticket-based student services | Schema-blocked: `Ticket` has no student link; `SupportCase` (userId-scoped) used instead |
 | Live AI prompt bar inside student dashboard | Not a student dashboard task; duplicate of `/student/ai-assistant` |
 | "Good Standing" hard-coded badge | Fake data; replaced by real attendance-derived status |
 | Hard-coded "2 Lectures Today" schedule | Fake data; replaced by real timetable queries (empty state when none) |
