@@ -13,6 +13,12 @@ export interface UserSession {
   role: UserRole;
   avatarUrl?: string;
   departmentId?: string;
+  phone?: string | null;
+  emailVerified?: boolean;
+  mfaEnabled?: boolean;
+  lastLoginAt?: string | null;
+  createdAt?: string;
+  activeSessionCount?: number;
 }
 
 export type PermissionAction =

@@ -6,16 +6,20 @@ import { prisma } from '@/lib/db';
 export async function POST() {
   const payload = await getSessionFromCookies();
 
-  if (payload) {
-    await prisma.session.deleteMany({
-      where: {
-        userId: payload.userId,
-        token: payload.sessionId,
-      },
-    });
+  if (!payload) {
+    const response = NextResponse.json({ success: true, revokedSessions: 0 });
+    clearSessionCookie(response);
+    return response;
   }
 
-  const response = NextResponse.json({ success: true });
+  const result = await prisma.session.deleteMany({
+    where: { userId: payload.userId },
+  });
+
+  const response = NextResponse.json({
+    success: true,
+    revokedSessions: result.count,
+  });
   clearSessionCookie(response);
   return response;
 }
