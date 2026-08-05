@@ -66,6 +66,7 @@ export function AccountDropdown() {
 
   const roleLabel = formatRole(currentSession.role);
   const initials = initialsFor(currentSession.name);
+  const profileHref = currentSession.role === 'STUDENT' ? '/student-profile' : '/settings';
 
   const handleLogout = async () => {
     try {
@@ -159,7 +160,7 @@ export function AccountDropdown() {
             </div>
 
             <div className="space-y-1 p-2">
-              <AccountMenuLink href="/student-profile" icon={User} label="My profile" onNavigate={() => setIsOpen(false)} />
+              <AccountMenuLink href={profileHref} icon={User} label="My profile" onNavigate={() => setIsOpen(false)} />
               <AccountMenuLink href="/settings" icon={Settings} label="Workspace settings" onNavigate={() => setIsOpen(false)} />
               <AccountMenuLink href="/notifications" icon={Bell} label="Notification centre" onNavigate={() => setIsOpen(false)} />
               <AccountMenuLink href="/helpdesk" icon={HelpCircle} label="Help and support" onNavigate={() => setIsOpen(false)} />
