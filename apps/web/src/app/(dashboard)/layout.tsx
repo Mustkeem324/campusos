@@ -2,6 +2,7 @@ import React from 'react';
 import { redirect } from 'next/navigation';
 
 import { Phase6DashboardExperience } from '@/components/dashboard/Phase6DashboardExperience';
+import { Phase6SelfImprovement } from '@/components/dashboard/Phase6SelfImprovement';
 import { requireActiveUserContext } from '@/lib/active-user-context';
 import { getSessionFromCookies } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -22,13 +23,19 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // Fetch full user and tenant context to populate the client session store.
-  const user = await prisma.user.findUnique({
-    where: { id: tokenPayload.userId },
-    include: { institution: true },
+  // Fetch only safe account and active-session context for the client profile menu.
+  const user = await prisma.user.findFirst({
+    where: { id: tokenPayload.userId, tenantId: tokenPayload.tenantId, isActive: true },
+    include: {
+      institution: true,
+      sessions: {
+        where: { expiresAt: { gt: new Date() } },
+        select: { id: true },
+      },
+    },
   });
 
-  if (!user || !user.isActive) {
+  if (!user) {
     redirect('/login');
   }
 
@@ -39,8 +46,14 @@ export default async function DashboardLayout({
     tenantId: user.tenantId,
     institutionName: user.institution.name,
     role: user.role,
-    avatarUrl: user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    avatarUrl: user.avatarUrl ?? undefined,
     departmentId: undefined,
+    phone: user.phone,
+    emailVerified: Boolean(user.emailVerified),
+    mfaEnabled: user.mfaEnabled,
+    lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+    createdAt: user.createdAt.toISOString(),
+    activeSessionCount: user.sessions.length,
   };
 
   // Phase 6 is an enhancement layer. A role-specific loader failure must not
@@ -57,6 +70,7 @@ export default async function DashboardLayout({
     <AuthProvider initialSession={session}>
       <DashboardShell>
         <Phase6DashboardExperience data={phase6Data} />
+        <Phase6SelfImprovement data={phase6Data} />
         {children}
       </DashboardShell>
     </AuthProvider>
