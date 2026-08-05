@@ -9,9 +9,6 @@ updates:
       timezone: Asia/Kolkata
     open-pull-requests-limit: 5
     versioning-strategy: increase-if-necessary
-    labels:
-      - dependencies
-      - security
     ignore:
       - dependency-name: '@prisma/client'
         update-types:
@@ -19,11 +16,34 @@ updates:
       - dependency-name: prisma
         update-types:
           - version-update:semver-major
+      - dependency-name: next
+        update-types:
+          - version-update:semver-major
+      - dependency-name: eslint-config-next
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react
+        update-types:
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-major
     groups:
       prisma-toolchain:
         patterns:
           - '@prisma/client'
           - prisma
+        update-types:
+          - minor
+          - patch
+      next-react-runtime:
+        patterns:
+          - next
+          - eslint-config-next
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
         update-types:
           - minor
           - patch
@@ -42,6 +62,3 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
-    labels:
-      - dependencies
-      - ci
