@@ -1,5 +1,6 @@
 import { RoleType } from '@prisma/client';
 import { requireTenantContext } from '../tenant-context';
+import { COURSE_LISTING_SELECT, PRIVILEGED_ROLES, resolveAuthorisedCourses } from './course-listing';
 
 export class CourseAccessError extends Error {
   constructor(
@@ -25,22 +26,33 @@ export type CourseAccess = CourseAccessContext & {
   accessRole: CourseAccessRole;
 };
 
-const PRIVILEGED_ROLES: RoleType[] = [RoleType.SUPER_ADMIN, RoleType.INSTITUTION_ADMIN, RoleType.REGISTRAR];
+const OFFERING_SELECT = {
+  id: true,
+  courseId: true,
+  facultyId: true,
+  course: { select: { code: true, title: true } },
+  faculty: { select: { user: { select: { name: true } } } },
+} as const;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Server-side course permission gate (Phase 97).
  *
- * Resolves the authenticated session → active tenant → course offering, then
- * verifies the caller's relationship to that offering:
- *   - STUDENT must hold an enrollment in the offering
- *   - FACULTY/STAFF must be the offering's assigned faculty
- *   - SUPER_ADMIN / INSTITUTION_ADMIN / REGISTRAR are privileged
+ * Resolves the authenticated session → active tenant → the caller's real
+ * relationship to a course, then serves that exact offering:
+ *   - STUDENT → the offering the student is actually enrolled in
+ *   - FACULTY → the offering the faculty member actually teaches
+ *   - SUPER_ADMIN / INSTITUTION_ADMIN / REGISTRAR → the tenant offering
+ *
+ * The offering is resolved through the caller's relationship (never by
+ * first-match courseId) so that a student enrolled in one section can never
+ * be authorised against another section's offering content, and is never
+ * falsely denied when multiple offerings exist for the same course.
  *
  * Throws a typed CourseAccessError (401 unauthenticated, 403 unauthorised,
  * 404 concealed) so API routes never leak whether a course exists.
  */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export async function requireCourseAccess(courseId: string): Promise<CourseAccess> {
   let context: CourseAccessContext;
   try {
@@ -60,43 +72,61 @@ export async function requireCourseAccess(courseId: string): Promise<CourseAcces
     throw new CourseAccessError(404, 'This course is not available.');
   }
 
-  const offering = await db.courseOffering.findFirst({
-    where: { courseId },
-    orderBy: { id: 'asc' },
-    select: {
-      id: true,
-      courseId: true,
-      facultyId: true,
-      course: { select: { code: true, title: true } },
-      faculty: { select: { user: { select: { name: true } } } },
-    },
-  });
-
+  // Existence probe: any offering of this course within the active tenant.
   // 404 (not 403) when the course is not visible: we do not confirm existence
   // of courses the caller cannot access.
-  if (!offering) {
+  const exists = await db.courseOffering.findFirst({
+    where: { courseId },
+    select: { id: true },
+  });
+  if (!exists) {
     throw new CourseAccessError(404, 'This course is not available.');
   }
 
   if (PRIVILEGED_ROLES.includes(session.role)) {
+    const offering = await db.courseOffering.findFirst({
+      where: { courseId },
+      orderBy: { id: 'asc' },
+      select: OFFERING_SELECT,
+    });
+    if (!offering) {
+      throw new CourseAccessError(404, 'This course is not available.');
+    }
     return { ...context, offering, accessRole: 'PRIVILEGED' };
   }
 
-  const staff = await db.staff.findUnique({ where: { userId: session.userId }, select: { id: true } });
-  if (staff && staff.id === offering.facultyId) {
-    return { ...context, offering, accessRole: 'FACULTY' };
-  }
-
-  const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true } });
-  if (student) {
-    const enrollment = await db.enrollment.findFirst({
-      where: { studentId: student.id, courseOfferingId: offering.id },
-      select: { id: true },
-    });
-    if (enrollment) {
-      return { ...context, offering, accessRole: 'STUDENT' };
+  // FACULTY: resolve through the offering the caller actually teaches.
+  if (session.role === RoleType.FACULTY) {
+    const staff = await db.staff.findUnique({ where: { userId: session.userId }, select: { id: true } });
+    if (staff) {
+      const taught = await db.courseOffering.findFirst({
+        where: { courseId, facultyId: staff.id },
+        orderBy: { id: 'asc' },
+        select: OFFERING_SELECT,
+      });
+      if (taught) {
+        return { ...context, offering: taught, accessRole: 'FACULTY' };
+      }
     }
+    throw new CourseAccessError(403, 'You are not assigned to teach this course.');
   }
 
-  throw new CourseAccessError(403, 'You are not enrolled in this course.');
+  // STUDENT: resolve through the offering the caller is actually enrolled in.
+  if (session.role === RoleType.STUDENT) {
+    const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true } });
+    if (student) {
+      const enrollment = await db.enrollment.findFirst({
+        where: { studentId: student.id, courseOffering: { courseId } },
+        select: { courseOffering: { select: OFFERING_SELECT } },
+      });
+      if (enrollment) {
+        return { ...context, offering: enrollment.courseOffering, accessRole: 'STUDENT' };
+      }
+    }
+    throw new CourseAccessError(403, 'You are not enrolled in this course.');
+  }
+
+  throw new CourseAccessError(403, 'Your role cannot access this course.');
 }
+
+export { PRIVILEGED_ROLES, resolveAuthorisedCourses, COURSE_LISTING_SELECT };

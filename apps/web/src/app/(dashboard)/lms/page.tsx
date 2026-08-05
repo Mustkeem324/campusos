@@ -2,21 +2,18 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { RoleType } from '@prisma/client';
 import { requireTenantContext } from '../../../lib/tenant-context';
+import { resolveAuthorisedCourses } from '../../../lib/lms/course-listing';
 import { PageHeader } from '../../../components/layout/PageHeader';
 import { BookOpen, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-const PRIVILEGED_ROLES: RoleType[] = [RoleType.SUPER_ADMIN, RoleType.INSTITUTION_ADMIN, RoleType.REGISTRAR];
-
 /**
  * LMS home — server component (Phase 97).
  *
  * Lists only the courses the authenticated user is authorised to access,
- * resolved server-side with tenant scope:
- *   - STUDENT → enrolled offerings
- *   - FACULTY → taught offerings
- *   - privileged roles → all tenant offerings
+ * resolved server-side with tenant scope via the shared
+ * resolveAuthorisedCourses helper (identical contract to GET /api/learning/courses).
  */
 export default async function LMSHomePage() {
   let context;
@@ -26,46 +23,8 @@ export default async function LMSHomePage() {
     redirect('/login');
   }
 
-  const { db, session } = context;
-  const tenantId = session.tenantId;
-
-  const select = {
-    id: true,
-    courseId: true,
-    course: { select: { code: true, title: true } },
-    faculty: { select: { user: { select: { name: true } } } },
-    section: { select: { name: true } },
-    term: { select: { name: true } },
-    _count: { select: { CourseModule: true, enrollments: true } },
-  } as const;
-
-  let courses: Array<{
-    id: string;
-    courseId: string;
-    course: { code: string; title: string };
-    faculty: { user: { name: string } };
-    section: { name: string } | null;
-    term: { name: string };
-    _count: { CourseModule: number; enrollments: number };
-  }> = [];
-
-  if (PRIVILEGED_ROLES.includes(session.role)) {
-    courses = await db.courseOffering.findMany({ where: { tenantId }, orderBy: { id: 'asc' }, select });
-  } else if (session.role === RoleType.FACULTY) {
-    const staff = await db.staff.findUnique({ where: { userId: session.userId }, select: { id: true } });
-    if (staff) {
-      courses = await db.courseOffering.findMany({ where: { tenantId, facultyId: staff.id }, orderBy: { id: 'asc' }, select });
-    }
-  } else if (session.role === RoleType.STUDENT) {
-    const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true } });
-    if (student) {
-      const enrollments = await db.enrollment.findMany({
-        where: { studentId: student.id, tenantId },
-        select: { courseOffering: { select } },
-      });
-      courses = enrollments.map((enrollment) => enrollment.courseOffering);
-    }
-  }
+  const { session } = context;
+  const courses = await resolveAuthorisedCourses(context);
 
   const heading =
     session.role === RoleType.STUDENT ? 'My courses' : session.role === RoleType.FACULTY ? 'Courses I teach' : 'All course offerings';

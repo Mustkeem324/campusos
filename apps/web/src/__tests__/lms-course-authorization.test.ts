@@ -21,7 +21,12 @@ vi.mock('../lib/db', () => ({
     const rows = tenantMatches;
     return {
       courseOffering: {
-        findFirst: vi.fn(async ({ where }) => (rows && where.courseId === offering.courseId ? offering : null)),
+        // existence probe + privileged/faculty resolution both pass through here
+        findFirst: vi.fn(async ({ where }) => {
+          if (!rows || where.courseId !== offering.courseId) return null;
+          if (where.facultyId !== undefined && where.facultyId !== offering.facultyId) return null;
+          return offering;
+        }),
         findUnique: vi.fn(async () => (rows ? { ...offering, CourseModule: [], assignments: [], Quiz: [] } : null)),
         findMany: vi.fn(async ({ where }) => {
           if (!rows) return [];
@@ -32,7 +37,9 @@ vi.mock('../lib/db', () => ({
       staff: { findUnique: vi.fn(async ({ where }) => (where.userId === 'user-faculty-1' ? { id: 'staff-faculty-1' } : null)) },
       student: { findUnique: vi.fn(async ({ where }) => (where.userId === 'user-student-1' ? { id: 'student-1' } : null)) },
       enrollment: {
-        findFirst: vi.fn(async ({ where }) => (where.studentId === 'student-1' && where.courseOfferingId === offering.id ? { id: 'enroll-1' } : null)),
+        findFirst: vi.fn(async ({ where }) =>
+          where.studentId === 'student-1' && where.courseOffering?.courseId === offering.courseId ? { courseOffering: offering } : null,
+        ),
         findMany: vi.fn(async () => []),
       },
     };
@@ -101,7 +108,7 @@ describe('Phase 97: LMS course access authorization', () => {
 
     it('rejects a faculty member who does not teach the course', async () => {
       testSession = { userId: 'user-faculty-2', tenantId: 'tenant-1', role: RoleType.FACULTY };
-      await expectAccessError(requireCourseAccess(COURSE_CS101), 403, 'not enrolled');
+      await expectAccessError(requireCourseAccess(COURSE_CS101), 403, 'not assigned');
     });
 
     it('returns 404 for a cross-tenant course (existence concealed)', async () => {

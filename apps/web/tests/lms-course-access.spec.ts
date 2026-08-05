@@ -58,12 +58,21 @@ test.describe('Phase 97 LMS Course Access (live server)', () => {
     expect([401, 403]).toContain(response.status());
   });
 
-  test('Student cannot open a course they are not enrolled in (403/404)', async ({ page }) => {
-    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
-    expect(login.status()).toBe(200);
+  test('Student cannot open a course they are not enrolled in (403)', async ({ page }) => {
+    // Resolve a real courseId the student does not hold: the admin (privileged)
+    // sees every tenant offering, so pick one that is not CS-101.
+    const adminLogin = await page.request.post('/api/auth/demo-login', { data: { persona: 'ADMIN' } });
+    expect(adminLogin.status()).toBe(200);
+    const all = await (await page.request.get('/api/learning/courses')).json();
+    const allCourses = all.courses as CourseListingItem[];
+    expect(allCourses.length).toBeGreaterThan(1);
+    const notEnrolled = allCourses.find((c) => c.course.code !== 'CS-101');
+    expect(notEnrolled).toBeTruthy();
 
-    // An offering id the demo student is NOT enrolled in — access must be denied
-    const detail = await page.request.get('/api/learning/courses/00000000-000c-0000-0000-000000000001');
-    expect([403, 404]).toContain(detail.status());
+    // Switch to the student persona and request that course: must be rejected.
+    const studentLogin = await page.request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
+    expect(studentLogin.status()).toBe(200);
+    const detail = await page.request.get(`/api/learning/courses/${notEnrolled!.courseId}`);
+    expect(detail.status()).toBe(403);
   });
 });
