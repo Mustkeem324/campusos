@@ -149,6 +149,94 @@ export type AdminDashboardData = {
 };
 
 /**
+ * PARENT / GUARDIAN — verified linked-student portal.
+ * Identity ALWAYS represents the authenticated guardian (e.g. Anita Verma),
+ * never the ward. Each linked student is shown separately and every request
+ * for a student's data must pass the guardian-relationship verification.
+ */
+export type ParentDashboardData = {
+  role: 'PARENT';
+  identity: {
+    id: string;
+    name: string;
+    email: string;
+    title: string;
+  };
+  /** All verified, active, same-tenant linked students. */
+  linkedStudents: Array<{
+    id: string;
+    name: string;
+    rollNumber: string;
+    programme: string;
+    batch: string;
+    relationship: string;
+  }>;
+  /** The student currently being viewed (always a verified link). */
+  selectedStudentId: string | null;
+  /** Authorised data for the selected linked student only. */
+  selectedStudent: {
+    id: string;
+    name: string;
+    rollNumber: string;
+    programme: string;
+    batch: string;
+    relationship: string;
+    cgpa: number | null;
+    attendance: { present: number; total: number; percentage: number | null } | null;
+    publishedResults: PublishedResultItem[];
+    feeSummary: FeeSummary;
+  } | null;
+  notices: NoticeItem[];
+  riskAlerts: RiskAlert[];
+  quickActions: QuickAction[];
+  recentActivity: ActivityItem[];
+};
+
+/**
+ * FACULTY — teaching workspace.
+ * Identity ALWAYS represents the authenticated faculty member (e.g. Dr. Priya
+ * Sharma), never a student. Students appear only as aggregates scoped to the
+ * courses the faculty member actually teaches.
+ */
+export type FacultyDashboardData = {
+  role: 'FACULTY';
+  identity: {
+    id: string;
+    name: string;
+    email: string;
+    title: string;
+    designation: string | null;
+    departmentId: string | null;
+  };
+  academicPeriod: { label: string } | null;
+  /** Only offerings the faculty member actually teaches. */
+  assignedCourses: Array<{
+    id: string;
+    code: string;
+    title: string;
+    section: string | null;
+    term: string;
+    studentCount: number;
+    assignmentCount: number;
+    ungradedSubmissionCount: number;
+    attendanceSessionCount: number;
+  }>;
+  todayClasses: ClassSlot[];
+  pendingGrading: {
+    total: number;
+    perCourse: Array<{ courseCode: string; count: number }>;
+  };
+  attendance: {
+    sessionCount: number;
+    recordedToday: number;
+  };
+  metrics: DashboardMetric[];
+  riskAlerts: RiskAlert[];
+  quickActions: QuickAction[];
+  recentActivity: ActivityItem[];
+};
+
+/**
  * STUDENT — the only dashboard fully implemented in the Phase 95 first cycle.
  * Identity always represents the authenticated student persona.
  */

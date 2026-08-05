@@ -17,6 +17,16 @@
 | 12 | Playwright specs waited on `/dashboard` (never reached — app redirects to role paths) and clicked before hydration | High | Fixed — specs log in via `/api/auth/demo-login` (cookies shared with page) and assert role-specific paths |
 | 13 | Student dashboard lacked Examinations / Published results / Student services / Hostel / Notifications sections | High | Fixed — deterministic seed + tenant-scoped loader + rendered sections with empty states |
 | 14 | `seedStudentLife` accepted an unused `config` parameter | Low | Fixed — removed from signature and call site |
+| 15 | `/api/dashboard/admin` returned hardcoded fake metrics (`pendingAdmissionsCount: 12`), fabricated alerts and an unsupported “100% compliance” claim | High | Fixed — rewritten to real tenant-scoped aggregates (`getAdminDashboardData`); no fabricated values remain |
+| 16 | Admin `count()` queries lacked explicit tenant filters | Low | Fixed — routed through `getTenantDb` extended client (auto-injects `tenantId`); verified tenant-scoped |
+| 17 | Admin dashboard mixed admin identity with institution-wide summary (students appeared only as counts) | Medium | Fixed — identity is the authenticated admin (Aarav Mehta); student records are institution-level aggregates only |
+| 18 | `/api/dashboard/parent` returned hardcoded fake ward metrics ('88%', '3.80 / 4.0', '₹0.00 Outstanding', '0 Warnings') and hardcoded notices | High | Fixed — rewritten to real tenant-scoped queries (attendance, published=true results, invoice/payment aggregates, notices); no fabricated values remain |
+| 19 | Parent dashboard used only `guardians.students[0]` — no linked-student selector; guardian relationship never independently verified per request | High | Fixed — `getParentDashboardData` lists all verified links and enforces the requested `studentId` is a link of this guardian (else 403); selector added (2 demo links: Rohan Verma + Meera Menon) |
+| 20 | Parent API returned 409 with message-prefix status guessing | Medium | Fixed — typed `DashboardError(status)`; unlinked ward → 403, no session → 401, unexpected → 500 |
+| 21 | Parent page used `any`-typed payloads and client-only `RoleDashboardGuard` | Medium | Fixed — typed `ParentDashboardData` contract, server-component page, server re-verification on `?studentId=` selection |
+| 22 | `/api/dashboard/faculty` returned a hardcoded fake payload (CS-301/CS-302 courses, `pendingGradingCount: 28`, `91.4%` attendance) that matched none of the real faculty member's data | High | Fixed — rewritten to `getFacultyDashboardData`: tenant-scoped loader (staff by id+userId+tenantId, offerings by facultyId, real aggregates); no fabricated values remain |
+| 23 | Faculty dashboard page rendered fake fallbacks (`|| 28`) and ambiguous identity | High | Fixed — identity is the authenticated faculty member (Dr. Priya Sharma) from the tenant-scoped staff record; page renders only contract data with loading/empty/error states |
+| 24 | Registry marked FACULTY contract as "planned" and excluded it from `IMPLEMENTED_DASHBOARD_ROLES` | Medium | Fixed — FACULTY implemented (widgets + quick actions + `FacultyDashboardData`) and added to implemented roles |
 
 ## Verification notes
 

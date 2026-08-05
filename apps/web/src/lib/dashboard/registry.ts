@@ -49,7 +49,7 @@ export type DashboardDefinition = {
 };
 
 /** Roles that currently have a fully implemented dashboard composition. */
-export const IMPLEMENTED_DASHBOARD_ROLES: RoleType[] = ['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN'];
+export const IMPLEMENTED_DASHBOARD_ROLES: RoleType[] = ['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN', 'PARENT', 'FACULTY'];
 
 /** All roles known to the domain model. */
 export const KNOWN_ROLES: RoleType[] = [
@@ -273,9 +273,17 @@ export const DASHBOARD_DEFINITIONS: Partial<Record<RoleType, DashboardDefinition
         ],
       },
     ],
-    quickActions: [],
-    widgets: [],
-    dataContract: 'FacultyDashboardData (planned)',
+    quickActions: [
+      { label: 'Grade submissions', href: '/assignments' },
+      { label: 'Mark attendance', href: '/attendance' },
+      { label: 'Open my courses', href: '/lms' },
+    ],
+    widgets: [
+      { id: 'faculty-assigned-courses', roles: ['FACULTY'], permission: 'courses:read:department', dataSource: 'GET /api/dashboard/faculty', drillDown: '/lms', states: ['loading', 'empty', 'error', 'ready'] },
+      { id: 'faculty-pending-grading', roles: ['FACULTY'], permission: 'assignments:manage:own_section', dataSource: 'GET /api/dashboard/faculty', drillDown: '/assignments', states: ['loading', 'empty', 'error', 'ready'] },
+      { id: 'faculty-today-classes', roles: ['FACULTY'], permission: 'attendance:read:own_section', dataSource: 'GET /api/dashboard/faculty', drillDown: '/timetable', states: ['loading', 'empty', 'error', 'ready'] },
+    ],
+    dataContract: 'FacultyDashboardData',
   },
   PARENT: {
     role: 'PARENT',
@@ -296,9 +304,68 @@ export const DASHBOARD_DEFINITIONS: Partial<Record<RoleType, DashboardDefinition
         ],
       },
     ],
-    quickActions: [],
-    widgets: [],
-    dataContract: 'ParentDashboardData (planned)',
+    quickActions: [
+      { label: 'View ward attendance', href: '/attendance' },
+      { label: 'View published results', href: '/results' },
+      { label: 'Review fees & dues', href: '/payments' },
+      { label: 'Institutional notices', href: '/community' },
+    ],
+    widgets: [
+      {
+        id: 'parent-identity',
+        roles: ['PARENT'],
+        permission: 'grades:read:own',
+        dataSource: 'getParentDashboardData',
+        states: ['ready'],
+      },
+      {
+        id: 'parent-linked-students',
+        roles: ['PARENT'],
+        permission: 'grades:read:own',
+        dataSource: 'getParentDashboardData',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'parent-ward-attendance',
+        roles: ['PARENT'],
+        permission: 'attendance:read:own',
+        dataSource: 'getParentDashboardData',
+        drillDown: '/attendance',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'parent-ward-results',
+        roles: ['PARENT'],
+        permission: 'grades:read:own',
+        dataSource: 'getParentDashboardData',
+        drillDown: '/results',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'parent-ward-fees',
+        roles: ['PARENT'],
+        permission: 'fees:pay:own',
+        dataSource: 'getParentDashboardData',
+        drillDown: '/payments',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'parent-notices',
+        roles: ['PARENT'],
+        permission: 'notices:read:institution',
+        dataSource: 'getParentDashboardData',
+        drillDown: '/community',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+      {
+        id: 'parent-risk-alerts',
+        roles: ['PARENT'],
+        permission: 'grades:read:own',
+        dataSource: 'getParentDashboardData',
+        states: ['loading', 'empty', 'error', 'ready'],
+      },
+    ],
+    dataContract: 'ParentDashboardData',
   },
   STUDENT: {
     role: 'STUDENT',

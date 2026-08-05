@@ -49,6 +49,176 @@
       "captureMethod": "Playwright chromium automation",
       "file": "docs/dashboard-audit/screenshots/student-dashboard-1920px.png",
       "checks": ["identity", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "admin-dashboard-375px",
+      "role": "INSTITUTION_ADMIN",
+      "route": "/dashboard/admin",
+      "viewport": "375x812",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/admin/admin-dashboard-375px.png",
+      "checks": ["identity (Aarav Mehta)", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "admin-dashboard-768px",
+      "role": "INSTITUTION_ADMIN",
+      "route": "/dashboard/admin",
+      "viewport": "768x1024",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/admin/admin-dashboard-768px.png",
+      "checks": ["identity (Aarav Mehta)", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "admin-dashboard-1024px",
+      "role": "INSTITUTION_ADMIN",
+      "route": "/dashboard/admin",
+      "viewport": "1024x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/admin/admin-dashboard-1024px.png",
+      "checks": ["identity (Aarav Mehta)", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "admin-dashboard-1366px",
+      "role": "INSTITUTION_ADMIN",
+      "route": "/dashboard/admin",
+      "viewport": "1366x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/admin/admin-dashboard-1366px.png",
+      "checks": ["identity (Aarav Mehta)", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "admin-dashboard-1920px",
+      "role": "INSTITUTION_ADMIN",
+      "route": "/dashboard/admin",
+      "viewport": "1920x1080",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/admin/admin-dashboard-1920px.png",
+      "checks": ["identity (Aarav Mehta)", "sections visible", "no horizontal overflow"]
+    },
+    {
+      "id": "parent-dashboard-375px",
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "viewport": "375x812",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/parent/parent-dashboard-375px.png",
+      "checks": ["identity (Anita Verma)", "linked-student selector", "no horizontal overflow"]
+    },
+    {
+      "id": "parent-dashboard-768px",
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "viewport": "768x1024",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/parent/parent-dashboard-768px.png",
+      "checks": ["identity (Anita Verma)", "linked-student selector", "no horizontal overflow"]
+    },
+    {
+      "id": "parent-dashboard-1024px",
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "viewport": "1024x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/parent/parent-dashboard-1024px.png",
+      "checks": ["identity (Anita Verma)", "linked-student selector", "no horizontal overflow"]
+    },
+    {
+      "id": "parent-dashboard-1366px",
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "viewport": "1366x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/parent/parent-dashboard-1366px.png",
+      "checks": ["identity (Anita Verma)", "linked-student selector", "no horizontal overflow"]
+    },
+    {
+      "id": "parent-dashboard-1920px",
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "viewport": "1920x1080",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/parent/parent-dashboard-1920px.png",
+      "checks": ["identity (Anita Verma)", "linked-student selector", "no horizontal overflow"]
+    },
+    {
+      "id": "parent-dashboard-webkit-iphone12",
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "viewport": "390x844 (iPhone 12, WebKit)",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright webkit automation (Mobile Safari project)",
+      "file": "docs/dashboard-audit/screenshots/parent/parent-dashboard-webkit-iphone12.png",
+      "checks": ["identity (Anita Verma)", "linked-student selector", "no horizontal overflow"]
+    },
+    {
+      "id": "faculty-dashboard-375px",
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "viewport": "375x812",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-375px.png",
+      "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
+    },
+    {
+      "id": "faculty-dashboard-768px",
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "viewport": "768x1024",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-768px.png",
+      "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
+    },
+    {
+      "id": "faculty-dashboard-1024px",
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "viewport": "1024x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-1024px.png",
+      "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
+    },
+    {
+      "id": "faculty-dashboard-1366px",
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "viewport": "1366x768",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-1366px.png",
+      "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
+    },
+    {
+      "id": "faculty-dashboard-1920px",
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "viewport": "1920x1080",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-1920px.png",
+      "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
+    },
+    {
+      "id": "faculty-dashboard-desktop",
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "viewport": "1280x720",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-desktop.png",
+      "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
     }
   ]
 }

@@ -80,6 +80,14 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
     await expect(page.locator('h1')).toContainText('Aarav Mehta');
     await expect(page.locator('text=Institution Administration Portal')).toBeVisible();
 
+    // Real admin content sections from the AdminDashboardData contract.
+    await expect(page.getByRole('heading', { name: 'Users & academics' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Financial overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Institutional notices' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recent activity' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Support cases' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Administration modules' })).toBeVisible();
+
     // Admin must not see the student personal dashboard as their own profile.
     await expect(page.locator('text=Student Workspace')).not.toBeVisible();
   });
@@ -92,6 +100,47 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
 
     const studentStatus = (await request.get('/api/dashboard/student')).status();
     expect(studentStatus).toBe(403);
+  });
+
+  test('Parent sees guardian identity with linked ward shown separately', async ({ page }) => {
+    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'PARENT' } });
+    expect(login.status()).toBe(200);
+
+    await page.goto('/dashboard');
+    await page.waitForURL('/dashboard/parent');
+
+    // Current profile is the guardian, not the student.
+    await expect(page.locator('h1')).toContainText('Anita Verma');
+    await expect(page.locator('h1')).not.toContainText('Rohan Verma');
+    // Linked student appears as a separate heading.
+    await expect(page.getByRole('heading', { name: 'Rohan Verma', exact: true })).toBeVisible();
+
+    // Guardian dashboard must not expose admin/student personal workspace.
+    await expect(page.locator('text=Institution Administration Portal')).not.toBeVisible();
+    await expect(page.locator('text=Student Workspace')).not.toBeVisible();
+  });
+
+  test('Parent cannot read student, admin or faculty dashboard APIs', async ({ request }) => {
+    const login = await request.post('/api/auth/demo-login', { data: { persona: 'PARENT' } });
+    expect(login.status()).toBe(200);
+
+    expect((await request.get('/api/dashboard/student')).status()).toBe(403);
+    expect((await request.get('/api/dashboard/admin')).status()).toBe(403);
+    expect((await request.get('/api/dashboard/faculty')).status()).toBe(403);
+  });
+
+  test('Parent request for an unlinked student is rejected on the server', async ({ request }) => {
+    const login = await request.post('/api/auth/demo-login', { data: { persona: 'PARENT' } });
+    expect(login.status()).toBe(200);
+
+    // 00000000-0008-0000-0000-000000000005 is a student of another family.
+    const unlinked = await request.get('/api/dashboard/parent?studentId=00000000-0008-0000-0000-000000000005');
+    expect(unlinked.status()).toBe(403);
+
+    // A verified link resolves normally.
+    const linked = await request.get('/api/dashboard/parent?studentId=00000000-0008-0000-0000-00000000005a');
+    expect(linked.status()).toBe(200);
+    expect((await linked.json()).selectedStudent.name).toBe('Meera Menon');
   });
 
   test('Persona switch replaces identity and hides previous-role content', async ({ page }) => {

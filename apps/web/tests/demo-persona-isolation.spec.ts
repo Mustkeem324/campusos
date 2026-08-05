@@ -29,8 +29,8 @@ test.describe('Phase 92/95: Demo Persona Isolation', () => {
 
     await page.goto('/dashboard');
     await page.waitForURL('/dashboard/faculty');
-    await expect(page.locator('h1')).toContainText('Welcome back, Dr. Priya Sharma');
-    await expect(page.locator('body')).toContainText('Faculty Portal');
+    await expect(page.locator('h1')).toContainText('Dr. Priya Sharma');
+    await expect(page.locator('body')).toContainText('Faculty Teaching Workspace');
   });
 
   test('Student demo login resolves Rohan Verma identity and student dashboard', async ({ page }) => {
@@ -53,6 +53,12 @@ test.describe('Phase 92/95: Demo Persona Isolation', () => {
     await page.waitForURL('/dashboard/parent');
     await expect(page.locator('h1')).toContainText('Anita Verma');
     await expect(page.locator('body')).toContainText('Parent Portal');
+    // Real parent sections from the ParentDashboardData contract.
+    await expect(page.getByRole('heading', { name: 'Published academic results' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Fee overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Institutional notices' })).toBeVisible();
+    // Linked student selector appears because multiple verified links exist.
+    await expect(page.locator('button', { hasText: 'Meera Menon' })).toBeVisible();
   });
 
   test('How CampusOS Works page renders visual flow and checklist', async ({ page }) => {

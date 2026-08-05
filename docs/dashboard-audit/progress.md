@@ -5,7 +5,7 @@
 1. **Shared dashboard shell + registry** — ✅ (this cycle)
 2. **Student** — ✅ VERIFIED (this cycle)
 3. **Parent** — ✅ VERIFIED (this cycle)
-4. Faculty — AUDITED this cycle, not repaired
+4. **Faculty** — ✅ VERIFIED (cycle 8)
 5. **Administrator** — ✅ VERIFIED (this cycle)
 6. Finance
 7. Admissions
@@ -140,8 +140,24 @@ PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright test --project='Mobi
 | Validation: typecheck 0 / lint 0 / vitest 168 / Playwright 23 (5 P98 + 4 P97 + 14 regression) / production build 127 pages EXIT 0 | ✅ |
 | Screenshots: `docs/dashboard-audit/screenshots/lms/p98-assignments-student.png`, `p98-faculty-grading.png` | ✅ |
 
+## Cycle 8 (2026-08-05) — Faculty dashboard completion
+
+| Task | Status |
+|---|---|
+| Audit of `/dashboard/faculty` + `/api/dashboard/faculty`: entire page was hardcoded fake data (CS-301/CS-302 courses, `pendingGradingCount: 28`, `91.4%` attendance) with `|| 28` fallbacks; registry contract marked "planned" | ✅ |
+| Root cause: fabricated payload with no real loader — replaced with tenant-scoped `getFacultyDashboardData` (staff scoped by id+userId+tenantId, offerings by facultyId, every metric derived from real records) | ✅ |
+| `FacultyDashboardData` contract (identity, academicPeriod, assignedCourses, todayClasses, pendingGrading, attendance, metrics, riskAlerts, quickActions, recentActivity) | ✅ |
+| `/api/dashboard/faculty` rewritten onto the loader (401 no session / 403 wrong role or unresolved profile / 500 unexpected) | ✅ |
+| Faculty page rewritten as server component — real assigned courses (CS-101, CE-301), no fake fallbacks; loading/empty/error states preserved | ✅ |
+| Registry: FACULTY implemented with quick actions + 3 widget definitions + `FacultyDashboardData` contract; added to `IMPLEMENTED_DASHBOARD_ROLES` | ✅ |
+| Ten negative authorization tests (`dashboard-faculty-authorization.test.ts`): non-faculty 403, missing profile 403, cross-tenant 403, no leakage fields | ✅ |
+| Playwright: identity Dr. Priya Sharma + real course data + API rejection for other roles (3 new tests); stale routing/persona assertions updated | ✅ |
+| Review fixes: removed dead `ATTENDANCE_THRESHOLD`, dropped redundant user query (identity from `staff.user`), collapsed N+1 timetable query into one `findMany`, derived LIVE NOW/UPCOMING/COMPLETED class status from real slot times | ✅ |
+| Validation: typecheck 0 / lint 0 / vitest 179 / Playwright 22 (3 faculty + 19 regression incl. admin + parent leakage) / production build 127 pages EXIT 0 | ✅ |
+| Screenshots at 375 / 768 / 1024 / 1366 / 1920 px + desktop (`docs/dashboard-audit/screenshots/faculty/`, no horizontal overflow) | ✅ |
+
 ## Resume point
 
-Phase 96 (production pipeline) committed on `chore/production-readiness` @ `4d90625` — Vercel preview deploy + cycle-2 items (health endpoints, structured logging, env validation, CI gates) remain.
-Phase 97 (LMS foundation) committed @ `6bb4ff2` + `3efe843`. Phase 98 (assignments/rubrics/gradebook) implemented + validated locally — commit it, then begin **Phase 99: Live classroom, raise hand and attendance** (LearningSession/Participant/Presence/ChatMessage/Poll models already exist in schema).
-Dashboard programme resume: **Audit + repair Faculty dashboard** (`/dashboard/faculty`).
+Dashboard programme: cycles 2 (Student), 3 (Administrator), 4 (Parent) and 8 (Faculty) complete and VERIFIED. Next dashboard: **Finance** (`/dashboard/finance`) — audit + tenant-scoped `FinanceDashboardData` contract + negative permission tests.
+LMS: Phase 98 (assignments/rubrics/gradebook) committed @ `d2ee38b`. Next: **Phase 99 — Live classroom, raise hand and attendance** (LearningSession/Participant/Presence/ChatMessage/Poll models exist in schema).
+Phase 96 (production pipeline) committed @ `4d90625` — Vercel preview deploy + cycle-2 items (health endpoints, structured logging, env validation, CI gates) remain.

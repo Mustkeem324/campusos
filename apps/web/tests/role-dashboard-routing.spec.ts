@@ -26,7 +26,7 @@ test.describe('Role-Based Dashboard Routing & Data Isolation', () => {
 
     await expect(page.locator('h1')).toContainText('Dr. Priya Sharma');
     await expect(page.locator('text=Faculty Teaching Workspace')).toBeVisible();
-    await expect(page.locator('text=Assigned Courses')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Assigned courses' })).toBeVisible();
     await expect((await page.request.get('/api/dashboard/student')).status()).toBe(403);
   });
 
@@ -54,11 +54,26 @@ test.describe('Role-Based Dashboard Routing & Data Isolation', () => {
     await page.goto('/dashboard');
     await page.waitForURL('/dashboard/parent');
 
+    // Guardian identity is the authenticated persona — never the ward.
     await expect(page.locator('h1')).toContainText('Anita Verma');
     await expect(page.locator('text=Parent & Guardian Portal')).toBeVisible();
-    await expect(page.locator('h3', { hasText: 'Rohan Verma' }).first()).toBeVisible();
+    // Linked student is shown separately, not as the current user.
+    await expect(page.getByRole('heading', { name: 'Rohan Verma', exact: true })).toBeVisible();
+
     const response = await page.request.get('/api/dashboard/parent');
-    await expect((await response.json()).parentUser.name).toBe('Anita Verma');
+    const payload = await response.json();
+    expect(payload.identity.name).toBe('Anita Verma');
+    expect(payload.selectedStudent.name).toBe('Rohan Verma');
+    expect(payload.selectedStudent.name).not.toBe(payload.identity.name);
+  });
+
+  test('Parent cannot read another family’s ward through the API', async ({ request }) => {
+    const login = await request.post('/api/auth/demo-login', { data: { persona: 'PARENT' } });
+    expect(login.status()).toBe(200);
+
+    // Request a student who is not linked to this guardian → 403.
+    const unlinked = await request.get('/api/dashboard/parent?studentId=00000000-0008-0000-0000-000000000005');
+    expect(unlinked.status()).toBe(403);
   });
 
 });

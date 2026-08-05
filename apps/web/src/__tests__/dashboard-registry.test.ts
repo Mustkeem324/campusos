@@ -46,10 +46,16 @@ describe('Phase 95: Dashboard Registry', () => {
     }
   });
 
-  it('only implements the STUDENT dashboard in the Phase 95 first cycle', () => {
-    expect(IMPLEMENTED_DASHBOARD_ROLES).toEqual(['STUDENT']);
+  it('implements the STUDENT, ADMIN and PARENT dashboards in the Phase 95 cycles', () => {
+    expect(IMPLEMENTED_DASHBOARD_ROLES).toEqual(['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN', 'PARENT', 'FACULTY']);
     expect(DASHBOARD_DEFINITIONS[RoleType.STUDENT]?.dataContract).toBe('StudentDashboardData');
     expect(DASHBOARD_DEFINITIONS[RoleType.STUDENT]?.route).toBe('/dashboard/student');
+    expect(DASHBOARD_DEFINITIONS[RoleType.INSTITUTION_ADMIN]?.dataContract).toBe('AdminDashboardData');
+    expect(DASHBOARD_DEFINITIONS[RoleType.INSTITUTION_ADMIN]?.route).toBe('/dashboard/admin');
+    expect(DASHBOARD_DEFINITIONS[RoleType.PARENT]?.dataContract).toBe('ParentDashboardData');
+    expect(DASHBOARD_DEFINITIONS[RoleType.PARENT]?.route).toBe('/dashboard/parent');
+    // SUPER_ADMIN reuses the admin route but its platform contract is still planned.
+    expect(DASHBOARD_DEFINITIONS[RoleType.SUPER_ADMIN]?.dataContract).toBe('PlatformAdminDashboardData (planned)');
   });
 
   it('student navigation contains only student-relevant items', () => {
@@ -89,10 +95,20 @@ describe('Phase 95: Dashboard Registry', () => {
     }
   });
 
-  it('admin and faculty dashboards are defined but not marked implemented', () => {
-    expect(dashboardDefinitionForRole(RoleType.INSTITUTION_ADMIN).route).toBe('/dashboard/admin');
+  it('faculty dashboard is defined and marked implemented', () => {
     expect(dashboardDefinitionForRole(RoleType.FACULTY).route).toBe('/dashboard/faculty');
-    expect(dashboardDefinitionForRole(RoleType.PARENT).route).toBe('/dashboard/parent');
-    expect(IMPLEMENTED_DASHBOARD_ROLES).not.toContain(RoleType.FACULTY);
+    expect(IMPLEMENTED_DASHBOARD_ROLES).toContain(RoleType.FACULTY);
+    expect(dashboardDefinitionForRole(RoleType.FACULTY).dataContract).toBe('FacultyDashboardData');
+  });
+
+  it('faculty widgets declare eligibility, permission, data source and states', () => {
+    const definition = dashboardDefinitionForRole(RoleType.FACULTY);
+    for (const widget of definition.widgets) {
+      expect(widget.roles).toContain(RoleType.FACULTY);
+      expect(widget.permission.length).toBeGreaterThan(0);
+      expect(widget.dataSource.length).toBeGreaterThan(0);
+      expect(widget.states.length).toBeGreaterThan(0);
+      expect(widget.id).toMatch(/^faculty-/);
+    }
   });
 });
