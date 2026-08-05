@@ -2,26 +2,76 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  Bell,
+  Command,
+  HelpCircle,
+  Menu,
+  Moon,
+  Search,
+  Sun,
+} from 'lucide-react';
+
 import { useAuthStore } from '../../lib/auth-store';
-import { Bell, Search, Moon, Sun, HelpCircle, Menu } from 'lucide-react';
+import { dashboardDefinitionForRole } from '../../lib/dashboard/registry';
 import { AccountDropdown } from './AccountDropdown';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 
+function formatRole(role?: string) {
+  if (!role) return 'Workspace member';
+
+  return role
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatPathname(pathname: string) {
+  const finalSegment = pathname.split('/').filter(Boolean).at(-1);
+  if (!finalSegment || finalSegment === 'dashboard') return 'Dashboard';
+
+  return finalSegment
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 export function Header() {
-  const { currentSession, isDarkMode, toggleDarkMode, setCmdPaletteOpen, toggleSidebar, isSidebarCollapsed } = useAuthStore();
+  const pathname = usePathname();
+  const {
+    currentSession,
+    isDarkMode,
+    toggleDarkMode,
+    setCmdPaletteOpen,
+    toggleSidebar,
+    isSidebarCollapsed,
+  } = useAuthStore();
   const [isNotifDrawerOpen, setIsNotifDrawerOpen] = React.useState(false);
+
+  const dashboardDefinition = currentSession?.role
+    ? dashboardDefinitionForRole(currentSession.role)
+    : null;
+  const navigationItems = dashboardDefinition?.navigation.flatMap((group) => group.items) ?? [];
+  const activeNavigationItem = navigationItems.find(
+    (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)),
+  );
+  const pageTitle = activeNavigationItem?.label ?? formatPathname(pathname);
+  const roleLabel = formatRole(currentSession?.role);
+  const institutionName = currentSession?.institutionName ?? 'CampusOS';
+
   const handleNavigationToggle = () => {
     if (window.matchMedia('(max-width: 767px)').matches) {
       window.dispatchEvent(new Event('campusos:toggle-mobile-navigation'));
       return;
     }
+
     toggleSidebar();
   };
 
   return (
     <>
       <header
-        className="app-header fixed right-0 bg-surface border-b border-border transition-all duration-300 flex items-center justify-between px-3 sm:px-4"
+        className="app-header fixed right-0 flex items-center border-b border-[#DDE5EF] bg-white px-3 shadow-[0_1px_0_rgba(16,29,56,0.02)] transition-[left] duration-300 dark:border-slate-800 dark:bg-slate-950 sm:px-4 lg:px-5"
         style={{
           height: 'var(--header-h)',
           top: 'calc(var(--impersonation-bar-h) + var(--demo-banner-h))',
@@ -29,57 +79,74 @@ export function Header() {
           zIndex: 'var(--z-header)',
         } as React.CSSProperties}
       >
-        {/* Left: hamburger + search */}
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
+            type="button"
             onClick={handleNavigationToggle}
-            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-[#536175] transition hover:border-[#D8E2EF] hover:bg-[#F4F7FB] hover:text-[#1754E8] dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900"
             aria-label={isSidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
-            <Menu size={18} />
+            <Menu className="h-5 w-5" aria-hidden="true" />
           </button>
+
+          <div className="hidden min-w-[180px] border-l border-[#E5EAF1] pl-4 dark:border-slate-800 md:block">
+            <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-[#8A95A6] dark:text-slate-500">
+              {institutionName}
+            </p>
+            <p className="mt-0.5 truncate text-sm font-bold text-[#101D38] dark:text-white">
+              {pageTitle}
+            </p>
+          </div>
+
           <button
+            type="button"
             onClick={() => setCmdPaletteOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-muted border border-border text-text-muted text-[13px] hover:border-border-strong transition min-w-0 max-w-xs w-full"
-            aria-label="Open search (Ctrl+K)"
+            className="group ml-0 flex min-h-11 min-w-0 max-w-xl flex-1 items-center gap-3 rounded-xl border border-[#D6DFEB] bg-[#F8FAFC] px-3 text-sm text-[#7B8798] transition hover:border-[#AFC3DE] hover:bg-white focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-900 lg:ml-2"
+            aria-label="Open global search and commands"
           >
-            <Search size={14} className="shrink-0" />
-            <span className="flex-1 text-left truncate">Search courses, payments, notices...</span>
-            <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] bg-surface border border-border rounded text-text-secondary font-mono shrink-0">
-              ⌘ K
-            </kbd>
+            <Search className="h-4 w-4 shrink-0 text-[#667085] group-hover:text-[#1754E8] dark:text-slate-400" aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-left">
+              Search people, courses, payments and actions
+            </span>
+            <span className="hidden items-center gap-1 rounded-md border border-[#D6DFEB] bg-white px-2 py-1 text-[10px] font-bold text-[#667085] shadow-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400 sm:inline-flex">
+              <Command className="h-3 w-3" aria-hidden="true" />K
+            </span>
           </button>
         </div>
 
-        {/* Right: controls */}
-        <div className="flex items-center gap-2 shrink-0 ml-3">
-          <span className="hidden lg:block max-w-52 truncate text-[13px] font-medium text-text-secondary">
-            {currentSession.role.replace(/_/g, ' ').toLowerCase()}
-          </span>
-
-          <div className="w-px h-4 bg-border mx-1 hidden md:block"></div>
-
+        <div className="ml-3 flex shrink-0 items-center gap-1 sm:gap-2">
           <button
-            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition relative"
+            type="button"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[#536175] transition hover:bg-[#F4F7FB] hover:text-[#1754E8] dark:text-slate-300 dark:hover:bg-slate-900"
             onClick={() => setIsNotifDrawerOpen(true)}
             aria-label="Open notifications"
           >
-            <Bell size={18} />
+            <Bell className="h-[19px] w-[19px]" aria-hidden="true" />
           </button>
 
-          <Link href="/helpdesk" className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition hidden md:flex" aria-label="Open helpdesk">
-            <HelpCircle size={18} />
+          <Link
+            href="/helpdesk"
+            className="hidden min-h-11 min-w-11 items-center justify-center rounded-xl text-[#536175] transition hover:bg-[#F4F7FB] hover:text-[#1754E8] dark:text-slate-300 dark:hover:bg-slate-900 md:inline-flex"
+            aria-label="Open helpdesk"
+          >
+            <HelpCircle className="h-[19px] w-[19px]" aria-hidden="true" />
           </Link>
 
           <button
+            type="button"
             onClick={toggleDarkMode}
-            className="p-1.5 rounded-md text-text-secondary hover:bg-surface-muted transition"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[#536175] transition hover:bg-[#F4F7FB] hover:text-[#1754E8] dark:text-slate-300 dark:hover:bg-slate-900"
             aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            {isDarkMode ? <Sun className="h-[19px] w-[19px]" aria-hidden="true" /> : <Moon className="h-[19px] w-[19px]" aria-hidden="true" />}
           </button>
 
-          <div className="w-px h-4 bg-border mx-1"></div>
+          <div className="mx-1 hidden h-7 w-px bg-[#E1E7EF] dark:bg-slate-800 sm:block" aria-hidden="true" />
+
+          <div className="hidden max-w-[180px] text-right xl:block">
+            <p className="truncate text-xs font-bold text-[#101D38] dark:text-white">{currentSession?.name ?? 'CampusOS user'}</p>
+            <p className="mt-0.5 truncate text-[11px] text-[#7B8798] dark:text-slate-500">{roleLabel}</p>
+          </div>
 
           <AccountDropdown />
         </div>
