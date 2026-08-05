@@ -9,19 +9,23 @@ const requestSchema = z.object({ email: z.string().trim().email() });
 export async function POST(request: Request) {
   const genericResponse = {
     success: true,
-    message: 'If an active account exists, password reset instructions have been queued.',
+    message: 'If one active account exists for this email, password reset instructions have been queued.',
   };
 
   try {
     const { email } = requestSchema.parse(await request.json());
-    const user = await prisma.user.findFirst({
+    const candidates = await prisma.user.findMany({
       where: {
         email: { equals: email.toLowerCase(), mode: 'insensitive' },
         isActive: true,
       },
       select: { id: true, tenantId: true, email: true, name: true },
+      take: 2,
     });
 
+    // Email addresses are unique per tenant, not globally. Never reset an
+    // arbitrary institution account when the same address belongs to two tenants.
+    const user = candidates.length === 1 ? candidates[0] : null;
     if (!user) return NextResponse.json(genericResponse);
 
     const token = randomOneTimeToken();
