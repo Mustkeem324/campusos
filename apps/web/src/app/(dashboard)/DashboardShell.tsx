@@ -10,6 +10,7 @@ import { CommandPalette } from '../../components/layout/CommandPalette';
 import { Header } from '../../components/layout/Header';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { WorkspaceContextBar } from '../../components/layout/WorkspaceContextBar';
+import { PwaRegistrar } from '../../components/pwa/PwaRegistrar';
 import { useAuthStore } from '../../lib/auth-store';
 
 const dashboardShellVariables = {
@@ -75,6 +76,7 @@ export default function DashboardShell({
 
   return (
     <DemoOnboardingProvider key={restartTourKey}>
+      <PwaRegistrar />
       <div
         className="min-h-screen bg-[#F2F5FA] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
         style={dashboardShellVariables}
