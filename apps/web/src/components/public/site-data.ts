@@ -25,12 +25,12 @@ export const menuGroups = [
     { title: 'Community', links: [['Student','/roles/student'],['Parent or Guardian','/roles/parent'],['Alumni','/roles/alumni']] },
   ]},
   { label: 'Resources', href: '/resources', groups: [
-    { title: 'Learn', links: [['Guides','/resources/guides'],['Blog','/resources/blog'],['Research','/resources/research'],['Webinars','/resources/webinars'],['Events','/resources/events'],['Product Tours','/resources/product-tours']] },
+    { title: 'Learn', links: [['Guides','/resources/guides'],['Blog','/resources/blog'],['Research','/resources/research'],['Webinars','/resources/webinars'],['Events','/resources/events'],['Product Tours','/resources/product-tours'],['Careers at CampusOS','/careers']] },
     { title: 'Plan', links: [["Buyer’s Guide",'/resources/buyers-guide'],['ERP Evaluation Checklist','/resources/erp-evaluation-checklist'],['RFP Toolkit','/resources/rfp-toolkit'],['ROI Calculator','/resources/roi-calculator'],['Implementation Guide','/resources/implementation-guide'],['Data Migration Guide','/resources/data-migration-guide']] },
     { title: 'Product', links: [['Help Centre','/resources/help'],['Documentation','/developers'],['Blueprint Architecture','/blueprint'],['Release Notes','/resources/release-notes'],['Roadmap','/resources/roadmap'],['System Status','/trust/availability']] },
   ]},
   { label: 'Security', href: '/security', groups: [
-    { title: 'Trust', links: [['Security Overview','/security'],['Trust Centre','/trust'],['Privacy','/trust/privacy'],['Accessibility','/security/accessibility'],['Subprocessors','/trust/subprocessors'],['Vulnerability Disclosure','/security/vulnerability-disclosure']] },
+    { title: 'Trust', links: [['Security Overview','/security'],['Trust Centre','/trust'],['Privacy','/trust/privacy'],['Data Portability and Plan Exit','/trust/data-portability'],['Accessibility','/security/accessibility'],['Subprocessors','/trust/subprocessors'],['Vulnerability Disclosure','/security/vulnerability-disclosure']] },
     { title: 'Controls', links: [['Identity and Access','/security/identity-access'],['Data Protection','/security/data-protection'],['Audit and Monitoring','/security/audit-monitoring'],['Payment Security','/security/payment-security'],['Biometric Security','/security/biometric-security'],['AI Governance','/security/ai-governance']] },
   ]},
   { label: 'Pricing', href: '/pricing', groups: [
