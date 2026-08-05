@@ -4,6 +4,10 @@ import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
 import { prisma } from '@/lib/db';
+import {
+  isValidPhase7Permission,
+  phase7ApprovalDomainsForRole,
+} from '@/lib/phase7-approval-policy';
 import { canApprovePhase7, writePhase7Audit } from '@/lib/phase7';
 
 const createProposalSchema = z.object({
@@ -11,16 +15,28 @@ const createProposalSchema = z.object({
   targetRecord: z.string().trim().min(2).max(160),
   reason: z.string().trim().min(10).max(1000),
   riskLevel: z.nativeEnum(AiActionRiskLevel).default(AiActionRiskLevel.MEDIUM),
-  requiredPermission: z.string().trim().min(3).max(120),
+  requiredPermission: z.string().trim().min(3).max(120).refine(
+    isValidPhase7Permission,
+    'Use a permission in resource:action:scope format.',
+  ),
   proposedValues: z.record(z.unknown()).default({}),
 });
 
 export async function GET() {
   try {
     const context = await requireActiveUserContext();
-    const where = canApprovePhase7(context.activeRole)
-      ? { tenantId: context.tenantId }
-      : { tenantId: context.tenantId, userId: context.userId };
+    const canApprove = canApprovePhase7(context.activeRole);
+    const domains = phase7ApprovalDomainsForRole(context.activeRole);
+    const where: Prisma.AiActionProposalWhereInput = !canApprove
+      ? { tenantId: context.tenantId, userId: context.userId }
+      : domains === null
+        ? { tenantId: context.tenantId }
+        : {
+            tenantId: context.tenantId,
+            OR: domains.map((domain) => ({
+              requiredPermission: { startsWith: `${domain}:`, mode: 'insensitive' },
+            })),
+          };
 
     const proposals = await prisma.aiActionProposal.findMany({
       where,
@@ -33,7 +49,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      canApprove: canApprovePhase7(context.activeRole),
+      canApprove,
       proposals: proposals.map((proposal) => ({
         id: proposal.id,
         actionName: proposal.actionName,
@@ -74,7 +90,7 @@ export async function POST(request: Request) {
         proposedValues,
         reason: payload.reason,
         riskLevel: payload.riskLevel,
-        requiredPermission: payload.requiredPermission,
+        requiredPermission: payload.requiredPermission.toLowerCase(),
         status: AiActionStatus.PROPOSED,
       },
       select: { id: true, actionName: true, status: true, createdAt: true },
@@ -88,7 +104,7 @@ export async function POST(request: Request) {
         proposalId: proposal.id,
         actionName: proposal.actionName,
         riskLevel: payload.riskLevel,
-        requiredPermission: payload.requiredPermission,
+        requiredPermission: payload.requiredPermission.toLowerCase(),
       },
       request.headers.get('x-forwarded-for'),
     );
