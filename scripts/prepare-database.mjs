@@ -7,8 +7,16 @@ function shouldPrepareDatabase() {
   return process.env.CAMPUSOS_AUTO_DB_PUSH === 'true' || process.env.VERCEL_ENV === 'production';
 }
 
-function runCommand(command, args, label) {
-  const result = spawnSync(command, args, { env: process.env, stdio: 'inherit' });
+function shouldSeedSyntheticCampus() {
+  if (process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'false') return false;
+  return process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'true';
+}
+
+function runCommand(command, args, label, extraEnv = {}) {
+  const result = spawnSync(command, args, {
+    env: { ...process.env, ...extraEnv },
+    stdio: 'inherit',
+  });
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(`${label} failed with exit code ${result.status ?? 'unknown'}.`);
@@ -27,8 +35,13 @@ function runPrismaDbPush() {
   );
 }
 
-function runDemoBootstrap() {
-  runCommand(process.execPath, ['scripts/bootstrap-demo.mjs'], 'Demo database bootstrap');
+function runSyntheticCampusSeed() {
+  runCommand(
+    process.execPath,
+    ['scripts/seed-synthetic-campus.mjs', '--allow-synthetic-seed', '--reset'],
+    'Synthetic campus seed',
+    { CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true' },
+  );
 }
 
 function prepareDatabase() {
@@ -45,12 +58,12 @@ function prepareDatabase() {
   runPrismaDbPush();
   console.log('Prisma schema synchronization completed.');
 
-  if (process.env.DEMO_MODE === 'true' && process.env.CAMPUSOS_AUTO_SEED_DEMO !== 'false') {
-    console.log('DEMO_MODE is enabled. Ensuring the idempotent demo dataset exists...');
-    runDemoBootstrap();
-    console.log('Demo dataset preparation completed.');
+  if (shouldSeedSyntheticCampus()) {
+    console.log('CAMPUSOS_AUTO_SEED_SYNTHETIC is enabled. Rebuilding the realistic synthetic campus dataset...');
+    runSyntheticCampusSeed();
+    console.log('Synthetic campus dataset preparation completed.');
   } else {
-    console.log('Demo dataset preparation skipped because DEMO_MODE is not enabled.');
+    console.log('Synthetic dataset preparation skipped. Set CAMPUSOS_AUTO_SEED_SYNTHETIC=true only for approved sample environments.');
   }
 }
 
