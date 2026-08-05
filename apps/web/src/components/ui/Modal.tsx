@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 
 interface ModalProps {
@@ -13,43 +13,45 @@ export function Modal({ isOpen, onClose, title, children, requireConfirmationOnC
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      // Focus trap setup
-      const focusableElements = modalRef.current?.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements && focusableElements.length > 0) {
-        (focusableElements[0] as HTMLElement).focus();
-      }
-    } else if (previousFocusRef.current) {
-      previousFocusRef.current.focus();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        handleClose();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (requireConfirmationOnClose) {
       if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
         onClose();
       }
-    } else {
-      onClose();
+      return;
     }
-  };
 
-  const handleOutsideClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    onClose();
+  }, [onClose, requireConfirmationOnClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      const focusableElements = modalRef.current?.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusableElements && focusableElements.length > 0) {
+        (focusableElements[0] as HTMLElement).focus();
+      }
+      return;
+    }
+
+    previousFocusRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isOpen) {
+        handleClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleClose, isOpen]);
+
+  const handleOutsideClick = (event: React.MouseEvent) => {
+    if (event.target === event.currentTarget) {
       handleClose();
     }
   };
@@ -57,32 +59,32 @@ export function Modal({ isOpen, onClose, title, children, requireConfirmationOnC
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:items-center sm:p-6"
       onClick={handleOutsideClick}
+      role="presentation"
     >
-      <div 
+      <div
         ref={modalRef}
-        role="dialog" 
-        aria-modal="true" 
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="modal-title"
-        className="bg-surface my-auto flex max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-full max-w-lg flex-col rounded-t-2xl shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:rounded-2xl"
+        className="my-auto flex max-h-[calc(100dvh-1.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] w-full max-w-lg flex-col rounded-t-2xl bg-surface shadow-xl sm:max-h-[calc(100dvh-3rem)] sm:rounded-2xl"
       >
-        <div className="p-6 border-b border-border flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-border p-6">
           <h2 id="modal-title" className="text-xl font-bold text-text-primary">
             {title}
           </h2>
-          <button 
+          <button
+            type="button"
             onClick={handleClose}
             aria-label="Close modal"
-            className="p-2 text-text-secondary hover:text-danger hover:bg-danger/10 rounded-lg transition"
+            className="rounded-lg p-2 text-text-secondary transition hover:bg-danger/10 hover:text-danger"
           >
-            <X size={20} />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
-        <div className="overflow-y-auto overscroll-contain p-4 sm:p-6">
-          {children}
-        </div>
+        <div className="overflow-y-auto overscroll-contain p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );
