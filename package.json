@@ -15,6 +15,7 @@
     "db:prepare": "node scripts/run-with-service-env.mjs node scripts/prepare-database.mjs",
     "db:seed-synthetic": "node scripts/run-with-service-env.mjs node scripts/seed-synthetic-campus.mjs --allow-synthetic-seed",
     "db:seed-synthetic:reset": "node scripts/run-with-service-env.mjs node scripts/seed-synthetic-campus.mjs --allow-synthetic-seed --reset",
+    "db:verify-synthetic": "node scripts/run-with-service-env.mjs node scripts/verify-synthetic-campus.mjs",
     "db:bootstrap-demo": "npm run db:seed-synthetic:reset",
     "db:migrate": "node scripts/run-with-service-env.mjs prisma migrate dev --schema=packages/db/prisma/schema.prisma",
     "seed:demo": "npm run db:seed-synthetic",
