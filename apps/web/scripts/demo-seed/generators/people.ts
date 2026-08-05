@@ -18,7 +18,7 @@ export async function seedPeople(
   prisma: PrismaClient,
   institution: Institution,
   structure: AcademicStructure,
-  personas: { facultyUser: User; studentUser: User; parentUser: User; passwordHash: string },
+  personas: { facultyUser: User; studentUser: User; parentUser: User; financeUser: User; passwordHash: string },
   config: DemoSeedConfig,
   random: SeededRandom
 ): Promise<PeopleDataset> {
@@ -116,6 +116,22 @@ export async function seedPeople(
     });
     employeeStaff.push(staff);
   }
+
+  // 2b. Quick Demo Finance Officer staff profile
+  const financeDept = structure.departments[1 % structure.departments.length];
+  const financeStaff = await prisma.staff.upsert({
+    where: { userId: personas.financeUser.id },
+    update: { departmentId: financeDept.id, designation: 'Finance Officer' },
+    create: {
+      id: random.generateStableId(9, 6000),
+      tenantId: institution.id,
+      userId: personas.financeUser.id,
+      employeeId: 'EMP-FIN-001',
+      designation: 'Finance Officer',
+      departmentId: financeDept.id,
+    }
+  });
+  employeeStaff.push(financeStaff);
 
   // 3. Guardians
   const guardians: Guardian[] = [];

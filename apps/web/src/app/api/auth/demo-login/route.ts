@@ -16,6 +16,7 @@ export async function POST(request: Request) {
       FACULTY: 'faculty.demo@campusos.local',
       STUDENT: 'student.demo@campusos.local',
       PARENT: 'parent.demo@campusos.local',
+      FINANCE: 'finance.demo@campusos.local',
     };
 
     const email = personaMap[persona];

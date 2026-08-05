@@ -55,6 +55,12 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
     await page.goto('/dashboard/faculty');
     await page.waitForTimeout(1500);
     await expect(page.locator('h1')).not.toContainText('Dr. Priya Sharma');
+
+    // Finance reconciliation workspace must also be inaccessible.
+    await page.goto('/dashboard/finance');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('h1')).not.toContainText('Kavya Nair');
+    await expect(page.locator('text=Finance Operations Workspace')).not.toBeVisible();
   });
 
   test('Student cannot read admin or faculty dashboard APIs', async ({ request }) => {
@@ -141,6 +147,41 @@ test.describe('Phase 95: Explicit Role Leakage', () => {
     const linked = await request.get('/api/dashboard/parent?studentId=00000000-0008-0000-0000-00000000005a');
     expect(linked.status()).toBe(200);
     expect((await linked.json()).selectedStudent.name).toBe('Meera Menon');
+  });
+
+  test('Finance sees only finance content and their own identity', async ({ page }) => {
+    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'FINANCE' } });
+    expect(login.status()).toBe(200);
+
+    await page.goto('/dashboard');
+    await page.waitForURL('/dashboard/finance');
+
+    // Current profile is the finance officer — never a student.
+    await expect(page.locator('h1')).toContainText('Kavya Nair');
+    await expect(page.locator('h1')).not.toContainText('Rohan Verma');
+    await expect(page.locator('text=Finance Operations Workspace')).toBeVisible();
+
+    // Real finance sections from the FinanceDashboardData contract.
+    await expect(page.getByRole('heading', { name: 'Outstanding invoices' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recent payments' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Invoice status' })).toBeVisible();
+
+    // No student personal dashboard, faculty grading, or admin configuration.
+    await expect(page.locator('text=Student Workspace')).not.toBeVisible();
+    await expect(page.locator('text=Faculty Teaching Workspace')).not.toBeVisible();
+    await expect(page.locator('text=Institution Administration Portal')).not.toBeVisible();
+    await expect(page.locator('text=Assigned courses')).not.toBeVisible();
+    await expect(page.locator('text=Mark attendance')).not.toBeVisible();
+    await expect(page.locator('text=Tenant configuration')).not.toBeVisible();
+  });
+
+  test('Finance cannot read student, admin or faculty dashboard APIs', async ({ request }) => {
+    const login = await request.post('/api/auth/demo-login', { data: { persona: 'FINANCE' } });
+    expect(login.status()).toBe(200);
+
+    expect((await request.get('/api/dashboard/student')).status()).toBe(403);
+    expect((await request.get('/api/dashboard/admin')).status()).toBe(403);
+    expect((await request.get('/api/dashboard/faculty')).status()).toBe(403);
   });
 
   test('Persona switch replaces identity and hides previous-role content', async ({ page }) => {

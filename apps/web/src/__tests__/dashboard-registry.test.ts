@@ -17,6 +17,7 @@ describe('Phase 95: Dashboard Registry', () => {
       if (role === 'STUDENT') expect(route).toBe('/dashboard/student');
       else if (role === 'FACULTY') expect(route).toBe('/dashboard/faculty');
       else if (role === 'PARENT') expect(route).toBe('/dashboard/parent');
+      else if (role === 'FINANCE_OFFICER' || role === 'ACCOUNTANT') expect(route).toBe('/dashboard/finance');
       else if (role === 'INSTITUTION_ADMIN' || role === 'SUPER_ADMIN') expect(route).toBe('/dashboard/admin');
       else expect(route).toBe('/dashboard');
     }
@@ -27,8 +28,6 @@ describe('Phase 95: Dashboard Registry', () => {
       RoleType.REGISTRAR,
       RoleType.DEAN,
       RoleType.HOD,
-      RoleType.FINANCE_OFFICER,
-      RoleType.ACCOUNTANT,
       RoleType.HR_ADMIN,
       RoleType.WARDEN,
       RoleType.LIBRARIAN,
@@ -46,8 +45,8 @@ describe('Phase 95: Dashboard Registry', () => {
     }
   });
 
-  it('implements the STUDENT, ADMIN and PARENT dashboards in the Phase 95 cycles', () => {
-    expect(IMPLEMENTED_DASHBOARD_ROLES).toEqual(['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN', 'PARENT', 'FACULTY']);
+  it('implements the STUDENT, ADMIN, PARENT, FACULTY and FINANCE dashboards', () => {
+    expect(IMPLEMENTED_DASHBOARD_ROLES).toEqual(['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN', 'PARENT', 'FACULTY', 'FINANCE_OFFICER', 'ACCOUNTANT']);
     expect(DASHBOARD_DEFINITIONS[RoleType.STUDENT]?.dataContract).toBe('StudentDashboardData');
     expect(DASHBOARD_DEFINITIONS[RoleType.STUDENT]?.route).toBe('/dashboard/student');
     expect(DASHBOARD_DEFINITIONS[RoleType.INSTITUTION_ADMIN]?.dataContract).toBe('AdminDashboardData');
@@ -56,6 +55,27 @@ describe('Phase 95: Dashboard Registry', () => {
     expect(DASHBOARD_DEFINITIONS[RoleType.PARENT]?.route).toBe('/dashboard/parent');
     // SUPER_ADMIN reuses the admin route but its platform contract is still planned.
     expect(DASHBOARD_DEFINITIONS[RoleType.SUPER_ADMIN]?.dataContract).toBe('PlatformAdminDashboardData (planned)');
+  });
+
+  it('finance dashboards are defined and marked implemented', () => {
+    expect(dashboardDefinitionForRole(RoleType.FINANCE_OFFICER).route).toBe('/dashboard/finance');
+    expect(dashboardDefinitionForRole(RoleType.ACCOUNTANT).route).toBe('/dashboard/finance');
+    expect(IMPLEMENTED_DASHBOARD_ROLES).toContain(RoleType.FINANCE_OFFICER);
+    expect(IMPLEMENTED_DASHBOARD_ROLES).toContain(RoleType.ACCOUNTANT);
+    expect(dashboardDefinitionForRole(RoleType.FINANCE_OFFICER).dataContract).toBe('FinanceDashboardData');
+    expect(dashboardDefinitionForRole(RoleType.ACCOUNTANT).dataContract).toBe('FinanceDashboardData');
+  });
+
+  it('finance widgets declare eligibility, permission, data source and states', () => {
+    const definition = dashboardDefinitionForRole(RoleType.FINANCE_OFFICER);
+    expect(definition.widgets.length).toBeGreaterThan(0);
+    for (const widget of definition.widgets) {
+      expect(widget.roles).toContain(RoleType.FINANCE_OFFICER);
+      expect(widget.permission.length).toBeGreaterThan(0);
+      expect(widget.dataSource.length).toBeGreaterThan(0);
+      expect(widget.states.length).toBeGreaterThan(0);
+      expect(widget.id).toMatch(/^finance-/);
+    }
   });
 
   it('student navigation contains only student-relevant items', () => {

@@ -171,8 +171,16 @@ PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright test --project='Mobi
 | Validation: typecheck 0 / lint 0 / vitest 192 / Playwright 33 (5 workspace + 4 P97 + 5 P98 + 19 dashboard regression) / production build EXIT 0 (clean rebuild — prior corrupt .next caused by a concurrent `next dev` was rebuilt) | ✅ |
 | Screenshots: `course-workspace-desktop.png`, `course-workspace-lesson-viewer.png`, `course-workspace-mobile.png` | ✅ |
 
+## Cycle — Finance dashboard (FINANCE_OFFICER / ACCOUNTANT) — VERIFIED ✅
+
+- **Root cause found:** `FINANCE_OFFICER`/`ACCOUNTANT` had no registry entry, no page and no API — both fell through to the generic `/api/dashboard` shell (3 finance metrics mixed into a universal payload) and landed on `/dashboard`.
+- **Fixed at the source:** dedicated tenant-scoped loader `lib/dashboard/finance.ts` (role gate → identity = authenticated finance officer → invoice/payment/scholarship/feeStructure aggregates, every query `where: { tenantId }`), `GET /api/dashboard/finance` (401/403/500), `/dashboard/finance` page composed from the typed `FinanceDashboardData` contract, and a shared `buildFinanceDefinition` factory registered for both roles.
+- **Demo persona:** `Kavya Nair` (finance.demo@campusos.local, FINANCE_OFFICER) + staff record, wired into the demo-login persona map. Re-seeded (100 invoices, 80 payments, 1 scholarship, 1 fee structure).
+- **Validation:** typecheck 0 · lint 0 · vitest 204/204 (10 new finance unit tests incl. cross-role 403, cross-tenant rejection, leakage negatives) · Playwright 40/40 (4 new finance tests: routing, API 403 for student, finance-only composition, direct-nav rejection) · production build EXIT 0 · screenshots `docs/dashboard-audit/screenshots/finance/` (desktop + mobile, no horizontal overflow).
+- **Review fixes applied:** shared registry factory (no role drift), Recent activity rendered from real audit logs, student → `/dashboard/finance` direct-nav negative test, account-dropdown spec tour dismissal hardened.
+
 ## Resume point
 
-Dashboard programme: cycles 2 (Student), 3 (Administrator), 4 (Parent) and 8 (Faculty) complete and VERIFIED. Next dashboard: **Finance** (`/dashboard/finance`) — audit + tenant-scoped `FinanceDashboardData` contract + negative permission tests.
+Dashboard programme: cycles 2 (Student), 3 (Administrator), 4 (Parent), 8 (Faculty) and Finance (FINANCE_OFFICER/ACCOUNTANT) complete and VERIFIED. Next dashboard: **Admissions** (`ADMISSIONS_COUNSELLOR`) — audit + tenant-scoped `AdmissionsDashboardData` contract + negative permission tests.
 LMS: Phase 97 committed @ `6bb4ff2`+`3efe843`, Phase 98 @ `d2ee38b`, course-workspace polish (lesson viewer + announcements) committed @ `b8a8746`+next. Next LMS work: **Phase 99 — Live classroom, raise hand and attendance** (LearningSession/Participant/Presence/ChatMessage/Poll models exist in schema) or course-content authoring for faculty.
 Phase 96 (production pipeline) committed @ `4d90625` — Vercel preview deploy + cycle-2 items (health endpoints, structured logging, env validation, CI gates) remain.

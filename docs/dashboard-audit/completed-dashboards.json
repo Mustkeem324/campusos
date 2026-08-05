@@ -55,6 +55,20 @@
       "widgets": ["identity", "academicPeriod", "assignedCourses", "todayClasses", "pendingGrading", "attendance", "metrics", "riskAlerts", "quickActions", "recentActivity"],
       "reviewedAt": "2026-08-05 (cycle 8: real tenant-scoped loader only — identity is the authenticated faculty (Dr. Priya Sharma), offerings by facultyId+tenantId, grading/attendance aggregates from real records; removed hardcoded CS-301/28/91.4%; review fixes: dead constant removed, redundant user query dropped, N+1 timetable query collapsed, class status derived from real slot times)",
       "completedAt": "2026-08-05"
+    },
+    {
+      "role": "FINANCE_OFFICER",
+      "route": "/dashboard/finance",
+      "status": "VERIFIED",
+      "locked": true,
+      "lastReviewedCommit": "TBD (committed this cycle)",
+      "dataContract": "FinanceDashboardData",
+      "serverSideEnforcement": true,
+      "negativePermissionTests": true,
+      "screenshotsCaptured": true,
+      "widgets": ["identity", "financialPeriod", "metrics", "collections", "outstanding", "invoiceStatusBreakdown", "schemes", "recentPayments", "recentActivity", "quickActions"],
+      "reviewedAt": "2026-08-05 (cycle: real tenant-scoped loader only — identity is the authenticated finance officer (Kavya Nair, FINANCE_OFFICER); invoice/payment/scholarship/feeStructure aggregates all carry tenantId; students appear only as invoice/payment aggregates, never as identity; ACCOUNTANT shares the same composition via a single factory; demo persona seeded deterministically; review fixes: shared buildFinanceDefinition factory to prevent role drift, Recent activity rendered from real audit logs, student direct-nav to /dashboard/finance negative test added)",
+      "completedAt": "2026-08-05"
     }
   ],
   "lockedUntilChange": [

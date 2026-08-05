@@ -76,4 +76,31 @@ test.describe('Role-Based Dashboard Routing & Data Isolation', () => {
     expect(unlinked.status()).toBe(403);
   });
 
+  test('Finance login opens /dashboard/finance with Kavya Nair identity and finance metrics', async ({ page }) => {
+    const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'FINANCE' } });
+    expect(login.status()).toBe(200);
+
+    await page.goto('/dashboard');
+    await page.waitForURL('/dashboard/finance');
+
+    await expect(page.locator('h1')).toContainText('Kavya Nair');
+    await expect(page.locator('text=Finance Operations Workspace')).toBeVisible();
+    // Real finance aggregates from the tenant-scoped contract.
+    await expect(page.getByRole('heading', { name: 'Outstanding invoices' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recent payments' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Invoice status' })).toBeVisible();
+    // Identity is the finance officer — never a student profile.
+    await expect(page.locator('h1')).not.toContainText('Rohan Verma');
+    // Student personal dashboard and faculty grading must not render here.
+    await expect(page.locator('text=Today’s Class Schedule')).not.toBeVisible();
+    await expect((await page.request.get('/api/dashboard/student')).status()).toBe(403);
+    await expect((await page.request.get('/api/dashboard/faculty')).status()).toBe(403);
+  });
+
+  test('Finance API rejects non-finance sessions', async ({ request }) => {
+    const login = await request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
+    expect(login.status()).toBe(200);
+    expect((await request.get('/api/dashboard/finance')).status()).toBe(403);
+  });
+
 });

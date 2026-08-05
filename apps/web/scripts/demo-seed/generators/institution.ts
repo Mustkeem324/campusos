@@ -9,6 +9,7 @@ export interface DemoPersonas {
   facultyUser: User;
   studentUser: User;
   parentUser: User;
+  financeUser: User;
   passwordHash: string;
 }
 
@@ -97,12 +98,28 @@ export async function seedInstitutionAndPersonas(
     }
   });
 
+  // Quick Demo Finance Officer
+  const financeUser = await prisma.user.upsert({
+    where: { tenantId_email: { tenantId: institution.id, email: 'finance.demo@campusos.local' } },
+    update: { passwordHash, role: 'FINANCE_OFFICER', isActive: true, name: 'Kavya Nair' },
+    create: {
+      id: random.generateStableId(7, 5),
+      email: 'finance.demo@campusos.local',
+      name: 'Kavya Nair',
+      passwordHash,
+      role: 'FINANCE_OFFICER',
+      tenantId: institution.id,
+      isActive: true,
+    }
+  });
+
   return {
     institution,
     adminUser,
     facultyUser,
     studentUser,
     parentUser,
+    financeUser,
     passwordHash,
   };
 }

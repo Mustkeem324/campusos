@@ -237,6 +237,54 @@ export type FacultyDashboardData = {
 };
 
 /**
+ * FINANCE_OFFICER / ACCOUNTANT — institution-wide financial operations.
+ * Every value is a tenant-scoped aggregate of real invoice/payment records;
+ * no fabricated figures. Identity is the authenticated finance user.
+ */
+export type FinanceDashboardData = {
+  role: 'FINANCE_OFFICER' | 'ACCOUNTANT';
+  identity: {
+    id: string;
+    name: string;
+    email: string;
+    designation: string | null;
+  };
+  financialPeriod: { label: string } | null;
+  metrics: DashboardMetric[];
+  collections: {
+    todayTotal: number;
+    overallTotal: number;
+    paymentCount: number;
+  };
+  outstanding: {
+    totalValue: number;
+    invoiceCount: number;
+    topInvoices: Array<{
+      id: string;
+      studentName: string;
+      amount: number;
+      dueDate: string;
+      status: string;
+    }>;
+  };
+  invoiceStatusBreakdown: Array<{ status: string; count: number }>;
+  schemes: {
+    scholarshipCount: number;
+    feeStructureCount: number;
+  };
+  recentPayments: Array<{
+    id: string;
+    studentName: string;
+    amount: number;
+    method: string;
+    status: string;
+    paidAt: string;
+  }>;
+  quickActions: QuickAction[];
+  recentActivity: ActivityItem[];
+};
+
+/**
  * STUDENT — the only dashboard fully implemented in the Phase 95 first cycle.
  * Identity always represents the authenticated student persona.
  */

@@ -49,7 +49,7 @@ export type DashboardDefinition = {
 };
 
 /** Roles that currently have a fully implemented dashboard composition. */
-export const IMPLEMENTED_DASHBOARD_ROLES: RoleType[] = ['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN', 'PARENT', 'FACULTY'];
+export const IMPLEMENTED_DASHBOARD_ROLES: RoleType[] = ['STUDENT', 'INSTITUTION_ADMIN', 'SUPER_ADMIN', 'PARENT', 'FACULTY', 'FINANCE_OFFICER', 'ACCOUNTANT'];
 
 /** All roles known to the domain model. */
 export const KNOWN_ROLES: RoleType[] = [
@@ -71,6 +71,46 @@ export const KNOWN_ROLES: RoleType[] = [
   'ADMISSIONS_COUNSELLOR',
   'EXAMINATION_CONTROLLER',
 ];
+
+/**
+ * Shared finance dashboard composition for FINANCE_OFFICER and ACCOUNTANT.
+ * A single factory prevents the two role definitions from drifting.
+ */
+function buildFinanceDefinition(role: 'FINANCE_OFFICER' | 'ACCOUNTANT'): DashboardDefinition {
+  return {
+    role,
+    route: '/dashboard/finance',
+    title: 'Finance Operations Workspace',
+    description: 'Fee collections, outstanding balances, reconciliation and finance schemes.',
+    permissions: ['fees:manage:institution', 'fees:read:institution', 'fees:pay:institution', 'receipts:read:institution', 'audit:read:institution'],
+    navigation: [
+      {
+        label: 'FINANCE OPERATIONS',
+        items: [
+          { label: 'Dashboard', href: '/dashboard/finance' },
+          { label: 'Fees & Payments', href: '/payments' },
+          { label: 'Receipts', href: '/receipts' },
+          { label: 'Scholarships', href: '/scholarships' },
+          { label: 'Audit Logs', href: '/audit', permission: 'audit:read:institution' },
+        ],
+      },
+    ],
+    quickActions: [
+      { label: 'Open fee collections', href: '/payments' },
+      { label: 'Issue receipt', href: '/receipts' },
+      { label: 'Manage scholarships', href: '/scholarships' },
+      { label: 'View audit logs', href: '/audit' },
+    ],
+    widgets: [
+      { id: 'finance-metrics', roles: ['FINANCE_OFFICER', 'ACCOUNTANT'], permission: 'fees:read:institution', dataSource: 'GET /api/dashboard/finance', states: ['loading', 'empty', 'error', 'ready'] },
+      { id: 'finance-outstanding', roles: ['FINANCE_OFFICER', 'ACCOUNTANT'], permission: 'fees:read:institution', dataSource: 'GET /api/dashboard/finance', drillDown: '/payments', states: ['loading', 'empty', 'error', 'ready'] },
+      { id: 'finance-recent-payments', roles: ['FINANCE_OFFICER', 'ACCOUNTANT'], permission: 'fees:read:institution', dataSource: 'GET /api/dashboard/finance', drillDown: '/receipts', states: ['loading', 'empty', 'error', 'ready'] },
+      { id: 'finance-invoice-status', roles: ['FINANCE_OFFICER', 'ACCOUNTANT'], permission: 'fees:read:institution', dataSource: 'GET /api/dashboard/finance', states: ['loading', 'empty', 'error', 'ready'] },
+      { id: 'finance-schemes', roles: ['FINANCE_OFFICER', 'ACCOUNTANT'], permission: 'fees:read:institution', dataSource: 'GET /api/dashboard/finance', drillDown: '/scholarships', states: ['loading', 'empty', 'error', 'ready'] },
+    ],
+    dataContract: 'FinanceDashboardData',
+  };
+}
 
 /** Safe navigation shown when a role has no dedicated dashboard yet. */
 const FALLBACK_NAVIGATION: DashboardNavGroup[] = [
@@ -285,6 +325,8 @@ export const DASHBOARD_DEFINITIONS: Partial<Record<RoleType, DashboardDefinition
     ],
     dataContract: 'FacultyDashboardData',
   },
+  FINANCE_OFFICER: buildFinanceDefinition('FINANCE_OFFICER'),
+  ACCOUNTANT: buildFinanceDefinition('ACCOUNTANT'),
   PARENT: {
     role: 'PARENT',
     route: '/dashboard/parent',

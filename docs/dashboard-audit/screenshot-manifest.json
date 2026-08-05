@@ -219,6 +219,26 @@
       "captureMethod": "Playwright chromium automation",
       "file": "docs/dashboard-audit/screenshots/faculty/faculty-dashboard-desktop.png",
       "checks": ["identity (Dr. Priya Sharma)", "assigned courses", "no horizontal overflow"]
+    },
+    {
+      "id": "finance-dashboard-desktop",
+      "role": "FINANCE_OFFICER",
+      "route": "/dashboard/finance",
+      "viewport": "1366x900",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/finance/finance-dashboard-desktop.png",
+      "checks": ["identity (Kavya Nair)", "outstanding invoices", "recent payments", "no horizontal overflow"]
+    },
+    {
+      "id": "finance-dashboard-mobile",
+      "role": "FINANCE_OFFICER",
+      "route": "/dashboard/finance",
+      "viewport": "375x812",
+      "capturedAt": "2026-08-05",
+      "captureMethod": "Playwright chromium automation",
+      "file": "docs/dashboard-audit/screenshots/finance/finance-dashboard-mobile.png",
+      "checks": ["identity (Kavya Nair)", "single column", "no horizontal overflow"]
     }
   ]
 }
