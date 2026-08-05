@@ -36,11 +36,20 @@ function runPrismaDbPush() {
 }
 
 function runSyntheticCampusSeed() {
+  const seedEnv = { CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true' };
+
   runCommand(
     process.execPath,
-    ['scripts/seed-synthetic-campus.mjs', '--allow-synthetic-seed', '--reset'],
+    ['scripts/reset-synthetic-campus.mjs', '--allow-synthetic-seed'],
+    'Synthetic campus reset',
+    seedEnv,
+  );
+
+  runCommand(
+    process.execPath,
+    ['scripts/seed-synthetic-campus.mjs', '--allow-synthetic-seed'],
     'Synthetic campus seed',
-    { CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true' },
+    seedEnv,
   );
 }
 
