@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev apps/web --port 3000",
     "prebuild": "prisma generate --schema=packages/db/prisma/schema.prisma",
-    "build": "next build apps/web",
+    "build": "next build apps/web && node scripts/verify-next-output.mjs",
     "start": "next start apps/web",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web/tsconfig.json",
