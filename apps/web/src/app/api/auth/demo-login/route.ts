@@ -6,16 +6,16 @@ import { createSession, signToken } from '../../../../lib/auth';
 import { prisma } from '../../../../lib/db';
 
 const personaMap: Record<string, string> = {
-  ADMIN: 'admin.demo@campusos.local',
-  FACULTY: 'faculty.demo@campusos.local',
-  STUDENT: 'student.demo@campusos.local',
-  PARENT: 'parent.demo@campusos.local',
+  ADMIN: 'admin@nexus-campus.local',
+  FACULTY: 'faculty@nexus-campus.local',
+  STUDENT: 'student@nexus-campus.local',
+  PARENT: 'parent@nexus-campus.local',
 };
 
 export async function POST(request: Request) {
   try {
-    if (process.env.DEMO_MODE !== 'true') {
-      return NextResponse.json({ error: 'Demo mode is currently disabled' }, { status: 403 });
+    if (process.env.CAMPUSOS_SYNTHETIC_ACCESS !== 'true') {
+      return NextResponse.json({ error: 'Synthetic sample access is currently disabled' }, { status: 403 });
     }
 
     const body: unknown = await request.json();
@@ -25,23 +25,23 @@ export async function POST(request: Request) {
     const email = personaMap[persona];
 
     if (!email) {
-      return NextResponse.json({ error: 'Invalid persona' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid sample persona' }, { status: 400 });
     }
 
     const user = await prisma.user.findFirst({
-      where: { email, institution: { code: 'CDU' } },
+      where: { email, institution: { code: 'NITX' } },
       include: { institution: true },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Demo account not found. The production demo dataset has not been prepared yet.' },
+        { error: 'Synthetic account not found. Run the approved CampusOS synthetic campus seed first.' },
         { status: 404 },
       );
     }
 
     if (!user.isActive) {
-      return NextResponse.json({ error: 'Demo account is disabled.' }, { status: 403 });
+      return NextResponse.json({ error: 'Synthetic account is disabled.' }, { status: 403 });
     }
 
     const userAgent = request.headers.get('user-agent') || 'Unknown';
@@ -76,17 +76,17 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
-      console.error('Demo Login database schema missing:', error.meta);
+      console.error('Synthetic access database schema missing:', error.meta);
       return NextResponse.json(
         {
-          error: 'The database schema is not ready. Redeploy the latest version so CampusOS can create the required tables and demo records.',
+          error: 'The database schema is not ready. Deploy the latest version and run the approved synthetic campus seed.',
           code: 'DATABASE_SCHEMA_NOT_READY',
         },
         { status: 503 },
       );
     }
 
-    console.error('Demo Login error:', error);
+    console.error('Synthetic sample access error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
