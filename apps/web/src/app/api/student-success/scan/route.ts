@@ -1,0 +1,17 @@
+import { NextResponse } from 'next/server';
+
+import { requireActiveUserContext } from '@/lib/active-user-context';
+import { scanStudentSuccess } from '@/lib/phase7';
+
+export async function POST() {
+  try {
+    const context = await requireActiveUserContext();
+    const result = await scanStudentSuccess(context);
+    return NextResponse.json({ success: true, ...result });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unable to run the student-success scan.' },
+      { status: 403 },
+    );
+  }
+}
