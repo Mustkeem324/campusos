@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { scanStudentSuccess } from '@/lib/phase7';
+import { scanScopedStudentSuccess } from '@/lib/phase7-student-success';
 
 export async function POST() {
   try {
     const context = await requireActiveUserContext();
-    const result = await scanStudentSuccess(context);
+    const result = await scanScopedStudentSuccess(context);
     return NextResponse.json({ success: true, ...result });
   } catch (error: unknown) {
     return NextResponse.json(
