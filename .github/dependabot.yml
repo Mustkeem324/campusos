@@ -12,7 +12,21 @@ updates:
     labels:
       - dependencies
       - security
+    ignore:
+      - dependency-name: '@prisma/client'
+        update-types:
+          - version-update:semver-major
+      - dependency-name: prisma
+        update-types:
+          - version-update:semver-major
     groups:
+      prisma-toolchain:
+        patterns:
+          - '@prisma/client'
+          - prisma
+        update-types:
+          - minor
+          - patch
       development-tooling:
         dependency-type: development
         update-types:
