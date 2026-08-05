@@ -1,0 +1,41 @@
+{
+  "change": "CampusOS Phase 7 platform foundation",
+  "branch": "feature/dashboard-phase-7-platform",
+  "allowed": [
+    "apps/web/src/app/(dashboard)/phase-7/**",
+    "apps/web/src/app/(auth)/forgot-password/**",
+    "apps/web/src/app/(auth)/reset-password/**",
+    "apps/web/src/app/api/action-centre/**",
+    "apps/web/src/app/api/auth/mfa-verify/**",
+    "apps/web/src/app/api/auth/password/**",
+    "apps/web/src/app/api/copilot/**",
+    "apps/web/src/app/api/notification-preferences/**",
+    "apps/web/src/app/api/reports/**",
+    "apps/web/src/app/api/security/**",
+    "apps/web/src/app/api/student-success/**",
+    "apps/web/src/components/phase7/**",
+    "apps/web/src/components/pwa/**",
+    "apps/web/src/lib/phase7.ts",
+    "apps/web/src/lib/phase7.test.ts",
+    "apps/web/public/sw.js",
+    "apps/web/src/app/(dashboard)/DashboardShell.tsx",
+    "apps/web/src/components/layout/Header.tsx",
+    "docs/phase-7/**"
+  ],
+  "protected": [
+    "tenant isolation",
+    "authentication cookies and persisted sessions",
+    "student and faculty record ownership",
+    "grade, attendance and examination business logic",
+    "payment capture and external gateway processing",
+    "production environment values",
+    "dependency versions and lockfiles"
+  ],
+  "rules": [
+    "Use existing reviewed Prisma models before introducing new storage.",
+    "Every query and mutation must include the active tenant and authenticated user context.",
+    "AI responses are read-only, evidence-based and prompt-injection guarded.",
+    "Actions that change records remain approval proposals until an authorised human decides.",
+    "Do not fabricate unsupported finance, library, student or operational records."
+  ]
+}
