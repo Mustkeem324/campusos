@@ -24,7 +24,7 @@ export type Phase4BreakdownItem = {
   value: number;
   formattedValue: string;
   percentage: number;
-  detail?: string;
+  detail: string;
 };
 
 export type Phase4QueueItem = {
