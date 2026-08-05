@@ -1,0 +1,44 @@
+{
+  "phase": "CampusOS Support-1 full-stack foundation",
+  "baselineBranch": "main",
+  "implementationBranch": "feature/support-1-full-stack",
+  "allowedWritePaths": [
+    "apps/web/src/app/(public)/contact/**",
+    "apps/web/src/app/(dashboard)/admin/support/**",
+    "apps/web/src/app/api/public/contact/**",
+    "apps/web/src/app/api/public/support/**",
+    "apps/web/src/app/api/admin/support/**",
+    "apps/web/src/components/support/**",
+    "apps/web/src/lib/support/**",
+    "packages/db/prisma/migrations/20260805110000_support_foundation/**",
+    "docs/support/**"
+  ],
+  "allowedTestPaths": [
+    "apps/web/src/lib/support/**/*.test.ts"
+  ],
+  "readOnlyDependencies": [
+    "apps/web/src/lib/auth.ts",
+    "apps/web/src/lib/db.ts",
+    "apps/web/src/app/(public)/layout.tsx",
+    "apps/web/src/components/public/**",
+    "packages/db/prisma/schema.prisma"
+  ],
+  "protectedPaths": [
+    "apps/web/src/lib/auth.ts",
+    "apps/web/src/middleware.ts",
+    "apps/web/src/app/(dashboard)/dashboard/**",
+    "apps/web/src/app/(dashboard)/lms/**",
+    "apps/web/src/app/(dashboard)/finance/**",
+    "packages/db/prisma/schema.prisma",
+    "package.json",
+    "package-lock.json"
+  ],
+  "blockedChanges": [
+    "No second authentication system",
+    "No client-side email credentials",
+    "No client-supplied tenant, priority, status, queue or assignee",
+    "No raw user HTML rendering",
+    "No fake support availability, response times or analytics",
+    "No changes to academic, attendance, examination or finance logic"
+  ]
+}
