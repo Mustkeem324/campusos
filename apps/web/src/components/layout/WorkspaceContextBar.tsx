@@ -7,6 +7,7 @@ import {
   Command,
   HelpCircle,
   LockKeyhole,
+  Newspaper,
   Sparkles,
 } from 'lucide-react';
 
@@ -22,6 +23,8 @@ function formatLabel(value: string): string {
 }
 
 function pageTitleForPath(pathname: string, role?: string): string {
+  if (pathname === '/content/blog' || pathname.startsWith('/content/blog/')) return 'Blog Studio';
+
   const knownRole = role
     ? KNOWN_ROLES.find((candidateRole) => candidateRole === role)
     : undefined;
@@ -52,6 +55,7 @@ export function WorkspaceContextBar() {
     ? formatLabel(currentSession.role)
     : 'Workspace Member';
   const pageTitle = pageTitleForPath(pathname, currentSession?.role);
+  const canManageBlog = currentSession?.role === 'SUPER_ADMIN' || currentSession?.role === 'INSTITUTION_ADMIN';
 
   return (
     <section
@@ -83,6 +87,16 @@ export function WorkspaceContextBar() {
                 <LockKeyhole className="h-4 w-4 text-[#1754E8] dark:text-blue-300" aria-hidden="true" />
                 Verified workspace
               </span>
+
+              {canManageBlog && (
+                <Link
+                  href="/content/blog"
+                  className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-[#C9D8EE] bg-white px-3 text-xs font-bold text-[#101D38] transition hover:border-[#95ACCB] hover:bg-[#F7F9FC] focus-visible:ring-2 focus-visible:ring-[#1754E8]/40 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-900"
+                >
+                  <Newspaper className="h-4 w-4 text-[#1754E8] dark:text-blue-300" aria-hidden="true" />
+                  Blog Studio
+                </Link>
+              )}
 
               <button
                 type="button"
