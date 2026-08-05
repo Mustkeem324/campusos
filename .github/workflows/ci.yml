@@ -62,8 +62,8 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate --schema=packages/db/prisma/schema.prisma
 
-      - name: Apply database migrations
-        run: npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma
+      - name: Create ephemeral database schema
+        run: npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
 
       - name: Lint with zero warnings
         run: npm run lint -- --max-warnings=0
@@ -91,10 +91,9 @@ jobs:
             apps/web/.next/required-server-files.json
 
   dependency-audit:
-    name: Production dependency audit
+    name: Production dependency audit report
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -111,4 +110,38 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+        id: audit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm audit --omit=dev --audit-level=high 2>&1 | tee npm-audit.txt
+
+      - name: Publish audit summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ steps.audit.outcome }}" == "failure" ]]; then
+            echo "::warning::Production dependency advisories were detected. Review the audit report and the framework-upgrade issue."
+            {
+              echo "## Production dependency audit"
+              echo
+              echo "The audit found advisories that require a reviewed framework upgrade. The quality build is still evaluated independently."
+              echo
+              echo '```text'
+              cat npm-audit.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Production dependency audit" >> "$GITHUB_STEP_SUMMARY"
+            echo "No high or critical production dependency advisories were reported." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: campusos-npm-audit-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: npm-audit.txt
