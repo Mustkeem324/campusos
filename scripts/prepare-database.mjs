@@ -2,14 +2,28 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
+function isVercelPreview() {
+  return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'preview';
+}
+
 function shouldPrepareDatabase() {
   if (process.env.CAMPUSOS_AUTO_DB_PUSH === 'false') return false;
-  return process.env.CAMPUSOS_AUTO_DB_PUSH === 'true' || process.env.VERCEL_ENV === 'production';
+
+  return (
+    process.env.CAMPUSOS_AUTO_DB_PUSH === 'true' ||
+    process.env.VERCEL_ENV === 'production' ||
+    isVercelPreview()
+  );
 }
 
 function shouldSeedSyntheticCampus() {
   if (process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'false') return false;
-  return process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'true';
+  if (process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'true') return true;
+
+  // Pull-request previews are approved sample environments. Rebuild only the
+  // allow-listed CDU/NITX sample tenants so credentials always exist in the
+  // preview database. Production still requires the explicit opt-in variable.
+  return isVercelPreview();
 }
 
 function runCommand(command, args, label, extraEnv = {}) {
@@ -55,24 +69,27 @@ function runSyntheticCampusSeed() {
 
 function prepareDatabase() {
   if (!shouldPrepareDatabase()) {
-    console.log('Database preparation skipped outside production. Set CAMPUSOS_AUTO_DB_PUSH=true to run it explicitly.');
+    console.log('Database preparation skipped. Set CAMPUSOS_AUTO_DB_PUSH=true to run it explicitly.');
     return;
   }
 
   if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required for production database preparation.');
+    throw new Error('DATABASE_URL is required for database preparation.');
   }
 
-  console.log('Synchronizing the Prisma schema with the production database...');
+  console.log('Synchronizing the Prisma schema with the connected database...');
   runPrismaDbPush();
   console.log('Prisma schema synchronization completed.');
 
   if (shouldSeedSyntheticCampus()) {
-    console.log('CAMPUSOS_AUTO_SEED_SYNTHETIC is enabled. Rebuilding the realistic synthetic campus dataset...');
+    const reason = isVercelPreview()
+      ? 'Vercel preview database detected'
+      : 'CAMPUSOS_AUTO_SEED_SYNTHETIC is enabled';
+    console.log(`${reason}. Rebuilding the approved synthetic campus dataset...`);
     runSyntheticCampusSeed();
     console.log('Synthetic campus dataset preparation completed.');
   } else {
-    console.log('Synthetic dataset preparation skipped. Set CAMPUSOS_AUTO_SEED_SYNTHETIC=true only for approved sample environments.');
+    console.log('Synthetic dataset preparation skipped. Production requires CAMPUSOS_AUTO_SEED_SYNTHETIC=true.');
   }
 }
 
