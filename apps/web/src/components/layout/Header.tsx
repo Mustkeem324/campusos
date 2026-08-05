@@ -16,7 +16,7 @@ import {
 
 import { useAuthStore } from '../../lib/auth-store';
 import { dashboardDefinitionForRole } from '../../lib/dashboard/registry';
-import { AccountDropdown } from './AccountDropdown';
+import { ProfileMenu } from './ProfileMenu';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 
 function formatPathname(pathname: string) {
@@ -144,7 +144,7 @@ export function Header() {
           </button>
 
           <div className="mx-1 hidden h-7 w-px bg-[#E1E7EF] dark:bg-slate-800 sm:block" aria-hidden="true" />
-          <AccountDropdown />
+          <ProfileMenu />
         </div>
       </header>
 
