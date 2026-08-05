@@ -18,11 +18,10 @@ import {
   Mail,
   Moon,
   Settings,
-  ShieldCheck,
-  Smartphone,
   Sun,
   UserRound,
   UsersRound,
+  type LucideIcon,
 } from 'lucide-react';
 
 import { useAuthStore } from '../../lib/auth-store';
@@ -196,7 +195,7 @@ export function ProfileMenu() {
                         key={item.href}
                         href={item.href}
                         onClick={() => setIsOpen(false)}
-                        className="group flex min-h-13 items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[#F4F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/40 dark:hover:bg-slate-900"
+                        className="group flex min-h-[52px] items-center gap-3 rounded-xl px-3 py-2.5 transition hover:bg-[#F4F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/40 dark:hover:bg-slate-900"
                         role="menuitem"
                       >
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#D8E2EF] bg-white text-[#526175] group-hover:border-[#B7C9E1] group-hover:text-[#1754E8] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
@@ -274,7 +273,7 @@ function DetailCell({
   value,
   positive,
 }: {
-  icon: typeof Mail;
+  icon: LucideIcon;
   label: string;
   value: string;
   positive?: boolean;
