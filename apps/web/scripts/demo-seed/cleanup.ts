@@ -32,8 +32,29 @@ export async function resetDemoTenantData(prisma: PrismaClient, demoTenantId: st
   await prisma.enrollment.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.attendanceRecord.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.attendanceSession.deleteMany({ where: { tenantId: demoTenantId } });
+
+  // Phase 98 gradebook rows have no tenantId column — reach them via parents.
+  await prisma.gradebookScore.deleteMany({ where: { item: { gradebook: { tenantId: demoTenantId } } } });
+  await prisma.gradebookItem.deleteMany({ where: { gradebook: { tenantId: demoTenantId } } });
+  await prisma.gradebook.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.rubric.deleteMany({ where: { assignment: { tenantId: demoTenantId } } });
+  await prisma.grade.deleteMany({ where: { submission: { tenantId: demoTenantId } } });
   await prisma.submission.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.assignment.deleteMany({ where: { tenantId: demoTenantId } });
+
+  // Phase 95 student-life records (children first, then parents)
+  await prisma.studentCourseResult.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.studentSemesterResult.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.studentMarks.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.marksEntryBatch.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.examinations.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.examSchedule.deleteMany({ where: { exam: { tenantId: demoTenantId } } });
+  await prisma.exam.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.allocation.deleteMany({ where: { student: { tenantId: demoTenantId } } });
+  await prisma.roomHostel.deleteMany({ where: { hostel: { tenantId: demoTenantId } } });
+  await prisma.hostel.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.notice.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.notification.deleteMany({ where: { tenantId: demoTenantId } });
 
   await prisma.result.deleteMany({ where: { student: { tenantId: demoTenantId } } });
 
@@ -43,6 +64,10 @@ export async function resetDemoTenantData(prisma: PrismaClient, demoTenantId: st
   await prisma.feeStructure.deleteMany({ where: { tenantId: demoTenantId } });
 
   // Course offerings reference staff, course, section, and term
+  // Phase 97/99 LMS content is cascade-deleted with its course offerings
+  // (CourseLesson → CourseModule → CourseOffering onDelete: Cascade;
+  // CourseAnnouncement → CourseOffering onDelete: Cascade).
+  await prisma.courseAnnouncement.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.courseOffering.deleteMany({ where: { tenantId: demoTenantId } });
 
   await prisma.student.deleteMany({ where: { tenantId: demoTenantId } });

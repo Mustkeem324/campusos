@@ -1,0 +1,68 @@
+{
+  "completedDashboards": [
+    {
+      "role": "STUDENT",
+      "route": "/dashboard/student",
+      "status": "VERIFIED",
+      "locked": true,
+      "lastReviewedCommit": "4f63f06fb00e120902480042652d31040ce84f99",
+      "dataContract": "StudentDashboardData",
+      "serverSideEnforcement": true,
+      "negativePermissionTests": true,
+      "screenshotsCaptured": true,
+      "widgets": ["identity", "todayClasses", "attendance", "assignments", "feeSummary", "examinations", "publishedResults", "studentServices", "hostel", "notices", "notifications", "riskAlerts", "quickActions", "recentActivity"],
+      "reviewedAt": "2026-08-05 (cycle 2: exams/results/services/hostel/notifications added on real seeded data; exams scoped to enrolled terms; results only published=true)",
+      "completedAt": "2026-08-05"
+    },
+    {
+      "role": "INSTITUTION_ADMIN",
+      "route": "/dashboard/admin",
+      "status": "VERIFIED",
+      "locked": true,
+      "lastReviewedCommit": "355cd46",
+      "dataContract": "AdminDashboardData",
+      "serverSideEnforcement": true,
+      "negativePermissionTests": true,
+      "screenshotsCaptured": true,
+      "widgets": ["identity", "quickActions", "riskAlerts", "metrics", "usersAndAcademics", "financialOverview", "notices", "recentActivity", "supportCases", "administrationModules"],
+      "reviewedAt": "2026-08-05 (cycle 3: real tenant-scoped aggregates only; removed fake pendingAdmissionsCount/fabricated alerts/unsupported compliance claim; SUPER_ADMIN shares the route with Platform contract planned)",
+      "completedAt": "2026-08-05"
+    },
+    {
+      "role": "PARENT",
+      "route": "/dashboard/parent",
+      "status": "VERIFIED",
+      "locked": true,
+      "lastReviewedCommit": "355cd46",
+      "dataContract": "ParentDashboardData",
+      "serverSideEnforcement": true,
+      "negativePermissionTests": true,
+      "screenshotsCaptured": true,
+      "widgets": ["identity", "linkedStudents", "linkedStudentSelector", "wardAttendance", "publishedResults", "feeSummary", "notices", "riskAlerts", "quickActions", "recentActivity"],
+      "reviewedAt": "2026-08-05 (cycle 4: verified-relationship loader; guardian identity never the ward; published=true only; unlinked ward -> 403; 2 linked students with selector; removed hardcoded fake metrics)",
+      "completedAt": "2026-08-05"
+    },
+    {
+      "role": "FACULTY",
+      "route": "/dashboard/faculty",
+      "status": "VERIFIED",
+      "locked": true,
+      "lastReviewedCommit": "355cd46",
+      "dataContract": "FacultyDashboardData",
+      "serverSideEnforcement": true,
+      "negativePermissionTests": true,
+      "screenshotsCaptured": true,
+      "widgets": ["identity", "academicPeriod", "assignedCourses", "todayClasses", "pendingGrading", "attendance", "metrics", "riskAlerts", "quickActions", "recentActivity"],
+      "reviewedAt": "2026-08-05 (cycle 8: real tenant-scoped loader only — identity is the authenticated faculty (Dr. Priya Sharma), offerings by facultyId+tenantId, grading/attendance aggregates from real records; removed hardcoded CS-301/28/91.4%; review fixes: dead constant removed, redundant user query dropped, N+1 timetable query collapsed, class status derived from real slot times)",
+      "completedAt": "2026-08-05"
+    }
+  ],
+  "lockedUntilChange": [
+    "A confirmed regression exists",
+    "A permission requirement changes",
+    "A data contract changes",
+    "A shared design-system change affects it",
+    "Accessibility tests fail",
+    "The user explicitly requests a change"
+  ]
+}

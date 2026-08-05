@@ -1,66 +1,48 @@
 import { NextResponse } from 'next/server';
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { getTenantDb } from '@/lib/db';
+import { getParentDashboardData } from '@/lib/dashboard/parent';
+import { DashboardError } from '@/lib/dashboard/errors';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+/**
+ * GET /api/dashboard/parent?studentId=<linked-student-id>
+ *
+ * Returns the role-specific ParentDashboardData contract. Identity always
+ * represents the authenticated guardian; the requested student must be a
+ * verified, active, same-tenant link of this guardian.
+ *
+ * Status semantics:
+ *   - 401 → no valid session context
+ *   - 403 → not a parent role, guardian profile unresolved, no verified link,
+ *           or the requested student is not linked to this guardian
+ *   - 500 → unexpected server failure
+ */
+export async function GET(request: Request) {
+  let context;
   try {
-    const context = await requireActiveUserContext();
-    const { activeRole: role, tenantId, userId, guardianProfileId } = context;
-    const db = getTenantDb(tenantId);
+    context = await requireActiveUserContext();
+  } catch {
+    return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+  }
 
-    if (role !== 'PARENT' || !guardianProfileId) {
-      return NextResponse.json({ error: 'Unauthorized: Parent role required' }, { status: 403 });
-    }
+  let requestedStudentId: string | undefined;
+  try {
+    const url = new URL(request.url);
+    const param = url.searchParams.get('studentId');
+    if (param) requestedStudentId = param;
+  } catch {
+    // Malformed URL — fall through with no requested student (defaults to first link).
+  }
 
-    const guardian = await db.guardian.findFirst({
-      where: { id: guardianProfileId, userId, tenantId },
-      include: {
-        students: {
-          select: {
-            id: true,
-            user: { select: { name: true, email: true } },
-            rollNumber: true,
-            cgpa: true,
-            batch: { include: { program: true } },
-          },
-        },
-      },
-    });
-
-    const linkedStudent = guardian?.students[0];
-    if (!linkedStudent) return NextResponse.json({ error: 'No linked student is currently available for this guardian account.' }, { status: 409 });
-    const parent = await db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
-    if (!parent) return NextResponse.json({ error: 'Parent account could not be resolved.' }, { status: 409 });
-
-    return NextResponse.json({
-      role: 'PARENT',
-      parentUser: {
-        id: userId, name: parent.name, email: parent.email,
-        title: 'Parent / Guardian',
-      },
-      linkedStudent: {
-        name: linkedStudent.user.name,
-        rollNumber: linkedStudent.rollNumber,
-        relationship: guardian.relationship,
-        programme: linkedStudent.batch.program.name,
-        semester: linkedStudent.batch.name,
-      },
-      metrics: [
-        { label: 'Ward Attendance', value: '88%', detail: 'Above 75% examination threshold' },
-        { label: 'Published SGPA', value: '3.80 / 4.0', detail: 'Term 3 official result' },
-        { label: 'Fee Dues Status', value: '₹0.00 Outstanding', detail: 'Receipt RCT-9941 verified' },
-        { label: 'Active Alerts', value: '0 Warnings', detail: 'Good academic standing' },
-      ],
-      notices: [
-        { title: 'Parent-Teacher Council Meeting Scheduled', date: '15 Feb 2026', details: 'Discussion on semester performance' },
-        { title: 'Semester 4 Exam Schedule Published', date: '01 Feb 2026', details: 'Exams start 10 March 2026' },
-      ],
-    });
+  try {
+    const data = await getParentDashboardData(context, requestedStudentId);
+    return NextResponse.json(data);
   } catch (error: unknown) {
+    if (error instanceof DashboardError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : 'Unable to load parent dashboard';
-    const status = message.startsWith('Unauthorized') ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -327,6 +327,7 @@ model Staff {
   designation       String
   departmentId      String?           @map("department_id") @db.Uuid
   courseOfferings   CourseOffering[]
+  courseAnnouncements CourseAnnouncement[]
   marksEntryBatches MarksEntryBatch[]
   institution       Institution       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -391,6 +392,7 @@ model CourseOffering {
   sectionId          String                @map("section_id") @db.Uuid
   facultyId          String                @map("faculty_id") @db.Uuid
   capacity           Int                   @default(60)
+  announcements      CourseAnnouncement[]
   assignments        Assignment[]
   attendanceSessions AttendanceSession[]
   CourseModule       CourseModule[]
@@ -506,16 +508,19 @@ model Submission {
   fileUrl       String?
   submittedAt   DateTime   @default(now())
   marksObtained Float?
+  rubricScores  Json?      @map("rubric_scores")
   grades        Grade[]
   assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@unique([assignmentId, studentId])
+  @@index([tenantId, assignmentId])
   @@map("submissions")
 }
 
 model Grade {
   id           String     @id @default(uuid()) @db.Uuid
-  submissionId String     @map("submission_id") @db.Uuid
+  submissionId String     @unique @map("submission_id") @db.Uuid
   gradeLetter  String
   feedback     String?
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
@@ -1334,6 +1339,23 @@ model CourseLesson {
   courseModule   CourseModule @relation(fields: [courseModuleId], references: [id], onDelete: Cascade)
 
   @@map("course_lessons")
+}
+
+model CourseAnnouncement {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @map("tenant_id") @db.Uuid
+  courseOfferingId String         @map("course_offering_id") @db.Uuid
+  authorId         String?        @map("author_id") @db.Uuid
+  title            String
+  content          String
+  isPinned         Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  courseOffering   CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  author           Staff?         @relation(fields: [authorId], references: [id])
+
+  @@index([courseOfferingId, createdAt(sort: Desc)])
+  @@map("course_announcements")
 }
 
 model Quiz {

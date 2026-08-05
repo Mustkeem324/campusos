@@ -1,8 +1,79 @@
-'use client';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { RoleType } from '@prisma/client';
+import { requireTenantContext } from '../../../lib/tenant-context';
+import { resolveAuthorisedCourses } from '../../../lib/lms/course-listing';
+import { PageHeader } from '../../../components/layout/PageHeader';
+import { BookOpen, Users } from 'lucide-react';
 
-import React from 'react';
-import { LMSWorkspace } from '../../../components/lms/LMSWorkspace';
+export const dynamic = 'force-dynamic';
 
-export default function Page() {
-  return <LMSWorkspace />;
+/**
+ * LMS home — server component (Phase 97).
+ *
+ * Lists only the courses the authenticated user is authorised to access,
+ * resolved server-side with tenant scope via the shared
+ * resolveAuthorisedCourses helper (identical contract to GET /api/learning/courses).
+ */
+export default async function LMSHomePage() {
+  let context;
+  try {
+    context = await requireTenantContext();
+  } catch {
+    redirect('/login');
+  }
+
+  const { session } = context;
+  const courses = await resolveAuthorisedCourses(context);
+
+  const heading =
+    session.role === RoleType.STUDENT ? 'My courses' : session.role === RoleType.FACULTY ? 'Courses I teach' : 'All course offerings';
+
+  return (
+    <div className="space-y-6">
+      <PageHeader title="Learning (LMS)" description={heading} />
+
+      {courses.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
+          <BookOpen className="mx-auto h-8 w-8 text-text-muted" aria-hidden="true" />
+          <p className="mt-3 text-sm font-medium text-text-primary">No courses are available for your account yet.</p>
+          <p className="mt-1 text-xs text-text-secondary">
+            {session.role === RoleType.STUDENT
+              ? 'Courses you are enrolled in will appear here once registrations are confirmed.'
+              : session.role === RoleType.FACULTY
+                ? 'Offerings assigned to you will appear here.'
+                : 'No course offerings exist for this institution yet.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {courses.map((course) => (
+            <Link
+              key={course.id}
+              href={`/learning/courses/${encodeURIComponent(course.courseId)}`}
+              className="group flex flex-col rounded-2xl border border-border bg-white p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="rounded-full bg-primary-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">
+                  {course.course.code}
+                </span>
+                <span className="text-[11px] font-medium text-text-muted">{course.term.name}</span>
+              </div>
+              <h2 className="mt-3 text-base font-bold text-text-primary group-hover:text-primary">{course.course.title}</h2>
+              <p className="mt-1 text-xs text-text-secondary">Instructor: {course.faculty.user.name}</p>
+              <div className="mt-4 flex items-center gap-4 border-t border-border pt-3 text-xs text-text-secondary">
+                <span className="flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> {course._count.CourseModule} modules
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5" aria-hidden="true" /> {course._count.enrollments} students
+                </span>
+                {course.section && <span className="ml-auto">{course.section.name}</span>}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

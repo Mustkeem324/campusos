@@ -136,51 +136,59 @@ export async function seedAcademics(
     sessionIndex++;
   }
 
-  // 5. Assignments & Submissions
+  // 5. Assignments & Submissions (Phase 98: three deterministic assignments per offering)
+  const ASSIGNMENT_TEMPLATES = [
+    { title: 'Assignment 1: Fundamentals of Course', description: 'Complete the problem set and upload solution PDF.', dueDate: '2026-08-15', maxMarks: 100 },
+    { title: 'Assignment 2: Mid-course Problem Set', description: 'Solve the mid-course problem set covering units 4-7.', dueDate: '2026-09-12', maxMarks: 50 },
+    { title: 'Assignment 3: Capstone Project Report', description: 'Submit the capstone project report and presentation deck.', dueDate: '2026-10-20', maxMarks: 75 },
+  ];
+
   let assignIdx = 0;
   for (const offering of courseOfferings.slice(0, 8)) {
-    const assignId = random.generateStableId(16, assignIdx);
-    const dueDate = new Date('2026-08-15');
+    for (let a = 0; a < ASSIGNMENT_TEMPLATES.length; a++) {
+      const template = ASSIGNMENT_TEMPLATES[a];
+      const assignId = random.generateStableId(16, assignIdx);
 
-    const assignment = await prisma.assignment.upsert({
-      where: { id: assignId },
-      update: { title: `Assignment 1: Fundamentals of Course`, dueDate },
-      create: {
-        id: assignId,
-        tenantId: institution.id,
-        courseOfferingId: offering.id,
-        title: `Assignment 1: Fundamentals of Course`,
-        description: 'Complete the problem set and upload solution PDF.',
-        dueDate,
-        maxMarks: 100,
+      const assignment = await prisma.assignment.upsert({
+        where: { id: assignId },
+        update: { title: template.title, dueDate: new Date(template.dueDate), maxMarks: template.maxMarks },
+        create: {
+          id: assignId,
+          tenantId: institution.id,
+          courseOfferingId: offering.id,
+          title: template.title,
+          description: template.description,
+          dueDate: new Date(template.dueDate),
+          maxMarks: template.maxMarks,
+        }
+      });
+
+      const enrolledRegs = registrations.filter(r => r.courseOfferingId === offering.id);
+      let subIdx = 0;
+      for (const reg of enrolledRegs) {
+        const subId = random.generateStableId(17, assignIdx * 100 + subIdx);
+        const isSubmitted = random.randomBoolean(0.9);
+
+        if (isSubmitted) {
+          const marksObtained = Math.round((random.randomDecimal(65, 98, 1) / 100) * template.maxMarks * 10) / 10;
+          await prisma.submission.upsert({
+            where: { id: subId },
+            update: { marksObtained },
+            create: {
+              id: subId,
+              tenantId: institution.id,
+              assignmentId: assignment.id,
+              studentId: reg.studentId,
+              fileUrl: '/uploads/sample-assignment.pdf',
+              marksObtained,
+              submittedAt: new Date('2026-08-14'),
+            }
+          });
+        }
+        subIdx++;
       }
-    });
-
-    const enrolledRegs = registrations.filter(r => r.courseOfferingId === offering.id);
-    let subIdx = 0;
-    for (const reg of enrolledRegs) {
-      const subId = random.generateStableId(17, assignIdx * 100 + subIdx);
-      const isSubmitted = random.randomBoolean(0.9);
-
-      if (isSubmitted) {
-        const marksObtained = random.randomDecimal(65, 98, 1);
-        await prisma.submission.upsert({
-          where: { id: subId },
-          update: { marksObtained },
-          create: {
-            id: subId,
-            tenantId: institution.id,
-            assignmentId: assignment.id,
-            studentId: reg.studentId,
-            fileUrl: '/uploads/sample-assignment.pdf',
-            marksObtained,
-            submittedAt: new Date('2026-08-14'),
-          }
-        });
-      }
-      subIdx++;
+      assignIdx++;
     }
-    assignIdx++;
   }
 
   return {

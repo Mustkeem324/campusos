@@ -2,6 +2,7 @@ import { RoleType } from '@prisma/client';
 import { getSessionFromCookies } from './auth';
 import { prisma } from './db';
 import { ROLE_PERMISSIONS, type PermissionString } from './types';
+import { dashboardRouteForRole } from './dashboard/registry';
 
 export type ActiveUserContext = {
   userId: string;
@@ -65,10 +66,11 @@ export async function requireActiveUserContext(): Promise<ActiveUserContext> {
   return context;
 }
 
+/**
+ * Server-authorised landing route for a role.
+ * Delegates to the central dashboard registry; unhandled roles land on the
+ * role-scoped shell page at /dashboard (never an infinite redirect).
+ */
 export function dashboardPathForRole(role: RoleType) {
-  if (role === 'INSTITUTION_ADMIN' || role === 'SUPER_ADMIN') return '/dashboard/admin';
-  if (role === 'FACULTY') return '/dashboard/faculty';
-  if (role === 'STUDENT') return '/dashboard/student';
-  if (role === 'PARENT') return '/dashboard/parent';
-  return '/dashboard';
+  return dashboardRouteForRole(role);
 }

@@ -1,38 +1,61 @@
 import { NextResponse } from 'next/server';
-import { RoleType } from '@prisma/client';
-import { requireTenantContext } from '../../../../../lib/tenant-context';
+import { requireCourseAccess, CourseAccessError } from '../../../../../lib/lms/course-access';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * GET /api/learning/courses/[courseId]
+ *
+ * Course detail. Access is enforced server-side by requireCourseAccess:
+ * enrolled student, assigned faculty, or privileged role only (tenant-scoped).
+ * Status: 401 unauthenticated · 403 unauthorised · 404 course not visible.
+ */
 export async function GET(_: Request, { params }: { params: { courseId: string } }) {
   try {
-    const { db, session } = await requireTenantContext();
-    const offering = await db.courseOffering.findFirst({
-      where: { courseId: params.courseId },
-      orderBy: { id: 'asc' },
+    const access = await requireCourseAccess(params.courseId);
+    const { db, offering } = access;
+
+    const detail = await db.courseOffering.findUnique({
+      where: { id: offering.id },
       select: {
         id: true,
         course: { select: { code: true, title: true } },
-        facultyId: true,
         faculty: { select: { user: { select: { name: true } } } },
         CourseModule: { orderBy: { sequence: 'asc' }, select: { id: true, title: true, description: true, sequence: true, lessons: { where: { isPublished: true }, orderBy: { sequence: 'asc' }, select: { id: true, title: true, contentType: true, contentUrl: true, contentBody: true, sequence: true } } } },
         assignments: { orderBy: { dueDate: 'asc' }, select: { id: true, title: true, description: true, dueDate: true, maxMarks: true } },
         Quiz: { orderBy: { startTime: 'asc' }, select: { id: true, title: true, description: true, startTime: true, endTime: true, timeLimitMins: true } },
+        announcements: {
+          orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+          take: 20,
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            isPinned: true,
+            createdAt: true,
+            author: { select: { user: { select: { name: true } } } },
+          },
+        },
       },
     });
-    if (!offering) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
 
-    const staff = await db.staff.findUnique({ where: { userId: session.userId }, select: { id: true } });
-    const privilegedRoles: RoleType[] = [RoleType.SUPER_ADMIN, RoleType.INSTITUTION_ADMIN, RoleType.REGISTRAR];
-    const privileged = privilegedRoles.includes(session.role);
-    const isFaculty = staff?.id === offering.facultyId;
-    const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true } });
-    const enrollment = student ? await db.enrollment.findFirst({ where: { studentId: student.id, courseOfferingId: offering.id }, select: { id: true } }) : null;
-    if (!privileged && !isFaculty && !enrollment) return NextResponse.json({ error: 'You are not enrolled in this course' }, { status: 403 });
+    if (!detail) {
+      return NextResponse.json({ error: 'This course is not available.' }, { status: 404 });
+    }
 
-    return NextResponse.json({ course: offering.course, instructor: offering.faculty.user.name, modules: offering.CourseModule, assignments: offering.assignments, quizzes: offering.Quiz });
+    return NextResponse.json({
+      course: detail.course,
+      instructor: detail.faculty.user.name,
+      modules: detail.CourseModule,
+      assignments: detail.assignments,
+      quizzes: detail.Quiz,
+      announcements: detail.announcements,
+      canPostAnnouncement: access.accessRole !== 'STUDENT',
+    });
   } catch (error: unknown) {
-    const status = error instanceof Error && error.message.startsWith('Unauthorized') ? 401 : 500;
-    return NextResponse.json({ error: status === 401 ? 'Unauthorized' : 'Unable to load course' }, { status });
+    if (error instanceof CourseAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return NextResponse.json({ error: 'Unable to load course' }, { status: 500 });
   }
 }

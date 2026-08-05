@@ -10,6 +10,9 @@ import { seedPeople } from './generators/people';
 import { seedAcademics } from './generators/academics';
 import { seedFinance } from './generators/finance';
 import { seedOperations } from './generators/operations';
+import { seedStudentLife } from './generators/studentLife';
+import { seedLmsContent, seedCourseAnnouncements } from './generators/lmsContent';
+import { seedGradebook } from './generators/gradebook';
 
 const prisma = new PrismaClient();
 
@@ -92,6 +95,16 @@ async function runDemoSeed() {
 
   console.log('Seeding operations, smart campus devices, and AI governance...');
   await seedOperations(prisma, personas.institution, people, config, random);
+
+  console.log('Seeding student-life records (notices, exams, results, hostel, services)...');
+  await seedStudentLife(prisma, personas.institution, structure, people, academics, random);
+
+  console.log('Seeding LMS course modules and lessons...');
+  await seedLmsContent(prisma, personas.institution, academics, random);
+  await seedCourseAnnouncements(prisma, personas.institution, academics, random);
+
+  console.log('Seeding rubrics and gradebook content...');
+  await seedGradebook(prisma, personas.institution, academics, random);
 
   // 6. Post-Seed Validation
   console.log('Validating generated demo dataset...');
