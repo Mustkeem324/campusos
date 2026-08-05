@@ -20,7 +20,7 @@
     "seed:demo:large": "node scripts/run-with-service-env.mjs npx tsx apps/web/scripts/demo-seed/index.ts --students=1000 --faculty=100 --courses=100 --seed=5001 --reset"
   },
   "dependencies": {
-    "@prisma/client": "^5.20.0",
+    "@prisma/client": "^7.9.1",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "jsonwebtoken": "^9.0.3",
