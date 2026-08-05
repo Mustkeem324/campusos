@@ -4,7 +4,9 @@ Phase 7 connects the existing role dashboards to governed work, account security
 
 ## 7A — Action and Approval Centre
 
-The approval centre reuses the reviewed `AiActionProposal` model as the common governed-request envelope. Every proposal includes a target record, reason, risk level, required permission and proposed values. Non-approver roles only see their own proposals. Authorised approver roles see tenant proposals and can approve or reject them. Decisions notify the proposer and create an audit record.
+The approval centre reuses the reviewed `AiActionProposal` model as the common governed-request envelope. Every proposal includes a target record, reason, risk level, required permission and proposed values. Non-approver roles only see their own proposals. Reviewer queues are filtered by operational permission domain: finance roles cannot review academic proposals, librarians cannot review finance proposals, and equivalent boundaries apply to the other operational roles.
+
+The proposer cannot approve their own request. Proposals marked `PROHIBITED` cannot be approved. Decisions notify the proposer and create an audit record.
 
 Approved proposals are not automatically executed against protected academic, finance or identity records. Domain execution remains a separate reviewed workflow.
 
@@ -14,13 +16,15 @@ Approved proposals are not automatically executed against protected academic, fi
 - Strong password policy
 - Other-session revocation after a password change
 - Generic password-reset response to prevent account enumeration
+- Cross-tenant ambiguity protection for duplicate email addresses
 - SHA-256 reset-token storage with a 30-minute expiry
 - Reset-email queue integration
 - Authenticator TOTP setup and verification
 - AES-256-GCM encryption for stored MFA secrets
-- MFA login verification and lockout handling
+- Signed five-minute MFA login challenges rather than exposed raw user identifiers
+- MFA lockout handling and seven-day session/JWT alignment
 
-Production must configure `JWT_SECRET` or `MFA_ENCRYPTION_KEY`. Development reset URLs are exposed only when both non-production mode and `CAMPUSOS_EXPOSE_RESET_TOKEN=true` are active.
+Production must configure `JWT_SECRET` or `MFA_ENCRYPTION_KEY`. `MFA_CHALLENGE_SECRET` can be configured separately; otherwise `JWT_SECRET` signs MFA challenges. Development reset URLs are exposed only when both non-production mode and `CAMPUSOS_EXPOSE_RESET_TOKEN=true` are active.
 
 ## 7C — Reports and Export Studio
 
@@ -36,11 +40,13 @@ Library adds catalogue quality and circulation intelligence. The current reviewe
 
 - Installable service worker
 - Offline public fallback
-- Static-asset caching only
-- No API response or protected page caching
+- Framework build-asset caching only
+- No API response, protected page or arbitrary user-image caching
 - Browser-notification permission controls
 - Per-category email, push and in-app preferences
 - Push notification click-through support
+
+A production push provider still requires deployment-specific subscription storage and VAPID configuration. The service worker and preference controls are provider-ready without inventing delivery success.
 
 ## 7F — Safe Copilot and Student Success
 
