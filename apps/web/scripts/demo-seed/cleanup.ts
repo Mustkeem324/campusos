@@ -32,6 +32,13 @@ export async function resetDemoTenantData(prisma: PrismaClient, demoTenantId: st
   await prisma.enrollment.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.attendanceRecord.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.attendanceSession.deleteMany({ where: { tenantId: demoTenantId } });
+
+  // Phase 98 gradebook rows have no tenantId column — reach them via parents.
+  await prisma.gradebookScore.deleteMany({ where: { item: { gradebook: { tenantId: demoTenantId } } } });
+  await prisma.gradebookItem.deleteMany({ where: { gradebook: { tenantId: demoTenantId } } });
+  await prisma.gradebook.deleteMany({ where: { tenantId: demoTenantId } });
+  await prisma.rubric.deleteMany({ where: { assignment: { tenantId: demoTenantId } } });
+  await prisma.grade.deleteMany({ where: { submission: { tenantId: demoTenantId } } });
   await prisma.submission.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.assignment.deleteMany({ where: { tenantId: demoTenantId } });
 

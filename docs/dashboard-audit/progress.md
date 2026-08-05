@@ -123,8 +123,25 @@ PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright test --project='Mobi
 | Validation: typecheck 0 / lint 0 (7 pre-existing warnings) / vitest 158 / Playwright 14 regression + 4 LMS + screenshot / production build 127 pages EXIT 0 | ✅ |
 | Screenshot: `docs/dashboard-audit/screenshots/lms/p97-lms-student.png` (student /lms, CS-101 visible) | ✅ |
 
+## Cycle 7 (2026-08-05) — Phase 98: Assignments, rubric grading & gradebook
+
+| Task | Status |
+|---|---|
+| Read-only audit: real Assignment/Rubric/Submission/Grade/Gradebook/Item/Score models existed but were unused — the faculty grading page was a static fake ("John Doe"/"Jane Smith"), `/assignments` rendered demo-only `LMSWorkspace`, and no assignment/gradebook APIs existed | ✅ |
+| Schema (additive, `prisma db push` — demo DB): `Submission.rubricScores Json?`, `@@unique([assignmentId, studentId])` + index (one submission per student), `Grade.submissionId @unique` (one grade per submission); fixed `TENANT_MODELS` `'GradeBook'` → `'Gradebook'` | ✅ |
+| `lib/lms/gradebook-access.ts` — `requireAssignmentAccess` gate (401/403/404, relationship-resolved: enrolled student / assigned faculty / privileged), guards against Prisma undefined-filter hazard (`facultyId: staff?.id`) | ✅ |
+| APIs: GET assignment list (role-aware), POST submit (student upserts own submission), PUT grade (faculty-only, marks bounds + rubricScores validated against actual rubric criteria/maxPoints), GET gradebook (student: own + %; faculty: full class) | ✅ |
+| `/assignments` page rewritten as real server component — student sees ALL enrolled-course assignments with submission status (query by enrollment, not by having submitted); drill-down uses real courseId (fixed broken course.code link) | ✅ |
+| Faculty grading page — replaced static fake with live rubric-grading UI (select student, per-criterion scores, total marks, feedback, grade-save) | ✅ |
+| Seed: `generators/gradebook.ts` (rubrics per assignment, gradebook items + scores) + academics now creates 3 assignments/offering; non-submitters get NO fabricated score | ✅ |
+| 10 unit tests (`lms-gradebook-authorization.test.ts`): 401, enrolled student, assigned faculty, privileged, unenrolled 403, non-teaching faculty 403, cross-tenant 404, missing 404, malformed UUID 404, no leakage | ✅ |
+| 5 live Playwright tests (`lms-gradebook-access.spec.ts`): student assignments+gradebook, faculty grading, student-grade 403, unauth rejections, submit-once upsert | ✅ |
+| Review fixes: enrollment-based student query, real courseId drill-down, rubricScores criteria validation, no fabricated non-submitter scores | ✅ |
+| Validation: typecheck 0 / lint 0 / vitest 168 / Playwright 23 (5 P98 + 4 P97 + 14 regression) / production build 127 pages EXIT 0 | ✅ |
+| Screenshots: `docs/dashboard-audit/screenshots/lms/p98-assignments-student.png`, `p98-faculty-grading.png` | ✅ |
+
 ## Resume point
 
-Phase 96 (production pipeline) is committed on `chore/production-readiness` @ `4d90625` — Vercel preview deploy + cycle-2 items (health endpoints, structured logging, env validation, CI gates) remain.
-Phase 97 (LMS foundation + course permissions) is implemented and validated locally on the working branch — commit it, then begin **Phase 98: Assignments, rubric grading and gradebook** (Assignment/Gradebook/Rubric models already exist in schema; need real server-enforced assignment APIs + gradebook surfaces).
+Phase 96 (production pipeline) committed on `chore/production-readiness` @ `4d90625` — Vercel preview deploy + cycle-2 items (health endpoints, structured logging, env validation, CI gates) remain.
+Phase 97 (LMS foundation) committed @ `6bb4ff2` + `3efe843`. Phase 98 (assignments/rubrics/gradebook) implemented + validated locally — commit it, then begin **Phase 99: Live classroom, raise hand and attendance** (LearningSession/Participant/Presence/ChatMessage/Poll models already exist in schema).
 Dashboard programme resume: **Audit + repair Faculty dashboard** (`/dashboard/faculty`).

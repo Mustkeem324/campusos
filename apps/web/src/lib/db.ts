@@ -18,7 +18,7 @@ const TENANT_MODELS = [
   'FeeStructure', 'Invoice', 'Payment', 'Hostel', 'Room', 'Bed', 'HostelAllocation',
   'TransportRoute', 'Vehicle', 'Stop', 'TransportAllocation', 'Book', 'BookCopy',
   'Borrowing', 'Notice', 'Event', 'AuditLog', 'Notification', 'Webhook', 'ApiKey',
-  'GradeBook', 'Certificate', 'Placement', 'Application', 'Alumni',
+  'Gradebook', 'Certificate', 'Placement', 'Application', 'Alumni',
   // Community Chat System models
   'ChatCommunity', 'ChatCommunityMember', 'ChatMessage', 'ChatAttachment',
   'ChatReaction', 'ChatBookmark', 'ChatPinnedMessage', 'ChatReport',
