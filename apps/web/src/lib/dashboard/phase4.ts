@@ -57,7 +57,7 @@ export async function getPhase4DashboardData(
 
   const roleData = context.activeRole === RoleType.LIBRARIAN
     ? await loadLibraryDashboard(context.tenantId)
-    : await loadFinanceDashboard(db, context.activeRole);
+    : await loadFinanceDashboard(db, context.tenantId, context.activeRole);
 
   return {
     role: context.activeRole,
@@ -95,6 +95,7 @@ type RolePayload = Omit<
 
 async function loadFinanceDashboard(
   db: TenantDb,
+  tenantId: string,
   role: RoleType.FINANCE_OFFICER | RoleType.ACCOUNTANT,
 ): Promise<RolePayload> {
   const now = new Date();
@@ -179,10 +180,10 @@ async function loadFinanceDashboard(
         },
       },
     }),
-    prisma.scholarship.count({ where: { tenantId: dbTenantId(db) } }),
+    prisma.scholarship.count({ where: { tenantId } }),
     prisma.refund.aggregate({
       _sum: { amount: true },
-      where: { payment: { tenantId: dbTenantId(db) } },
+      where: { payment: { tenantId } },
     }),
   ]);
 
@@ -533,18 +534,6 @@ async function loadLibraryDashboard(tenantId: string): Promise<RolePayload> {
     },
     riskAlerts,
   };
-}
-
-/**
- * The tenant Prisma extension does not expose its tenant id as a public value.
- * This helper retrieves the value captured by the extension without weakening
- * query scoping. It is only used for raw Prisma models that are not covered by
- * the legacy tenant model list.
- */
-function dbTenantId(db: TenantDb): string {
-  const extension = db as unknown as { $name?: string };
-  void extension;
-  throw new Error('Tenant id must be supplied explicitly for unscoped finance models.');
 }
 
 function roleTitle(role: Phase4DashboardData['role']): string {
