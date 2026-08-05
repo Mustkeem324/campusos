@@ -19,25 +19,33 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) {
+  if (
+    request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api/')
+  ) {
     return;
   }
 
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/offline')),
-    );
+    // Protected pages are network-only. When offline, return the public fallback
+    // rather than a previously viewed authenticated page.
+    event.respondWith(fetch(request).catch(() => caches.match('/offline')));
     return;
   }
 
-  const cacheableDestination = ['script', 'style', 'image', 'font'].includes(request.destination);
-  if (!cacheableDestination) return;
+  // Cache only framework build assets and the explicit public shell. Do not
+  // cache arbitrary same-origin images because they may be student or user data.
+  const isPublicStaticAsset =
+    url.pathname.startsWith('/_next/static/') ||
+    PUBLIC_SHELL.includes(url.pathname);
+  if (!isPublicStaticAsset) return;
 
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
       if (response.ok && response.type === 'basic') {
         const copy = response.clone();
-        caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
+        void caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
       }
       return response;
     })),
@@ -45,7 +53,11 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let payload = { title: 'CampusOS', body: 'You have a new authorised update.', actionUrl: '/notifications' };
+  let payload = {
+    title: 'CampusOS',
+    body: 'You have a new authorised update.',
+    actionUrl: '/notifications',
+  };
   try {
     if (event.data) payload = { ...payload, ...event.data.json() };
   } catch {
