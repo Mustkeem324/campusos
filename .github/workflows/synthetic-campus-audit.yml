@@ -1,0 +1,101 @@
+name: Phase 5 synthetic campus audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/seed-synthetic-campus.mjs'
+      - 'scripts/verify-synthetic-campus.mjs'
+      - 'scripts/prepare-database.mjs'
+      - 'apps/web/src/lib/dashboard/phase5*.ts'
+      - 'apps/web/src/components/dashboard/Phase5Dashboard.tsx'
+      - 'apps/web/src/app/(dashboard)/dashboard/page.tsx'
+      - 'apps/web/src/app/api/auth/demo-login/route.ts'
+      - 'apps/web/src/components/auth/DemoLoginConsole.tsx'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/synthetic-campus-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase5-synthetic-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  NEXT_TELEMETRY_DISABLED: '1'
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos_phase5?schema=public
+  JWT_SECRET: phase5_ci_only_jwt_secret_with_more_than_32_characters
+  JWT_REFRESH_SECRET: phase5_ci_only_refresh_secret_with_more_than_32_characters
+  CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true'
+
+jobs:
+  synthetic-campus:
+    name: Seed, verify, reseed and audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusos_phase5
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campusos_phase5"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema=packages/db/prisma/schema.prisma
+
+      - name: Create clean PostgreSQL schema
+        run: npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
+
+      - name: Seed the 100-student synthetic campus
+        run: npm run db:seed-synthetic:reset
+
+      - name: Verify counts, role accounts and legacy demo removal
+        run: npm run db:verify-synthetic
+
+      - name: Reseed to prove deterministic reset safety
+        run: npm run db:seed-synthetic:reset
+
+      - name: Verify the reseeded dataset
+        run: npm run db:verify-synthetic
+
+      - name: Lint Phase 5 with zero warnings
+        run: npm run lint -- --max-warnings=0
+
+      - name: Typecheck Phase 5 backend and UI
+        run: npm run typecheck
+
+      - name: Run the complete test suite
+        run: npm test
+
+      - name: Build and verify the production application
+        run: npm run build
