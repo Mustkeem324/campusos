@@ -1,14 +1,21 @@
 import { redirect } from 'next/navigation';
+
+import { OperationalDashboard } from '@/components/dashboard/OperationalDashboard';
+import { RoleWorkspaceDashboard } from '@/components/dashboard/RoleWorkspaceDashboard';
+import { StudentDashboardError } from '@/components/dashboard/StudentDashboardStates';
 import { dashboardPathForRole, requireActiveUserContext } from '@/lib/active-user-context';
+import { getOperationalDashboardData } from '@/lib/dashboard/operational';
+import { isOperationalDashboardRole } from '@/lib/dashboard/operational-contracts';
 import { dashboardRouteForRole } from '@/lib/dashboard/registry';
+import { roleWorkspaceProfileForRole } from '@/lib/dashboard/role-workspace';
 
 /**
  * Role-aware dashboard landing.
  *
- * - Roles with a defined dashboard route (Student, Faculty, Parent, Admin) are
- *   redirected to their dedicated dashboard.
- * - Roles without a dashboard yet render a role-scoped placeholder instead of
- *   redirecting to themselves (fixes the previous redirect-to-self loop).
+ * Roles with dedicated dashboards are redirected to their server-authorised
+ * composition. Registrar, Finance Officer, Examination Controller and
+ * Admissions Counsellor receive real tenant-scoped operational dashboards.
+ * Remaining recognised roles receive a professional navigation workspace.
  */
 export default async function DashboardPage() {
   const context = await requireActiveUserContext().catch(() => null);
@@ -19,25 +26,23 @@ export default async function DashboardPage() {
     redirect(dashboardPathForRole(context.activeRole));
   }
 
-  const roleLabel = context.activeRole
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  if (isOperationalDashboardRole(context.activeRole)) {
+    try {
+      const data = await getOperationalDashboardData(context);
+      return <OperationalDashboard data={data} />;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to load your operational dashboard.';
+      return <StudentDashboardError message={message} />;
+    }
+  }
+
+  const profile = roleWorkspaceProfileForRole(context.activeRole);
 
   return (
-    <section className="space-y-6">
-      <header className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-        <span className="inline-flex rounded-full border border-primary/20 bg-primary-soft px-2.5 py-0.5 text-[12px] font-bold text-primary">
-          {roleLabel} Workspace
-        </span>
-        <h1 className="mt-3 text-2xl font-bold tracking-tight text-text-primary">
-          Welcome to your workspace
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-text-secondary">
-          A dedicated {roleLabel} dashboard is being prepared for your role. Use the
-          navigation to access the modules available to you.
-        </p>
-      </header>
-    </section>
+    <RoleWorkspaceDashboard
+      role={context.activeRole}
+      profile={profile}
+      permissionCount={context.permissions.length}
+    />
   );
 }
