@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { Header } from '../../components/layout/Header';
 import { CommandPalette } from '../../components/layout/CommandPalette';
@@ -9,6 +9,13 @@ import { BulkImportModal } from '../../components/users/BulkImportModal';
 import { DemoEnvironmentBanner } from '../../components/demo/DemoEnvironmentBanner';
 import { DemoOnboardingProvider } from '../../components/demo/DemoOnboardingProvider';
 import { useAuthStore } from '../../lib/auth-store';
+
+const dashboardShellVariables = {
+  '--header-h': '68px',
+  '--sidebar-w': '264px',
+  '--sidebar-collapsed-w': '80px',
+  '--content-max-w': '1600px',
+} as React.CSSProperties;
 
 export default function DashboardShell({
   children,
@@ -26,54 +33,71 @@ export default function DashboardShell({
 
   if (!mounted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-extrabold text-2xl animate-bounce shadow-xl">
-            C
+      <div
+        className="flex min-h-screen items-center justify-center bg-[#F4F7FB] px-6 text-[#101D38] dark:bg-[#090D16] dark:text-white"
+        style={dashboardShellVariables}
+      >
+        <div className="w-full max-w-sm rounded-2xl border border-[#DDE5EF] bg-white p-6 shadow-[0_18px_48px_rgba(16,29,56,0.08)] dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#1754E8] text-xl font-extrabold text-white shadow-[0_10px_24px_rgba(23,84,232,0.24)]">
+              C
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-[#101D38] dark:text-white">Preparing your workspace</p>
+              <p className="mt-1 text-xs leading-5 text-[#667085] dark:text-slate-400">Loading authorised CampusOS modules and preferences.</p>
+            </div>
           </div>
-          <span className="text-xs font-mono font-bold text-gray-400">Loading CampusOS ERP...</span>
+          <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-[#E9EEF5] dark:bg-slate-800">
+            <div className="h-full w-2/3 animate-pulse rounded-full bg-[#1754E8]" />
+          </div>
         </div>
       </div>
     );
   }
 
   const handleRestartTour = () => {
-    setRestartTourKey(prev => prev + 1);
+    setRestartTourKey((previousKey) => previousKey + 1);
   };
 
   return (
     <DemoOnboardingProvider key={restartTourKey}>
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-primary focus:text-white" style={{ zIndex: 100 }}>
+      <div
+        className="min-h-screen bg-[#F4F7FB] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
+        style={dashboardShellVariables}
+      >
+        <a
+          href="#main-content"
+          className="sr-only rounded-lg bg-[#1754E8] px-4 py-3 font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+          style={{ zIndex: 100 }}
+        >
           Skip to main content
         </a>
 
-        {/* Row 1: Impersonation & Demo Banners */}
         <ImpersonationBanner />
         <DemoEnvironmentBanner onRestartTutorial={handleRestartTour} />
 
-        {/* Row 2: Fixed header */}
         <Header />
-
-        {/* Sidebar */}
         <Sidebar />
 
         <CommandPalette />
-        <BulkImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
+        <BulkImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+        />
 
-        {/* Main content */}
         <main
           id="main-content"
-          className="dashboard-main flex-1 min-w-0 transition-all duration-300 pb-[max(3rem,env(safe-area-inset-bottom))] px-4 sm:px-6"
+          className="dashboard-main min-w-0 pb-[max(3rem,env(safe-area-inset-bottom))] transition-[margin] duration-300"
           style={{
-            paddingTop: 'calc(var(--layout-top) + 24px)',
+            paddingTop: 'calc(var(--layout-top) + 28px)',
             marginLeft: isSidebarCollapsed
               ? 'var(--sidebar-collapsed-w)'
               : 'var(--sidebar-w)',
-            maxWidth: 'var(--content-max-w)',
           }}
         >
-          {children}
+          <div className="mx-auto w-full max-w-[var(--content-max-w)] px-4 sm:px-6 lg:px-8">
+            {children}
+          </div>
         </main>
       </div>
     </DemoOnboardingProvider>
