@@ -5,7 +5,9 @@ on:
     branches: [main]
     paths:
       - 'scripts/seed-synthetic-campus.mjs'
+      - 'scripts/reset-synthetic-campus.mjs'
       - 'scripts/verify-synthetic-campus.mjs'
+      - 'scripts/verify-demo-bootstrap.mjs'
       - 'scripts/prepare-database.mjs'
       - 'apps/web/src/lib/dashboard/phase5*.ts'
       - 'apps/web/src/components/dashboard/Phase5Dashboard.tsx'
@@ -27,9 +29,9 @@ concurrency:
 env:
   NODE_VERSION: '20'
   NEXT_TELEMETRY_DISABLED: '1'
-  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos_phase5?schema=public
-  JWT_SECRET: phase5_ci_only_jwt_secret_with_more_than_32_characters
-  JWT_REFRESH_SECRET: phase5_ci_only_refresh_secret_with_more_than_32_characters
+  DATABASE_URL: postgresql://postgres@localhost:5432/campusos_phase5?schema=public
+  JWT_SECRET: phase5-ci-${{ github.run_id }}-jwt-secret-not-production
+  JWT_REFRESH_SECRET: phase5-ci-${{ github.run_id }}-refresh-secret-not-production
   CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true'
 
 jobs:
@@ -43,8 +45,8 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: campusos_phase5
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
