@@ -1,0 +1,33 @@
+{
+  "phase": "CampusOS Careers public foundation and recruitment dashboard",
+  "baselineBranch": "main",
+  "implementationBranch": "feature/careers-and-data-exit",
+  "allowedWritePaths": [
+    "apps/web/src/app/(public)/careers/**",
+    "apps/web/src/app/(public)/trust/data-portability/**",
+    "apps/web/src/app/(dashboard)/recruitment/**",
+    "apps/web/src/app/api/public/careers/**",
+    "apps/web/src/components/careers/**",
+    "apps/web/src/components/public/site-data.ts",
+    "apps/web/src/lib/careers-*.ts",
+    "docs/careers/**",
+    "docs/data-governance/**"
+  ],
+  "protectedPaths": [
+    "apps/web/src/lib/auth.ts",
+    "apps/web/src/middleware.ts",
+    "packages/db/prisma/schema.prisma",
+    "apps/web/src/app/(dashboard)/DashboardShell.tsx",
+    "apps/web/src/app/(dashboard)/layout.tsx",
+    "apps/web/src/app/(public)/page.tsx"
+  ],
+  "blockedChanges": [
+    "No authentication behavior changes",
+    "No tenant-isolation changes",
+    "No database migration in this foundation cycle",
+    "No fake production job openings",
+    "No candidate document collection before a reviewed ATS backend exists",
+    "No unsupported compliance claims"
+  ],
+  "nextApprovedCycle": "Database-backed job editor, application workflow, secure uploads and recruitment permissions"
+}
