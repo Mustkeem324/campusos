@@ -1,5 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
+import { resolveServiceEnvironment } from './service-env';
+
+resolveServiceEnvironment();
+
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 export const prisma =

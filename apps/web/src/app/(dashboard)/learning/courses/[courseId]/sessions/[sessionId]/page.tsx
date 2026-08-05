@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, MonitorUp, Hand, MessageSquare, Users, Settings, LogOut, Send, HelpCircle } from "lucide-react";
 
@@ -25,7 +25,7 @@ export default function LearningSessionPage() {
   const [handRaised, setHandRaised] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchSessionData = async () => {
+  const fetchSessionData = useCallback(async () => {
     try {
       const res = await fetch(`/api/learning/courses/${courseId}/sessions/${sessionId}/sync`);
       if (res.ok) {
@@ -35,7 +35,7 @@ export default function LearningSessionPage() {
     } catch (e) {
       console.error(e);
     }
-  };
+  }, [courseId, sessionId]);
 
   useEffect(() => {
     // Join session on mount
@@ -58,7 +58,7 @@ export default function LearningSessionPage() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [courseId, sessionId, userId]);
+  }, [courseId, sessionId, userId, fetchSessionData]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
