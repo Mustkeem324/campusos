@@ -1,239 +1,225 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuthStore } from '../../lib/auth-store';
-import { 
-  User, Settings, FileText, Activity, MapPin, 
-  Globe, Moon, Sun, Eye, Clock, LayoutDashboard,
-  Bell, VolumeX, Lock, Shield, Smartphone, Key,
-  HelpCircle, Keyboard, Info, LogOut, ChevronRight, ChevronLeft,
-  ChevronDown, Monitor, LifeBuoy
+import React from 'react';
+import Link from 'next/link';
+import {
+  Bell,
+  ChevronDown,
+  HelpCircle,
+  LogOut,
+  Moon,
+  Settings,
+  ShieldCheck,
+  Sun,
+  User,
 } from 'lucide-react';
 
-type Tab = 'main' | 'account' | 'preferences' | 'communication' | 'security' | 'help';
+import { useAuthStore } from '../../lib/auth-store';
+
+function formatRole(role: string) {
+  return role
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function initialsFor(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export function AccountDropdown() {
   const { currentSession, isDarkMode, toggleDarkMode } = useAuthStore();
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('main');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+  React.useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
-        setTimeout(() => setActiveTab('main'), 200);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
+
+  if (!currentSession) return null;
+
+  const roleLabel = formatRole(currentSession.role);
+  const initials = initialsFor(currentSession.name);
 
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
       useAuthStore.getState().setSession(null);
-      window.location.href = '/login';
-    } catch (e) {
-      console.error('Logout failed');
+      window.location.assign('/login');
     }
   };
-
-  const handleToggle = () => {
-    if (isOpen) {
-      setIsOpen(false);
-      setTimeout(() => setActiveTab('main'), 200);
-    } else {
-      setIsOpen(true);
-    }
-  };
-
-  // Keyboard navigation support for accessibility
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setIsOpen(false);
-      setActiveTab('main');
-    }
-  };
-
-  if (!currentSession) return null;
 
   return (
-    <div className="relative" ref={dropdownRef} onKeyDown={handleKeyDown}>
-      <button 
-        onClick={handleToggle}
-        className="flex items-center gap-2 pl-1 cursor-pointer hover:bg-surface-muted p-1 rounded-md transition focus:outline-none focus:ring-2 focus:ring-primary"
+    <div className="relative" ref={dropdownRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex min-h-11 items-center gap-2 rounded-xl border border-transparent px-1.5 py-1 text-left transition hover:border-[#D8E2EF] hover:bg-[#F4F7FB] focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2 dark:hover:border-slate-700 dark:hover:bg-slate-900"
         aria-haspopup="menu"
         aria-expanded={isOpen}
+        aria-label="Open account menu"
       >
-        <img
-          src={currentSession.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-          alt={`${currentSession.name}'s avatar`}
-          className="w-7 h-7 rounded-full object-cover"
+        {currentSession.avatarUrl ? (
+          <img
+            src={currentSession.avatarUrl}
+            alt=""
+            className="h-9 w-9 rounded-xl border border-[#D6DFEB] object-cover dark:border-slate-700"
+          />
+        ) : (
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#DCE7FF] text-xs font-extrabold text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
+            {initials}
+          </span>
+        )}
+
+        <span className="hidden min-w-0 max-w-[150px] lg:block">
+          <span className="block truncate text-xs font-bold text-[#101D38] dark:text-white">{currentSession.name}</span>
+          <span className="mt-0.5 block truncate text-[11px] text-[#7B8798] dark:text-slate-500">{roleLabel}</span>
+        </span>
+
+        <ChevronDown
+          className={`hidden h-4 w-4 shrink-0 text-[#7B8798] transition-transform dark:text-slate-500 sm:block ${isOpen ? 'rotate-180' : ''}`}
+          aria-hidden="true"
         />
-        <div className="hidden lg:block text-left">
-          <p className="text-[13px] font-semibold text-text-primary leading-tight">{currentSession.name}</p>
-          <p className="text-[11px] text-text-secondary leading-tight capitalize">{currentSession.role.toLowerCase().replace('_', ' ')}</p>
-        </div>
-        <ChevronDown size={14} className="text-text-secondary ml-1" />
       </button>
 
       {isOpen && (
-        <div 
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(85dvh,42rem)] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl md:absolute md:inset-x-auto md:right-0 md:top-full md:mt-2 md:max-h-[600px] md:w-80 md:rounded-xl"
-          role="menu"
-        >
-          {/* Mobile Drag Handle */}
-          <div className="w-full flex justify-center py-2 md:hidden">
-            <div className="w-10 h-1.5 bg-border rounded-full"></div>
-          </div>
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-[75] bg-[#101D38]/45 md:hidden"
+            onClick={() => setIsOpen(false)}
+            aria-label="Close account menu"
+          />
 
-          <div className="p-4 border-b border-border flex items-center gap-3">
-            <img
-              src={currentSession.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
-              alt=""
-              className="w-12 h-12 rounded-full object-cover border-2 border-surface-muted"
-            />
-            <div className="flex-1 overflow-hidden">
-              <h3 className="text-sm font-semibold text-text-primary truncate">{currentSession.name}</h3>
-              <p className="text-xs text-text-secondary truncate">{currentSession.email}</p>
-              <div className="flex gap-2 mt-1">
-                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase font-medium">
-                  {currentSession.role.replace('_', ' ')}
+          <div
+            role="menu"
+            aria-label="Account menu"
+            className="fixed inset-x-0 bottom-0 z-[80] overflow-hidden rounded-t-3xl border border-[#D8E2EF] bg-white shadow-[0_-24px_64px_rgba(16,29,56,0.22)] dark:border-slate-700 dark:bg-slate-950 md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:w-[340px] md:rounded-2xl md:shadow-[0_24px_64px_rgba(16,29,56,0.18)]"
+          >
+            <div className="flex justify-center py-2 md:hidden" aria-hidden="true">
+              <span className="h-1.5 w-10 rounded-full bg-[#D7DEE8] dark:bg-slate-700" />
+            </div>
+
+            <div className="border-b border-[#E1E7EF] bg-[#F8FAFC] p-5 dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex items-center gap-3">
+                {currentSession.avatarUrl ? (
+                  <img
+                    src={currentSession.avatarUrl}
+                    alt=""
+                    className="h-12 w-12 rounded-2xl border border-[#D6DFEB] object-cover dark:border-slate-700"
+                  />
+                ) : (
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#DCE7FF] text-sm font-extrabold text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
+                    {initials}
+                  </span>
+                )}
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-[#101D38] dark:text-white">{currentSession.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-[#667085] dark:text-slate-400">{currentSession.email}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-[#EAF0FF] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
+                  {roleLabel}
                 </span>
-                <span className="text-[10px] bg-surface-muted text-text-secondary px-1.5 py-0.5 rounded font-medium truncate">
-                  {currentSession.institutionName || 'Campus'}
+                <span className="max-w-full truncate rounded-full border border-[#D8E2EF] bg-white px-2.5 py-1 text-[10px] font-semibold text-[#536175] dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
+                  {currentSession.institutionName || 'CampusOS'}
                 </span>
               </div>
             </div>
-          </div>
 
-          <div className="overflow-y-auto overflow-x-hidden relative" style={{ minHeight: '300px' }}>
-            {activeTab === 'main' && (
-              <div className="p-2 space-y-1 animate-in fade-in slide-in-from-left-4 duration-200">
-                <MenuButton icon={User} label="Account" onClick={() => setActiveTab('account')} />
-                <MenuButton icon={Settings} label="Preferences" onClick={() => setActiveTab('preferences')} />
-                <MenuButton icon={Bell} label="Communication" onClick={() => setActiveTab('communication')} />
-                <MenuButton icon={Shield} label="Security" onClick={() => setActiveTab('security')} />
-                <MenuButton icon={HelpCircle} label="Help" onClick={() => setActiveTab('help')} />
-                
-                <div className="h-px bg-border my-2"></div>
-                
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-danger hover:bg-danger/10 rounded-lg transition"
-                  role="menuitem"
-                >
-                  <LogOut size={16} />
-                  <span>Sign out</span>
-                </button>
+            <div className="space-y-1 p-2">
+              <AccountMenuLink href="/student-profile" icon={User} label="My profile" onNavigate={() => setIsOpen(false)} />
+              <AccountMenuLink href="/settings" icon={Settings} label="Workspace settings" onNavigate={() => setIsOpen(false)} />
+              <AccountMenuLink href="/notifications" icon={Bell} label="Notification centre" onNavigate={() => setIsOpen(false)} />
+              <AccountMenuLink href="/helpdesk" icon={HelpCircle} label="Help and support" onNavigate={() => setIsOpen(false)} />
+
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-sm font-semibold text-[#344054] transition hover:bg-[#F4F7FB] dark:text-slate-200 dark:hover:bg-slate-900"
+                role="menuitem"
+              >
+                <span className="flex items-center gap-3">
+                  {isDarkMode ? <Sun className="h-[18px] w-[18px] text-[#667085]" aria-hidden="true" /> : <Moon className="h-[18px] w-[18px] text-[#667085]" aria-hidden="true" />}
+                  Appearance
+                </span>
+                <span className="text-xs font-medium text-[#7B8798]">{isDarkMode ? 'Dark' : 'Light'}</span>
+              </button>
+            </div>
+
+            <div className="border-t border-[#E1E7EF] p-2 dark:border-slate-800">
+              <div className="mb-1 flex items-center gap-2 rounded-xl px-3 py-2 text-xs text-[#667085] dark:text-slate-400">
+                <ShieldCheck className="h-4 w-4 text-[#078A57]" aria-hidden="true" />
+                Session protected by CampusOS access controls
               </div>
-            )}
-
-            {activeTab === 'account' && (
-              <SubMenu title="Account" onBack={() => setActiveTab('main')}>
-                <SubMenuItem icon={User} label="Profile" />
-                <SubMenuItem icon={Settings} label="Account Settings" />
-                <SubMenuItem icon={FileText} label="Documents" />
-                <SubMenuItem icon={Activity} label="Activity Log" />
-                <SubMenuItem icon={MapPin} label="Switch Role/Campus" />
-              </SubMenu>
-            )}
-
-            {activeTab === 'preferences' && (
-              <SubMenu title="Preferences" onBack={() => setActiveTab('main')}>
-                <SubMenuItem icon={Globe} label="Language" value="English (UK)" />
-                <SubMenuItem 
-                  icon={isDarkMode ? Moon : Sun} 
-                  label="Appearance" 
-                  value={isDarkMode ? 'Dark' : 'Light'} 
-                  onClick={toggleDarkMode}
-                />
-                <SubMenuItem icon={Eye} label="Accessibility" />
-                <SubMenuItem icon={Clock} label="Time Zone" value="UTC+05:30" />
-                <SubMenuItem icon={LayoutDashboard} label="Start Page" value="Dashboard" />
-              </SubMenu>
-            )}
-
-            {activeTab === 'communication' && (
-              <SubMenu title="Communication" onBack={() => setActiveTab('main')}>
-                <SubMenuItem icon={Bell} label="Notification Preferences" />
-                <SubMenuItem icon={VolumeX} label="Quiet Hours" />
-              </SubMenu>
-            )}
-
-            {activeTab === 'security' && (
-              <SubMenu title="Security" onBack={() => setActiveTab('main')}>
-                <SubMenuItem icon={Key} label="Change Password" />
-                <SubMenuItem icon={Smartphone} label="Two-Factor Auth (2FA)" />
-                <SubMenuItem icon={Monitor} label="Active Sessions" />
-                <SubMenuItem icon={Shield} label="Connected Accounts" />
-                <SubMenuItem icon={Lock} label="Privacy Settings" />
-              </SubMenu>
-            )}
-
-            {activeTab === 'help' && (
-              <SubMenu title="Help" onBack={() => setActiveTab('main')}>
-                <SubMenuItem icon={LifeBuoy} label="Help Centre" />
-                <SubMenuItem icon={HelpCircle} label="Contact Support" />
-                <SubMenuItem icon={Keyboard} label="Keyboard Shortcuts" />
-                <div className="h-px bg-border my-1"></div>
-                <SubMenuItem icon={Info} label="About CampusOS" />
-              </SubMenu>
-            )}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-bold text-[#C52B32] transition hover:bg-[#FFF1F2] dark:text-red-400 dark:hover:bg-red-950/30"
+                role="menuitem"
+              >
+                <LogOut className="h-[18px] w-[18px]" aria-hidden="true" />
+                Sign out
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
 }
 
-function MenuButton({ icon: Icon, label, onClick }: { icon: any; label: string; onClick: () => void }) {
+function AccountMenuLink({
+  href,
+  icon: Icon,
+  label,
+  onNavigate,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  onNavigate: () => void;
+}) {
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center justify-between px-3 py-2 text-sm text-text-primary hover:bg-surface-muted rounded-lg transition"
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-[#344054] transition hover:bg-[#F4F7FB] hover:text-[#1754E8] dark:text-slate-200 dark:hover:bg-slate-900 dark:hover:text-blue-300"
       role="menuitem"
     >
-      <div className="flex items-center gap-3">
-        <Icon size={16} className="text-text-secondary" />
-        <span>{label}</span>
-      </div>
-      <ChevronRight size={14} className="text-text-muted" />
-    </button>
-  );
-}
-
-function SubMenu({ title, onBack, children }: { title: string; onBack: () => void; children: React.ReactNode }) {
-  return (
-    <div className="p-2 space-y-1 animate-in fade-in slide-in-from-right-4 duration-200">
-      <button
-        onClick={onBack}
-        className="w-full flex items-center gap-2 px-2 py-2 mb-2 text-sm font-medium text-text-secondary hover:text-text-primary transition"
-      >
-        <ChevronLeft size={16} />
-        <span>Back</span>
-      </button>
-      <div className="px-2 mb-2">
-        <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider">{title}</h4>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function SubMenuItem({ icon: Icon, label, value, onClick }: { icon: any; label: string; value?: string; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center justify-between px-3 py-2 text-sm text-text-primary hover:bg-surface-muted rounded-lg transition"
-      role="menuitem"
-    >
-      <div className="flex items-center gap-3">
-        <Icon size={16} className="text-text-secondary" />
-        <span>{label}</span>
-      </div>
-      {value && <span className="text-xs text-text-secondary">{value}</span>}
-    </button>
+      <Icon className="h-[18px] w-[18px] text-[#667085]" aria-hidden="true" />
+      {label}
+    </Link>
   );
 }
