@@ -1,13 +1,17 @@
-import { PublicHeader } from '@/components/public/PublicHeader';
-import { PublicFooter } from '@/components/public/PublicFooter';
+import type { ReactNode } from 'react';
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+import { CareersFooterBanner } from '@/components/public/CareersFooterBanner';
+import { PublicFooter } from '@/components/public/PublicFooter';
+import { PublicHeader } from '@/components/public/PublicHeader';
+
+export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col font-sans bg-[#F7F9FD]">
+    <div className="flex min-h-screen flex-col bg-[#F7F9FD] font-sans">
       <PublicHeader />
-      <main id="main-content" className="flex-1 flex flex-col">
+      <main id="main-content" className="flex flex-1 flex-col">
         {children}
       </main>
+      <CareersFooterBanner />
       <PublicFooter />
     </div>
   );
