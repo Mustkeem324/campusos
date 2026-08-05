@@ -1,4 +1,4 @@
-import { AiActionRiskLevel, AiActionStatus } from '@prisma/client';
+import { AiActionRiskLevel, AiActionStatus, Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -60,6 +60,9 @@ export async function POST(request: Request) {
   try {
     const context = await requireActiveUserContext();
     const payload = createProposalSchema.parse(await request.json());
+    const proposedValues = JSON.parse(
+      JSON.stringify(payload.proposedValues),
+    ) as Prisma.InputJsonValue;
 
     const proposal = await prisma.aiActionProposal.create({
       data: {
@@ -67,8 +70,8 @@ export async function POST(request: Request) {
         userId: context.userId,
         actionName: payload.actionName,
         targetRecord: payload.targetRecord,
-        currentValues: null,
-        proposedValues: payload.proposedValues,
+        currentValues: Prisma.JsonNull,
+        proposedValues,
         reason: payload.reason,
         riskLevel: payload.riskLevel,
         requiredPermission: payload.requiredPermission,
