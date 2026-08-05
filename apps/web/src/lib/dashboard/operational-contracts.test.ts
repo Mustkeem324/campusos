@@ -40,7 +40,7 @@ describe('operational dashboard role guard', () => {
     const enabled = allKnownRoles.filter(isOperationalDashboardRole);
     const disabled = allKnownRoles.filter((role) => !isOperationalDashboardRole(role));
 
-    expect(enabled).toEqual(OPERATIONAL_DASHBOARD_ROLES);
+    expect([...enabled].sort()).toEqual([...OPERATIONAL_DASHBOARD_ROLES].sort());
     expect(disabled).toContain('STUDENT');
     expect(disabled).toContain('FACULTY');
     expect(disabled).toContain('INSTITUTION_ADMIN');

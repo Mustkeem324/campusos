@@ -4,13 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/run-with-service-env.mjs next dev apps/web --port 3000",
-    "prebuild": "node scripts/run-with-service-env.mjs prisma generate --schema=packages/db/prisma/schema.prisma",
+    "verify:prisma-toolchain": "node scripts/verify-prisma-toolchain.mjs",
+    "prebuild": "npm run verify:prisma-toolchain && node scripts/run-with-service-env.mjs prisma generate --schema=packages/db/prisma/schema.prisma",
     "build": "node scripts/run-with-service-env.mjs next build apps/web && node scripts/verify-next-output.mjs",
     "start": "node scripts/run-with-service-env.mjs next start apps/web",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web/tsconfig.json",
     "test": "vitest run",
-    "db:generate": "node scripts/run-with-service-env.mjs prisma generate --schema=packages/db/prisma/schema.prisma",
+    "db:generate": "npm run verify:prisma-toolchain && node scripts/run-with-service-env.mjs prisma generate --schema=packages/db/prisma/schema.prisma",
     "db:migrate": "node scripts/run-with-service-env.mjs prisma migrate dev --schema=packages/db/prisma/schema.prisma",
     "seed:demo": "node scripts/run-with-service-env.mjs npx tsx apps/web/scripts/demo-seed/index.ts",
     "seed:demo:reset": "node scripts/run-with-service-env.mjs npx tsx apps/web/scripts/demo-seed/index.ts --reset",
@@ -20,7 +21,7 @@
     "seed:demo:large": "node scripts/run-with-service-env.mjs npx tsx apps/web/scripts/demo-seed/index.ts --students=1000 --faculty=100 --courses=100 --seed=5001 --reset"
   },
   "dependencies": {
-    "@prisma/client": "^7.9.1",
+    "@prisma/client": "^5.20.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "jsonwebtoken": "^9.0.3",

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '@/lib/auth-store';
-import { dashboardDefinitionForRole } from '@/lib/dashboard/registry';
+import { dashboardDefinitionForRole, KNOWN_ROLES } from '@/lib/dashboard/registry';
 
 function formatLabel(value: string): string {
   return value
@@ -22,8 +22,12 @@ function formatLabel(value: string): string {
 }
 
 function pageTitleForPath(pathname: string, role?: string): string {
-  if (role) {
-    const definition = dashboardDefinitionForRole(role);
+  const knownRole = role
+    ? KNOWN_ROLES.find((candidateRole) => candidateRole === role)
+    : undefined;
+
+  if (knownRole) {
+    const definition = dashboardDefinitionForRole(knownRole);
     const activeItem = definition.navigation
       .flatMap((group) => group.items)
       .find(
