@@ -18,15 +18,6 @@ import { dashboardDefinitionForRole } from '../../lib/dashboard/registry';
 import { AccountDropdown } from './AccountDropdown';
 import { NotificationDrawer } from '../notifications/NotificationDrawer';
 
-function formatRole(role?: string) {
-  if (!role) return 'Workspace member';
-
-  return role
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
 function formatPathname(pathname: string) {
   const finalSegment = pathname.split('/').filter(Boolean).at(-1);
   if (!finalSegment || finalSegment === 'dashboard') return 'Dashboard';
@@ -56,7 +47,6 @@ export function Header() {
     (item) => pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)),
   );
   const pageTitle = activeNavigationItem?.label ?? formatPathname(pathname);
-  const roleLabel = formatRole(currentSession?.role);
   const institutionName = currentSession?.institutionName ?? 'CampusOS';
 
   const handleNavigationToggle = () => {
@@ -142,12 +132,6 @@ export function Header() {
           </button>
 
           <div className="mx-1 hidden h-7 w-px bg-[#E1E7EF] dark:bg-slate-800 sm:block" aria-hidden="true" />
-
-          <div className="hidden max-w-[180px] text-right xl:block">
-            <p className="truncate text-xs font-bold text-[#101D38] dark:text-white">{currentSession?.name ?? 'CampusOS user'}</p>
-            <p className="mt-0.5 truncate text-[11px] text-[#7B8798] dark:text-slate-500">{roleLabel}</p>
-          </div>
-
           <AccountDropdown />
         </div>
       </header>
