@@ -24,6 +24,18 @@ export async function GET(_: Request, { params }: { params: { courseId: string }
         CourseModule: { orderBy: { sequence: 'asc' }, select: { id: true, title: true, description: true, sequence: true, lessons: { where: { isPublished: true }, orderBy: { sequence: 'asc' }, select: { id: true, title: true, contentType: true, contentUrl: true, contentBody: true, sequence: true } } } },
         assignments: { orderBy: { dueDate: 'asc' }, select: { id: true, title: true, description: true, dueDate: true, maxMarks: true } },
         Quiz: { orderBy: { startTime: 'asc' }, select: { id: true, title: true, description: true, startTime: true, endTime: true, timeLimitMins: true } },
+        announcements: {
+          orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+          take: 20,
+          select: {
+            id: true,
+            title: true,
+            content: true,
+            isPinned: true,
+            createdAt: true,
+            author: { select: { user: { select: { name: true } } } },
+          },
+        },
       },
     });
 
@@ -37,6 +49,8 @@ export async function GET(_: Request, { params }: { params: { courseId: string }
       modules: detail.CourseModule,
       assignments: detail.assignments,
       quizzes: detail.Quiz,
+      announcements: detail.announcements,
+      canPostAnnouncement: access.accessRole !== 'STUDENT',
     });
   } catch (error: unknown) {
     if (error instanceof CourseAccessError) {

@@ -19,6 +19,7 @@ const TENANT_MODELS = [
   'TransportRoute', 'Vehicle', 'Stop', 'TransportAllocation', 'Book', 'BookCopy',
   'Borrowing', 'Notice', 'Event', 'AuditLog', 'Notification', 'Webhook', 'ApiKey',
   'Gradebook', 'Certificate', 'Placement', 'Application', 'Alumni',
+  'CourseAnnouncement',
   // Community Chat System models
   'ChatCommunity', 'ChatCommunityMember', 'ChatMessage', 'ChatAttachment',
   'ChatReaction', 'ChatBookmark', 'ChatPinnedMessage', 'ChatReport',

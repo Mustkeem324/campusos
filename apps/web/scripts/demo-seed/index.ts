@@ -11,7 +11,7 @@ import { seedAcademics } from './generators/academics';
 import { seedFinance } from './generators/finance';
 import { seedOperations } from './generators/operations';
 import { seedStudentLife } from './generators/studentLife';
-import { seedLmsContent } from './generators/lmsContent';
+import { seedLmsContent, seedCourseAnnouncements } from './generators/lmsContent';
 import { seedGradebook } from './generators/gradebook';
 
 const prisma = new PrismaClient();
@@ -101,6 +101,7 @@ async function runDemoSeed() {
 
   console.log('Seeding LMS course modules and lessons...');
   await seedLmsContent(prisma, personas.institution, academics, random);
+  await seedCourseAnnouncements(prisma, personas.institution, academics, random);
 
   console.log('Seeding rubrics and gradebook content...');
   await seedGradebook(prisma, personas.institution, academics, random);

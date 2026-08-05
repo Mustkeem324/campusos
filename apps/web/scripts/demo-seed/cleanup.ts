@@ -64,8 +64,10 @@ export async function resetDemoTenantData(prisma: PrismaClient, demoTenantId: st
   await prisma.feeStructure.deleteMany({ where: { tenantId: demoTenantId } });
 
   // Course offerings reference staff, course, section, and term
-  // Phase 97 LMS content is cascade-deleted with its course offerings
-  // (CourseLesson → CourseModule → CourseOffering onDelete: Cascade).
+  // Phase 97/99 LMS content is cascade-deleted with its course offerings
+  // (CourseLesson → CourseModule → CourseOffering onDelete: Cascade;
+  // CourseAnnouncement → CourseOffering onDelete: Cascade).
+  await prisma.courseAnnouncement.deleteMany({ where: { tenantId: demoTenantId } });
   await prisma.courseOffering.deleteMany({ where: { tenantId: demoTenantId } });
 
   await prisma.student.deleteMany({ where: { tenantId: demoTenantId } });

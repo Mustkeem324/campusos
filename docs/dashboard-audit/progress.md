@@ -156,8 +156,23 @@ PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1 npx playwright test --project='Mobi
 | Validation: typecheck 0 / lint 0 / vitest 179 / Playwright 22 (3 faculty + 19 regression incl. admin + parent leakage) / production build 127 pages EXIT 0 | ✅ |
 | Screenshots at 375 / 768 / 1024 / 1366 / 1920 px + desktop (`docs/dashboard-audit/screenshots/faculty/`, no horizontal overflow) | ✅ |
 
+## Cycle 9 (2026-08-05) — Course workspace polish: lesson viewer + announcements
+
+| Task | Status |
+|---|---|
+| Schema (additive, `prisma db push`): `CourseAnnouncement` model (tenantId, courseOfferingId, authorId?, title, content, isPinned, timestamps, `@@index([courseOfferingId, createdAt desc])`) + relations on CourseOffering/Staff + `TENANT_MODELS` entry | ✅ |
+| Seed: lessons enriched with real `contentBody` (ARTICLE/PDF/ASSIGNMENT/QUIZ) + stable sample video URLs (VIDEO); `seedCourseAnnouncements` — 3 per offering (first pinned), authored by offering faculty, deterministic staggered createdAt (87 announcements for demo tenant) | ✅ |
+| GET course detail now returns `announcements` (pinned first, take 20, author name) + `canPostAnnouncement` | ✅ |
+| POST `/api/learning/courses/[courseId]/announcements` — thin route (16 KB body limit, JSON parse, error mapping) over `lib/lms/course-announcements.ts` (faculty/privileged only; sanitize: trim, length, control-char rejection, CRLF→LF normalization; mass-assignment-safe create) | ✅ |
+| Course workspace page rewritten: content-type icons per lesson, lesson viewer modal (dialog + focus trap + Escape + body scroll lock + prev/next across all lessons, real video/article content), announcements section with pinned badge + faculty composer | ✅ |
+| Review fix: removed unreachable FACULTY-role branch — privileged authors now resolved via tenant staff profile lookup (admin-staff attribution) | ✅ |
+| 13 unit tests (`lms-course-announcements.test.ts`): 401/403/404 negatives, faculty/privileged author resolution, validation (empty, over-limit, control chars, CRLF, trimming) | ✅ |
+| 5 live Playwright tests (`lms-course-workspace.spec.ts`): student render + viewer open/Escape, viewer navigation + real content, faculty post appears, student POST 403, validation 400/413 | ✅ |
+| Validation: typecheck 0 / lint 0 / vitest 192 / Playwright 33 (5 workspace + 4 P97 + 5 P98 + 19 dashboard regression) / production build EXIT 0 (clean rebuild — prior corrupt .next caused by a concurrent `next dev` was rebuilt) | ✅ |
+| Screenshots: `course-workspace-desktop.png`, `course-workspace-lesson-viewer.png`, `course-workspace-mobile.png` | ✅ |
+
 ## Resume point
 
 Dashboard programme: cycles 2 (Student), 3 (Administrator), 4 (Parent) and 8 (Faculty) complete and VERIFIED. Next dashboard: **Finance** (`/dashboard/finance`) — audit + tenant-scoped `FinanceDashboardData` contract + negative permission tests.
-LMS: Phase 98 (assignments/rubrics/gradebook) committed @ `d2ee38b`. Next: **Phase 99 — Live classroom, raise hand and attendance** (LearningSession/Participant/Presence/ChatMessage/Poll models exist in schema).
+LMS: Phase 97 committed @ `6bb4ff2`+`3efe843`, Phase 98 @ `d2ee38b`, course-workspace polish (lesson viewer + announcements) committed @ `b8a8746`+next. Next LMS work: **Phase 99 — Live classroom, raise hand and attendance** (LearningSession/Participant/Presence/ChatMessage/Poll models exist in schema) or course-content authoring for faculty.
 Phase 96 (production pipeline) committed @ `4d90625` — Vercel preview deploy + cycle-2 items (health endpoints, structured logging, env validation, CI gates) remain.
