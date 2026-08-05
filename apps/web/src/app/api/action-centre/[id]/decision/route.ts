@@ -1,4 +1,4 @@
-import { AiActionStatus } from '@prisma/client';
+import { AiActionRiskLevel, AiActionStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -33,12 +33,30 @@ export async function POST(
         userId: true,
         actionName: true,
         targetRecord: true,
+        riskLevel: true,
         proposedValues: true,
       },
     });
 
     if (!proposal) {
       return NextResponse.json({ error: 'The pending proposal was not found.' }, { status: 404 });
+    }
+
+    if (payload.decision === 'APPROVED' && proposal.userId === context.userId) {
+      return NextResponse.json(
+        { error: 'A proposal cannot be approved by the person who submitted it.' },
+        { status: 409 },
+      );
+    }
+
+    if (
+      payload.decision === 'APPROVED' &&
+      proposal.riskLevel === AiActionRiskLevel.PROHIBITED
+    ) {
+      return NextResponse.json(
+        { error: 'A prohibited proposal cannot be approved. Reject it and use an authorised workflow.' },
+        { status: 409 },
+      );
     }
 
     const status = payload.decision === 'APPROVED'
@@ -77,6 +95,7 @@ export async function POST(
         proposalId: proposal.id,
         actionName: proposal.actionName,
         targetRecord: proposal.targetRecord,
+        riskLevel: proposal.riskLevel,
         note: payload.note ?? null,
       },
       request.headers.get('x-forwarded-for'),
