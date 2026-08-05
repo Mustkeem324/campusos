@@ -1,7 +1,9 @@
+import { RoleType } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
+import { prisma } from '@/lib/db';
 import {
   getPhase7Report,
   reportToCsv,
@@ -9,6 +11,7 @@ import {
   type Phase7ReportType,
   writePhase7Audit,
 } from '@/lib/phase7';
+import { canExportPhase7Report } from '@/lib/phase7-report-policy';
 
 const querySchema = z.object({
   type: z.enum([
@@ -22,6 +25,12 @@ const querySchema = z.object({
   format: z.enum(['csv', 'pdf']).default('csv'),
 });
 
+type ReportData = {
+  title: string;
+  headers: string[];
+  rows: string[][];
+};
+
 export async function GET(request: Request) {
   try {
     const context = await requireActiveUserContext();
@@ -30,15 +39,25 @@ export async function GET(request: Request) {
       type: url.searchParams.get('type'),
       format: url.searchParams.get('format') || 'csv',
     });
+    const type = query.type as Phase7ReportType;
 
-    const report = await getPhase7Report(context, query.type as Phase7ReportType);
-    const safeName = query.type.replace(/[^a-z0-9-]/g, '');
+    if (!canExportPhase7Report(context.activeRole, type)) {
+      return NextResponse.json(
+        { error: 'This report is not available for the active role.' },
+        { status: 403 },
+      );
+    }
+
+    const report = context.activeRole === RoleType.HOD && type === 'student-progress'
+      ? await getHodStudentProgressReport(context.tenantId, context.departmentId)
+      : await getPhase7Report(context, type);
+    const safeName = type.replace(/[^a-z0-9-]/g, '');
 
     await writePhase7Audit(
       context,
       'PHASE7_REPORT_EXPORTED',
       'Report',
-      { type: query.type, format: query.format, rows: report.rows.length },
+      { type, format: query.format, rows: report.rows.length },
       request.headers.get('x-forwarded-for'),
     );
 
@@ -68,4 +87,45 @@ export async function GET(request: Request) {
       { status: 403 },
     );
   }
+}
+
+async function getHodStudentProgressReport(
+  tenantId: string,
+  departmentId: string | null,
+): Promise<ReportData> {
+  if (!departmentId) {
+    throw new Error('The HOD department assignment could not be resolved.');
+  }
+
+  const students = await prisma.student.findMany({
+    where: {
+      tenantId,
+      batch: {
+        program: {
+          departmentId,
+        },
+      },
+    },
+    orderBy: { rollNumber: 'asc' },
+    select: {
+      rollNumber: true,
+      cgpa: true,
+      creditsEarned: true,
+      user: { select: { name: true, email: true } },
+      batch: { select: { name: true } },
+    },
+  });
+
+  return {
+    title: 'Department student progress report',
+    headers: ['Roll number', 'Student', 'Email', 'Batch', 'CGPA', 'Credits earned'],
+    rows: students.map((student) => [
+      student.rollNumber,
+      student.user.name,
+      student.user.email,
+      student.batch.name,
+      student.cgpa.toFixed(2),
+      String(student.creditsEarned),
+    ]),
+  };
 }
