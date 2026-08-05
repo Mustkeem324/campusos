@@ -20,13 +20,17 @@ const ROLE_DOMAINS: Partial<Record<RoleType, readonly string[]>> = {
   EXAMINATION_CONTROLLER: ['examinations', 'marks', 'results'],
 };
 
+export function phase7ApprovalDomainsForRole(role: RoleType): readonly string[] | null {
+  return GLOBAL_APPROVERS.has(role) ? null : ROLE_DOMAINS[role] ?? [];
+}
+
 export function phase7PermissionDomain(requiredPermission: string) {
   return requiredPermission.trim().toLowerCase().split(':')[0] || '';
 }
 
 export function canReviewPhase7Proposal(role: RoleType, requiredPermission: string) {
-  if (GLOBAL_APPROVERS.has(role)) return true;
-  const allowedDomains = ROLE_DOMAINS[role] ?? [];
+  const allowedDomains = phase7ApprovalDomainsForRole(role);
+  if (allowedDomains === null) return true;
   return allowedDomains.includes(phase7PermissionDomain(requiredPermission));
 }
 
