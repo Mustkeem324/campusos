@@ -3,21 +3,37 @@ import { z } from 'zod';
 
 import { createSession, signToken } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { verifyMfaChallenge } from '@/lib/mfa-challenge';
 import { unsealMfaSecret, verifyTotp } from '@/lib/phase7';
 
 const verifySchema = z.object({
-  userId: z.string().uuid(),
+  // The existing MFA page sends this field name. Its value is now a signed,
+  // short-lived challenge rather than a raw user identifier.
+  userId: z.string().min(40),
   code: z.string().regex(/^\d{6}$/),
 });
 
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 export async function POST(request: Request) {
   try {
-    const { userId, code } = verifySchema.parse(await request.json());
+    const { userId: challengeToken, code } = verifySchema.parse(await request.json());
+    const challenge = verifyMfaChallenge(challengeToken);
+    if (!challenge) {
+      return NextResponse.json(
+        { error: 'The MFA challenge is invalid or has expired. Sign in again.' },
+        { status: 401 },
+      );
+    }
+
     const user = await prisma.user.findFirst({
-      where: { id: userId, isActive: true },
+      where: {
+        id: challenge.userId,
+        tenantId: challenge.tenantId,
+        isActive: true,
+      },
       include: { institution: true },
     });
 
@@ -61,7 +77,7 @@ export async function POST(request: Request) {
       userId: user.id,
       tenantId: user.tenantId,
       role: user.role,
-    }, 60 * 60 * 24 * 7);
+    }, SESSION_TTL_SECONDS);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -91,7 +107,7 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: SESSION_TTL_SECONDS,
     });
     return response;
   } catch (error: unknown) {
