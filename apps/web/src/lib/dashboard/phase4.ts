@@ -96,7 +96,7 @@ type RolePayload = Omit<
 async function loadFinanceDashboard(
   db: TenantDb,
   tenantId: string,
-  role: RoleType.FINANCE_OFFICER | RoleType.ACCOUNTANT,
+  role: Exclude<Phase4DashboardData['role'], 'LIBRARIAN'>,
 ): Promise<RolePayload> {
   const now = new Date();
   const dueSoon = new Date(now);
