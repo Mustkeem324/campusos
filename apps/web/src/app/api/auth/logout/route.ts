@@ -1,9 +1,32 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+
+import { getSessionFromCookies } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 
 export async function POST() {
-  const cookieStore = cookies();
-  cookieStore.delete('campusos_session');
+  const payload = await getSessionFromCookies();
 
-  return NextResponse.json({ success: true });
+  if (payload) {
+    await prisma.session.deleteMany({
+      where: {
+        userId: payload.userId,
+        token: payload.sessionId,
+      },
+    });
+  }
+
+  const response = NextResponse.json({ success: true });
+  clearSessionCookie(response);
+  return response;
+}
+
+function clearSessionCookie(response: NextResponse) {
+  response.cookies.set('campusos_session', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: new Date(0),
+    maxAge: 0,
+  });
 }
