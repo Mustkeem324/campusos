@@ -1,0 +1,42 @@
+{
+  "phase": "Professional dashboard UI foundation",
+  "baselineBranch": "main",
+  "implementationBranch": "feature/professional-dashboard-ui",
+  "appliesTo": [
+    "Student dashboard",
+    "Faculty dashboard",
+    "Parent and guardian dashboard",
+    "Institution administrator dashboard",
+    "Super administrator dashboard",
+    "Fallback role workspaces"
+  ],
+  "allowedWritePaths": [
+    "apps/web/src/app/(dashboard)/DashboardShell.tsx",
+    "apps/web/src/components/layout/Header.tsx",
+    "apps/web/src/components/layout/Sidebar.tsx",
+    "apps/web/src/components/layout/AccountDropdown.tsx",
+    "docs/dashboard-ui/**"
+  ],
+  "protectedPaths": [
+    "apps/web/src/lib/auth.ts",
+    "apps/web/src/lib/active-user-context.ts",
+    "apps/web/src/lib/dashboard/registry.ts",
+    "apps/web/src/middleware.ts",
+    "packages/db/prisma/schema.prisma",
+    "apps/web/src/app/api/**"
+  ],
+  "blockedChanges": [
+    "No authentication or authorization behavior changes",
+    "No dashboard data-contract changes",
+    "No academic, finance, attendance or examination logic changes",
+    "No database migration",
+    "No package or lock-file changes",
+    "No fake metrics or notification counts"
+  ],
+  "implementationNotes": [
+    "The shared shell, header, sidebar and account menu are used by every authenticated role dashboard.",
+    "Role navigation continues to come from the existing typed dashboard registry.",
+    "Server-side authorization remains unchanged.",
+    "The nullable client session is handled without defaulting to an authorized role in the header."
+  ]
+}
