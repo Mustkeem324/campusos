@@ -2,51 +2,113 @@ name: CampusOS CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campusos-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  NEXT_TELEMETRY_DISABLED: '1'
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos?schema=public
+  JWT_SECRET: ci_only_jwt_secret_with_more_than_32_characters
+  JWT_REFRESH_SECRET: ci_only_refresh_secret_with_more_than_32_characters
 
 jobs:
   quality-check:
+    name: Lint, typecheck, test and build
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campusos"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
 
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      - name: Generate Prisma client
+        run: npm run db:generate
 
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema=packages/db/prisma/schema.prisma
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Apply database migrations
+        run: npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma
+
+      - name: Lint with zero warnings
+        run: npm run lint -- --max-warnings=0
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: npm run typecheck
 
-      - name: Lint
-        run: pnpm lint
+      - name: Run tests
+        run: npm test
 
-      - name: Run Vitest Unit Tests
-        run: pnpm test
+      - name: Build and verify Next.js output
+        run: npm run build
 
-      - name: Validate Prisma Schema
-        run: npx prisma validate --schema=packages/db/prisma/schema.prisma
+      - name: Upload build diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: campusos-build-diagnostics-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            apps/web/.next/build-manifest.json
+            apps/web/.next/routes-manifest.json
+            apps/web/.next/prerender-manifest.json
+            apps/web/.next/required-server-files.json
+
+  dependency-audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
