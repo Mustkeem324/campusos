@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
 import { prisma } from '@/lib/db';
+import { canReviewPhase7Proposal } from '@/lib/phase7-approval-policy';
 import { canApprovePhase7, writePhase7Audit } from '@/lib/phase7';
 
 const decisionSchema = z.object({
@@ -34,12 +35,20 @@ export async function POST(
         actionName: true,
         targetRecord: true,
         riskLevel: true,
+        requiredPermission: true,
         proposedValues: true,
       },
     });
 
     if (!proposal) {
       return NextResponse.json({ error: 'The pending proposal was not found.' }, { status: 404 });
+    }
+
+    if (!canReviewPhase7Proposal(context.activeRole, proposal.requiredPermission)) {
+      return NextResponse.json(
+        { error: 'This proposal belongs to a different operational approval domain.' },
+        { status: 403 },
+      );
     }
 
     if (payload.decision === 'APPROVED' && proposal.userId === context.userId) {
@@ -96,6 +105,7 @@ export async function POST(
         actionName: proposal.actionName,
         targetRecord: proposal.targetRecord,
         riskLevel: proposal.riskLevel,
+        requiredPermission: proposal.requiredPermission,
         note: payload.note ?? null,
       },
       request.headers.get('x-forwarded-for'),
