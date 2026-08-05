@@ -27,7 +27,9 @@
       "category": "MISSING_ENVIRONMENT",
       "firstFailure": "tsc --noEmit with no root tsconfig.json prints compiler-options help, exit 1",
       "rootCause": "No root tsconfig.json exists; root typecheck script cannot resolve a project",
-      "reproducesOnVercel": false
+      "reproducesOnVercel": false,
+      "fixed": true,
+      "fix": "Added root tsconfig.json (root-level TS files) and changed script to 'tsc --noEmit && tsc --noEmit -p apps/web/tsconfig.json'"
     }
   ],
   "fixesAccepted": [
@@ -63,7 +65,7 @@
     "docs/dashboard-audit/**"
   ],
   "deploymentAttempts": [],
-  "currentStatus": "Cycle 1 complete: root cause of Vercel build failure (exit 1) fixed and verified locally with the exact Vercel pipeline (npm ci -> prebuild prisma generate -> next build). Build 127/127 pages, 148/148 tests, lint clean. Vercel deployment not yet attempted in this cycle.",
-  "nextPriority": "Verify Vercel preview deployment with the fixed package.json, then fix root npm run typecheck (missing root tsconfig.json), then cycle-2 items (env validation, health endpoints, structured logging, CI gates).",
-  "resumePoint": "After local verification: create a Vercel preview deployment of commit with the package.json/lockfile fix and run smoke tests before any production deploy."
+  "currentStatus": "Cycle 1 complete and committed (4d90625 on chore/production-readiness): root cause of Vercel build failure (exit 1) fixed and verified locally with the exact Vercel pipeline (npm ci -> prebuild prisma generate -> typecheck -> lint -> test -> next build). Build 127/127 pages, 148/148 tests, lint clean, root typecheck fixed. Vercel deployment not yet attempted.",
+  "nextPriority": "Create a Vercel preview deployment of 4d90625 and run smoke tests; then cycle-2 items (env validation, health endpoints, structured logging, CI gates repair). Phase 97 LMS work may proceed in parallel per user direction but the Phase 96 gate (preview+production deploy) remains open.",
+  "resumePoint": "Vercel preview deploy of 4d90625 -> smoke tests -> CI repair (pnpm lock mismatch) -> production deploy -> Phase 96 lock. Phase 97 (LMS foundation) started per user direction."
 }
