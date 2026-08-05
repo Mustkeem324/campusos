@@ -43,4 +43,4 @@ Canonical variables always take priority.
 
 ## Duplicate Vercel projects
 
-Repository code cannot disconnect a duplicate Vercel project. That operation must be completed by an authorized Vercel account member under the duplicate project’s Git settings.
+Repository code cannot disconnect a duplicate Vercel project. That operation must be completed by an authorized Vercel account member under the duplicate project’s **Settings → Git → Connected Git Repository** section.
