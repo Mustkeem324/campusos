@@ -17,7 +17,7 @@ const strongArticle: BlogEditorInput = {
 
 ## Define the institutional outcomes
 
-A university should document the authoritative records, workflows, integrations and controls it needs before comparing products. ${'Evidence and context matter. '.repeat(40)}
+A university should document the authoritative records, workflows, integrations and controls it needs before comparing products. ${'Evidence and context matter. '.repeat(75)}
 
 ## Test complete workflows
 
