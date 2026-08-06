@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
-import { getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { findPaymentAttemptByReference } from '@/lib/payment-attempts';
+import { finalizeGatewayPayment, PaymentReconciliationError } from '@/lib/payment-finalizer';
 
 export async function GET(request: Request) {
   const context = await requireActiveUserContext().catch(() => null);
@@ -14,8 +14,12 @@ export async function GET(request: Request) {
   if (!secret) return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 });
 
   try {
-    const attempt = await getPaymentAttemptByReference('STRIPE', sessionId);
-    if (!attempt || attempt.tenant_id !== context.tenantId || attempt.payer_user_id !== context.userId) {
+    const attempt = await findPaymentAttemptByReference({
+      provider: 'STRIPE',
+      reference: sessionId,
+      tenantId: context.tenantId,
+    });
+    if (!attempt || attempt.payer_user_id !== context.userId) {
       return NextResponse.json({ error: 'Payment attempt not found.' }, { status: 404 });
     }
 
@@ -45,6 +49,9 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ success: true, receiptNumber });
   } catch (error) {
+    if (error instanceof PaymentReconciliationError) {
+      return NextResponse.json({ error: error.message, reconciliationRequired: true }, { status: 409 });
+    }
     console.error('Stripe return confirmation failed:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to confirm Stripe payment.' }, { status: 500 });
   }
