@@ -17,7 +17,7 @@ const dashboardShellVariables = {
   '--header-h': '68px',
   '--sidebar-w': '264px',
   '--sidebar-collapsed-w': '80px',
-  '--content-max-w': '1600px',
+  '--content-max-w': '1500px',
 } as React.CSSProperties;
 
 export default function DashboardShell({
@@ -37,7 +37,7 @@ export default function DashboardShell({
   if (!mounted) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-[#F2F5FA] px-6 text-[#101D38] dark:bg-[#090D16] dark:text-white"
+        className="flex min-h-screen items-center justify-center overflow-x-hidden bg-[#F2F5FA] px-6 text-[#101D38] dark:bg-[#090D16] dark:text-white"
         style={dashboardShellVariables}
       >
         <div className="w-full max-w-md overflow-hidden rounded-3xl border border-[#D9E3F0] bg-white shadow-[0_28px_80px_rgba(16,29,56,0.12)] dark:border-slate-700 dark:bg-slate-950">
@@ -74,11 +74,15 @@ export default function DashboardShell({
     setRestartTourKey((previousKey) => previousKey + 1);
   };
 
+  const sidebarWidth = isSidebarCollapsed
+    ? 'var(--sidebar-collapsed-w)'
+    : 'var(--sidebar-w)';
+
   return (
     <DemoOnboardingProvider key={restartTourKey}>
       <PwaRegistration />
       <div
-        className="min-h-screen bg-[#F2F5FA] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
+        className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F2F5FA] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
         style={dashboardShellVariables}
       >
         <a
@@ -103,19 +107,23 @@ export default function DashboardShell({
 
         <main
           id="main-content"
-          className="dashboard-main relative min-w-0 pb-[max(3rem,env(safe-area-inset-bottom))] transition-[margin] duration-300"
+          className="dashboard-main relative min-w-0 max-w-full overflow-x-clip pb-[max(3rem,env(safe-area-inset-bottom))] transition-[margin,width] duration-300"
           style={{
             paddingTop: 'calc(var(--layout-top) + 24px)',
-            marginLeft: isSidebarCollapsed
-              ? 'var(--sidebar-collapsed-w)'
-              : 'var(--sidebar-w)',
+            marginLeft: sidebarWidth,
+            width: `calc(100% - ${sidebarWidth})`,
           }}
         >
-          <div className="pointer-events-none absolute inset-x-0 top-[var(--layout-top)] h-52 border-b border-[#E4EAF2] bg-[#F8FAFD] dark:border-slate-800 dark:bg-slate-950/60" aria-hidden="true" />
+          <div
+            className="pointer-events-none absolute inset-x-0 top-[var(--layout-top)] h-52 border-b border-[#E4EAF2] bg-[#F8FAFD] dark:border-slate-800 dark:bg-slate-950/60"
+            aria-hidden="true"
+          />
 
-          <div className="relative mx-auto w-full max-w-[var(--content-max-w)] px-4 sm:px-6 lg:px-8">
+          <div className="relative mx-auto w-full min-w-0 max-w-[var(--content-max-w)] px-4 sm:px-5 lg:px-6 xl:px-8">
             <WorkspaceContextBar />
-            <div className="dashboard-content-stage">{children}</div>
+            <div className="dashboard-content-stage min-w-0 max-w-full overflow-x-clip">
+              {children}
+            </div>
           </div>
         </main>
       </div>
