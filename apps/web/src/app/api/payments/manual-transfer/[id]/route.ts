@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
-import { finalizeManualSubmission, requireFinancePaymentOperator } from '@/lib/payment-portal';
+import { approveManualPaymentSubmission } from '@/lib/payment-finalizer';
+import { requireFinancePaymentOperator } from '@/lib/payment-portal';
 
 const reviewSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('APPROVE'), note: z.string().trim().max(1000).optional().default('') }),
@@ -46,7 +47,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
-    const receiptNumber = await finalizeManualSubmission(submission.id, context.userId);
+    const receiptNumber = await approveManualPaymentSubmission({
+      submissionId: submission.id,
+      reviewerUserId: context.userId,
+    });
     if (parsed.data.note) {
       await prisma.$executeRaw`
         UPDATE campusos_finance.manual_payment_submissions
