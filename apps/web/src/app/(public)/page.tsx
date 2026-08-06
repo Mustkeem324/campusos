@@ -4,6 +4,7 @@ import { CustomerProofSection } from '@/components/public/homepage/CustomerProof
 import { FinalCta } from '@/components/public/homepage/FinalCta';
 import { HeroSection } from '@/components/public/homepage/HeroSection';
 import { ImplementationJourney } from '@/components/public/homepage/ImplementationJourney';
+import { InstitutionIntelligenceSection } from '@/components/public/homepage/InstitutionIntelligenceSection';
 import { InstitutionTypeSection } from '@/components/public/homepage/InstitutionTypeSection';
 import { OperatingStorySection } from '@/components/public/homepage/OperatingStorySection';
 import { PlatformSystemsSection } from '@/components/public/homepage/PlatformSystemsSection';
@@ -22,6 +23,7 @@ export default function Homepage() {
       <OperatingStorySection />
       <InstitutionTypeSection />
       <PlatformSystemsSection />
+      <InstitutionIntelligenceSection />
       <RoleExperienceSection />
       <ProductTourSection />
       <WorkflowSection />
