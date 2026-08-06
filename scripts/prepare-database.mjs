@@ -47,16 +47,30 @@ function runPrismaDbPush() {
   );
 }
 
-function provisionCompanyAdminStorage() {
+function executeSqlFile(file, label) {
   runCommand(
     prismaBinary(),
     [
       'db',
       'execute',
-      '--file=packages/db/prisma/company-admin.sql',
+      `--file=${file}`,
       '--schema=packages/db/prisma/schema.prisma',
     ],
+    label,
+  );
+}
+
+function provisionCompanyAdminStorage() {
+  executeSqlFile(
+    'packages/db/prisma/company-admin.sql',
     'Company administration control-plane provisioning',
+  );
+}
+
+function provisionPaymentPortalStorage() {
+  executeSqlFile(
+    'packages/db/prisma/payment-portal.sql',
+    'Payment portal orchestration provisioning',
   );
 }
 
@@ -95,6 +109,10 @@ function prepareDatabase() {
   console.log('Provisioning CampusOS company administration control-plane tables...');
   provisionCompanyAdminStorage();
   console.log('Company administration storage is ready.');
+
+  console.log('Provisioning CampusOS payment orchestration tables...');
+  provisionPaymentPortalStorage();
+  console.log('Payment orchestration storage is ready.');
 
   if (shouldSeedSyntheticCampus()) {
     console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');
