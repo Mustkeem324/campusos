@@ -17,13 +17,9 @@ function shouldPrepareDatabase() {
 }
 
 function shouldSeedSyntheticCampus() {
-  if (process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'false') return false;
-  if (process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'true') return true;
-
-  // Pull-request previews are approved sample environments. Rebuild only the
-  // allow-listed CDU/NITX sample tenants so credentials always exist in the
-  // preview database. Production still requires the explicit opt-in variable.
-  return isVercelPreview();
+  // Synthetic data is an explicit development/QA tool only. Deployments no
+  // longer create, reset or refresh synthetic institutions automatically.
+  return process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'true';
 }
 
 function runCommand(command, args, label, extraEnv = {}) {
@@ -82,14 +78,11 @@ function prepareDatabase() {
   console.log('Prisma schema synchronization completed.');
 
   if (shouldSeedSyntheticCampus()) {
-    const reason = isVercelPreview()
-      ? 'Vercel preview database detected'
-      : 'CAMPUSOS_AUTO_SEED_SYNTHETIC is enabled';
-    console.log(`${reason}. Rebuilding the approved synthetic campus dataset...`);
+    console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');
     runSyntheticCampusSeed();
     console.log('Synthetic campus dataset preparation completed.');
   } else {
-    console.log('Synthetic dataset preparation skipped. Production requires CAMPUSOS_AUTO_SEED_SYNTHETIC=true.');
+    console.log('Synthetic dataset preparation skipped. Deployments never seed sample institutions unless CAMPUSOS_AUTO_SEED_SYNTHETIC=true is explicitly set.');
   }
 }
 
