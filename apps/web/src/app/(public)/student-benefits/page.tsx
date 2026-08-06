@@ -1,17 +1,19 @@
 import React from 'react';
+
 import { StudentBenefitsConsole } from '@/components/student/StudentBenefitsConsole';
 
 export const metadata = {
-  title: 'Student Benefits & Developer Pack Hub | CampusOS',
-  description: 'Unlock over $3,500/year in free developer tools, software licenses, AI subscriptions, and learning resources with your CampusOS student credentials.',
+  title: 'Student Benefits, Scholarships & Learning Resources | CampusOS',
+  description:
+    'Search reviewed official student opportunities across scholarships, developer tools, courses, internships, academic services and wellbeing support.',
 };
 
 export default function StudentBenefitsPublicPage() {
   return (
-    <div className="bg-[#F5F7FB] min-h-screen py-10 md:py-16">
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 xl:px-12">
+    <main className="min-h-screen bg-[#F3F6FA] py-6 text-[#172033] dark:bg-[#090D16] dark:text-slate-100 sm:py-10 lg:py-14">
+      <div className="mx-auto w-full max-w-[1500px] px-3 sm:px-5 lg:px-8 xl:px-10">
         <StudentBenefitsConsole />
       </div>
-    </div>
+    </main>
   );
 }
