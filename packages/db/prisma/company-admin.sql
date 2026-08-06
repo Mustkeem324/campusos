@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS platform_contracts (
   id uuid PRIMARY KEY,
-  institution_id uuid NOT NULL UNIQUE REFERENCES institutions(id) ON DELETE CASCADE,
+  institution_id uuid NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
   contract_number text NOT NULL UNIQUE,
   plan_name text NOT NULL,
   status text NOT NULL DEFAULT 'ACTIVE',
@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS platform_contracts (
   CONSTRAINT platform_contracts_notice CHECK (renewal_notice_days BETWEEN 0 AND 3650)
 );
 
+CREATE INDEX IF NOT EXISTS platform_contracts_institution_idx
+  ON platform_contracts (institution_id, ends_at DESC);
 CREATE INDEX IF NOT EXISTS platform_contracts_ends_at_idx
   ON platform_contracts (ends_at);
 CREATE INDEX IF NOT EXISTS platform_contracts_status_idx
