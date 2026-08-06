@@ -29,7 +29,7 @@ const operatingAreas = [
 
 function PlatformArchitecture() {
   return (
-    <div className="relative mx-auto w-full max-w-[820px]" aria-label="CampusOS connected platform architecture">
+    <div className="relative mx-auto w-full max-w-[820px]" role="group" aria-label="CampusOS connected platform architecture">
       <div className="overflow-hidden rounded-[30px] border border-[#C7D4E5] bg-white shadow-[0_36px_90px_rgba(16,29,56,0.18)]">
         <div className="border-b border-[#DDE5EF] bg-[#101D38] px-5 py-5 text-white sm:px-7">
           <div className="flex items-center justify-between gap-4">
@@ -47,7 +47,7 @@ function PlatformArchitecture() {
               <article key={title} className="rounded-2xl border border-[#DCE4EE] bg-white p-5 shadow-[0_8px_24px_rgba(16,29,56,0.04)]">
                 <div className="flex items-start gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF3FF] text-[#1754E8]"><Icon className="h-5 w-5" aria-hidden="true" /></span>
-                  <div><h2 className="text-sm font-extrabold text-[#101D38]">{title}</h2><p className="mt-2 text-xs leading-5 text-[#667085]">{description}</p></div>
+                  <div><p className="text-sm font-extrabold text-[#101D38]">{title}</p><p className="mt-2 text-xs leading-5 text-[#667085]">{description}</p></div>
                 </div>
               </article>
             ))}
