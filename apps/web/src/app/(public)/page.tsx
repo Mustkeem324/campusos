@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { CampusCommandCenterSection } from '@/components/public/homepage/CampusCommandCenterSection';
 import { CustomerProofSection } from '@/components/public/homepage/CustomerProofSection';
 import { FinalCta } from '@/components/public/homepage/FinalCta';
 import { HeroSection } from '@/components/public/homepage/HeroSection';
@@ -20,6 +21,7 @@ export default function Homepage() {
     <div className="flex w-full flex-col bg-white">
       <HeroSection />
       <OperatingStorySection />
+      <CampusCommandCenterSection />
       <InstitutionTypeSection />
       <PlatformSystemsSection />
       <RoleExperienceSection />
