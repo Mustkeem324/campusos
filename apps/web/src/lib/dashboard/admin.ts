@@ -86,7 +86,11 @@ export async function getAdminDashboardData(context: ActiveUserContext): Promise
   const outstandingAmount = outstandingAgg._sum.amount ?? 0;
 
   const definition = dashboardDefinitionForRole(context.activeRole);
-  const quickActions = definition.quickActions.map((action) => ({ label: action.label, href: action.href }));
+  const configuredQuickActions = definition.quickActions.map((action) => ({ label: action.label, href: action.href }));
+  const quickActions = [
+    { label: 'Payments & verification', href: '/payments' },
+    ...configuredQuickActions.filter((action) => action.href !== '/payments'),
+  ];
 
   // Risk alerts derived from real aggregates only.
   const riskAlerts: AdminDashboardData['riskAlerts'] = [];
@@ -95,7 +99,7 @@ export async function getAdminDashboardData(context: ActiveUserContext): Promise
       id: 'outstanding-fees',
       level: 'warning',
       message: `${formatCurrency(outstandingAmount)} in fees is outstanding across ${invoiceCount} invoices.`,
-      href: '/receipts',
+      href: '/payments',
     });
   }
   const openCases = supportCases.filter((c) => c.status === 'NEW' || c.status === 'IN_PROGRESS').length;
