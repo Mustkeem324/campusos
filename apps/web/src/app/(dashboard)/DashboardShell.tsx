@@ -82,7 +82,7 @@ export default function DashboardShell({
     <DemoOnboardingProvider key={restartTourKey}>
       <PwaRegistration />
       <div
-        className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F2F5FA] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
+        className="isolate min-h-screen w-full max-w-full overflow-x-hidden overscroll-x-none bg-[#F2F5FA] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
         style={dashboardShellVariables}
       >
         <a
