@@ -1,134 +1,211 @@
 'use client';
 
-import type {
-  KeyboardEvent as ReactKeyboardEvent,
-  RefObject,
-} from 'react';
-import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   ArrowRight,
   BadgeDollarSign,
   BookOpen,
+  Building2,
   ChevronDown,
   CircleDot,
+  Globe2,
   LayoutGrid,
   LogIn,
   Menu,
   ShieldCheck,
+  Sparkles,
   UsersRound,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { Logo } from '@/components/ui/Logo';
-import { menuGroups } from './site-data';
+import { menuDescriptionForHref } from './public-page-data';
 import { RegionSelector } from './RegionSelector';
-
-const DESKTOP_BREAKPOINT = 1400;
+import { menuGroups } from './site-data';
 
 const navIcons: Record<string, LucideIcon> = {
   Platform: LayoutGrid,
-  Solutions: BookOpen,
+  Solutions: Building2,
   Roles: UsersRound,
   Resources: BookOpen,
   Security: ShieldCheck,
   Pricing: BadgeDollarSign,
 };
 
-function createId(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
 function isActivePath(pathname: string, href: string) {
-  if (href === '/') {
-    return pathname === '/';
-  }
-
+  if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-type NavDestinationProps = {
-  href: string;
-  label: string;
-  pathname: string;
-  close: () => void;
-};
+function menuId(label: string) {
+  return `public-menu-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+}
 
-function NavDestination({
-  href,
-  label,
-  pathname,
-  close,
-}: NavDestinationProps) {
-  const active = isActivePath(pathname, href);
+export function PublicHeader() {
+  const pathname = usePathname();
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileSection, setMobileSection] = useState<string | null>(null);
+
+  const activeItem = useMemo(
+    () => menuGroups.find((item) => item.label === activeMenu) ?? null,
+    [activeMenu],
+  );
+
+  useEffect(() => {
+    setActiveMenu(null);
+    setMobileOpen(false);
+    setMobileSection(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveMenu(null);
+        setMobileOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileOpen]);
+
+  const closeNavigation = () => {
+    setActiveMenu(null);
+    setMobileOpen(false);
+  };
 
   return (
-    <Link
-      href={href}
-      onClick={close}
-      aria-current={active ? 'page' : undefined}
-      className={[
-        'group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5',
-        'text-sm font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2',
-        'focus-visible:ring-[#1754E8] focus-visible:ring-offset-2',
-        active
-          ? 'bg-[#EDF3FF] text-[#1754E8]'
-          : 'text-[#475467] hover:bg-[#F5F7FB] hover:text-[#1754E8]',
-      ].join(' ')}
-    >
-      <span
-        className={[
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
-          'transition-colors',
-          active
-            ? 'bg-white text-[#1754E8]'
-            : 'bg-[#F2F4F7] text-[#667085] group-hover:bg-white group-hover:text-[#1754E8]',
-        ].join(' ')}
-        aria-hidden="true"
-      >
-        <CircleDot className="h-3.5 w-3.5" />
-      </span>
+    <header className="sticky top-0 z-[80] border-b border-[#DDE5F0] bg-white/95 shadow-[0_8px_28px_rgba(16,29,56,0.04)] backdrop-blur-xl">
+      <div className="mx-auto flex h-[72px] max-w-[1640px] items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <Link
+          href="/"
+          onClick={closeNavigation}
+          aria-label="CampusOS homepage"
+          className="flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
+        >
+          <Logo className="h-9 w-9 shrink-0" showText={false} />
+          <span className="hidden whitespace-nowrap text-xl font-extrabold tracking-[-0.035em] text-[#101D38] sm:block">
+            CampusOS
+          </span>
+        </Link>
 
-      <span className="min-w-0">{label}</span>
-    </Link>
+        <nav aria-label="Primary navigation" className="ml-4 hidden min-w-0 flex-1 items-stretch xl:flex">
+          {menuGroups.map((item) => {
+            const expanded = activeMenu === item.label;
+            const active = isActivePath(pathname, item.href);
+            const Icon = navIcons[item.label] ?? LayoutGrid;
+
+            return (
+              <button
+                key={item.label}
+                type="button"
+                aria-expanded={expanded}
+                aria-controls={menuId(item.label)}
+                onClick={() => setActiveMenu((current) => (current === item.label ? null : item.label))}
+                className={[
+                  'group relative inline-flex min-w-0 items-center gap-2 px-4 text-sm font-bold transition',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1754E8]',
+                  expanded || active ? 'text-[#1754E8]' : 'text-[#475467] hover:text-[#1754E8]',
+                ].join(' ')}
+              >
+                <Icon className="h-4 w-4 shrink-0 opacity-75" aria-hidden="true" />
+                <span>{item.label}</span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                  aria-hidden="true"
+                />
+                {(expanded || active) && (
+                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#1754E8]" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="ml-auto hidden shrink-0 items-center gap-2 xl:flex">
+          <RegionSelector />
+          <Link
+            href="/login"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-extrabold text-[#344054] transition hover:bg-[#F4F7FB] hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/demo"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#B9C9DE] bg-white px-4 text-sm font-extrabold text-[#1754E8] transition hover:border-[#8EACD1] hover:bg-[#F7F9FD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
+          >
+            Book a Demo
+          </Link>
+          <Link
+            href="/signup/institution"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1754E8] px-5 text-sm font-extrabold text-white shadow-[0_12px_26px_rgba(23,84,232,0.22)] transition hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
+          >
+            Institution Signup
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open navigation menu"
+          className="ml-auto inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#D6DFEB] text-[#344054] transition hover:border-[#AFC3DE] hover:bg-[#F4F7FB] hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] xl:hidden"
+        >
+          <Menu className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      {activeItem && (
+        <DesktopMegaMenu
+          item={activeItem}
+          pathname={pathname}
+          close={() => setActiveMenu(null)}
+        />
+      )}
+
+      {mobileOpen && (
+        <MobileMenu
+          pathname={pathname}
+          expandedSection={mobileSection}
+          setExpandedSection={setMobileSection}
+          close={closeNavigation}
+        />
+      )}
+    </header>
   );
 }
 
-type DesktopMenuPanelProps = {
-  activeLabel: string;
-  pathname: string;
-  menuId: string;
-  close: () => void;
-};
-
-function DesktopMenuPanel({
-  activeLabel,
+function DesktopMegaMenu({
+  item,
   pathname,
-  menuId,
   close,
-}: DesktopMenuPanelProps) {
-  const activeItem = menuGroups.find(
-    (item) => item.label === activeLabel,
-  );
-
-  if (!activeItem) {
-    return null;
-  }
-
-  const ActiveIcon = navIcons[activeItem.label] ?? LayoutGrid;
-  const groupCount = activeItem.groups.length;
+}: {
+  item: (typeof menuGroups)[number];
+  pathname: string;
+  close: () => void;
+}) {
+  const Icon = navIcons[item.label] ?? LayoutGrid;
+  const linkCount = item.groups.reduce((count, group) => count + group.links.length, 0);
+  const columnClass =
+    item.groups.length >= 4
+      ? 'grid-cols-4'
+      : item.groups.length === 3
+        ? 'grid-cols-3'
+        : item.groups.length === 2
+          ? 'grid-cols-2'
+          : 'grid-cols-1';
 
   return (
     <>
@@ -136,721 +213,244 @@ function DesktopMenuPanel({
         type="button"
         aria-label="Close expanded navigation"
         onClick={close}
-        className="fixed inset-x-0 bottom-0 top-[72px] z-40 hidden cursor-default bg-[#101828]/20 min-[1400px]:block"
+        className="fixed inset-x-0 bottom-0 top-[72px] z-40 hidden cursor-default bg-[#101828]/25 backdrop-blur-[1px] xl:block"
       />
 
-      <div
-        id={menuId}
-        aria-label={`${activeItem.label} navigation`}
-        className="absolute inset-x-0 top-full z-50 hidden border-b border-[#DDE4EE] bg-white shadow-[0_24px_60px_rgba(16,24,40,0.14)] min-[1400px]:block"
+      <section
+        id={menuId(item.label)}
+        aria-label={`${item.label} navigation`}
+        className="absolute inset-x-0 top-full z-50 hidden max-h-[calc(100dvh-72px)] overflow-y-auto border-b border-[#D8E2EF] bg-white shadow-[0_28px_70px_rgba(16,29,56,0.16)] xl:block"
       >
-        <div className="mx-auto max-w-[1640px] px-8 py-7">
-          <div className="grid gap-8 grid-cols-[260px_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-[#D8E2EF] bg-[#F7F9FC] p-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#C8D8F5] bg-white text-[#1754E8]">
-                <ActiveIcon
-                  className="h-5 w-5"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                />
+        <div className="mx-auto grid max-w-[1640px] gap-8 px-8 py-8 grid-cols-[290px_minmax(0,1fr)]">
+          <aside className="flex min-h-[410px] flex-col overflow-hidden rounded-[26px] border border-[#D5E0EE] bg-[#F7F9FD]">
+            <div className="bg-[#101D38] p-6 text-white">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1754E8] shadow-[0_12px_26px_rgba(23,84,232,0.3)]">
+                <Icon className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <p className="mt-6 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#9EBBEE]">
+                {item.label} overview
+              </p>
+              <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.03em]">
+                Explore CampusOS {item.label.toLowerCase()}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-[#C7D3E4]">
+                {menuDescriptionForHref(item.href)}
+              </p>
+            </div>
+
+            <div className="flex flex-1 flex-col p-6">
+              <dl className="grid grid-cols-2 gap-3">
+                <MenuStat label="Sections" value={item.groups.length} />
+                <MenuStat label="Detailed pages" value={linkCount} />
+              </dl>
+
+              <div className="mt-5 rounded-2xl border border-[#D9E3F0] bg-white p-4">
+                <div className="flex items-start gap-3">
+                  <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-[#1754E8]" aria-hidden="true" />
+                  <p className="text-xs leading-5 text-[#667085]">
+                    Every destination includes scope, workflow, outcomes, governance and evaluation questions.
+                  </p>
+                </div>
               </div>
 
-              <p className="mt-5 text-xs font-bold uppercase tracking-[0.11em] text-[#1754E8]">
-                {activeItem.label}
-              </p>
-
-              <h2 className="mt-2 text-xl font-bold tracking-[-0.02em] text-[#101828]">
-                Explore CampusOS {activeItem.label.toLowerCase()}
-              </h2>
-
-              <p className="mt-3 text-sm leading-6 text-[#5F6C7B]">
-                Review connected capabilities, institutional workflows and
-                role-specific experiences within this area.
-              </p>
-
               <Link
-                href={activeItem.href}
+                href={item.href}
                 onClick={close}
-                className="group mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-[#1754E8] transition-colors hover:text-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4"
+                className="group mt-auto inline-flex min-h-12 items-center justify-between gap-3 rounded-xl bg-[#1754E8] px-4 text-sm font-extrabold text-white transition hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
               >
                 View complete overview
-
-                <ArrowRight
-                  className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                  aria-hidden="true"
-                />
+                <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1" aria-hidden="true" />
               </Link>
             </div>
+          </aside>
 
-            <div
-              className={[
-                'grid gap-x-7 gap-y-7',
-                groupCount >= 4
-                  ? 'grid-cols-4'
-                  : groupCount === 3
-                    ? 'grid-cols-3'
-                    : groupCount === 2
-                      ? 'grid-cols-2'
-                      : 'grid-cols-1',
-              ].join(' ')}
-            >
-              {activeItem.groups.map((group) => (
-                <section key={group.title}>
-                  <h3 className="border-b border-[#E4E9F0] pb-3 text-xs font-bold uppercase tracking-[0.1em] text-[#344054]">
+          <div className={`grid min-w-0 gap-x-6 gap-y-7 ${columnClass}`}>
+            {item.groups.map((group) => (
+              <section key={group.title} className="min-w-0">
+                <div className="flex items-center gap-3 border-b border-[#E1E7EF] pb-3">
+                  <span className="h-2 w-2 rounded-full bg-[#1754E8]" aria-hidden="true" />
+                  <h3 className="text-[11px] font-extrabold uppercase tracking-[0.11em] text-[#344054]">
                     {group.title}
                   </h3>
+                </div>
 
-                  <ul className="mt-3 space-y-1">
-                    {group.links.map(([label, href]) => (
-                      <li key={href}>
-                        <NavDestination
-                          href={href}
-                          label={label}
-                          pathname={pathname}
-                          close={close}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
+                <ul className="mt-3 space-y-1.5">
+                  {group.links.map(([label, href]) => (
+                    <li key={href}>
+                      <DetailedMenuLink
+                        label={label}
+                        href={href}
+                        active={isActivePath(pathname, href)}
+                        close={close}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
     </>
   );
 }
 
-type MobileNavigationProps = {
-  open: boolean;
-  pathname: string;
-  close: () => void;
-  dialogRef: RefObject<HTMLDivElement | null>;
-  closeButtonRef: RefObject<HTMLButtonElement | null>;
-};
-
-function MobileNavigation({
-  open,
-  pathname,
+function DetailedMenuLink({
+  label,
+  href,
+  active,
   close,
-  dialogRef,
-  closeButtonRef,
-}: MobileNavigationProps) {
-  const [expandedSection, setExpandedSection] =
-    useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      setExpandedSection(null);
-    }
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
-
+}: {
+  label: string;
+  href: string;
+  active: boolean;
+  close: () => void;
+}) {
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Primary navigation"
-      className="fixed inset-0 z-[100] flex flex-col bg-white min-[1400px]:hidden"
+    <Link
+      href={href}
+      onClick={close}
+      aria-current={active ? 'page' : undefined}
+      className={[
+        'group flex min-w-0 items-start gap-3 rounded-xl border px-3 py-3 transition',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-1',
+        active
+          ? 'border-[#B8CCEF] bg-[#EDF3FF]'
+          : 'border-transparent hover:border-[#D9E3F0] hover:bg-[#F7F9FC]',
+      ].join(' ')}
     >
-      <div className="flex min-h-16 shrink-0 items-center justify-between border-b border-[#DDE4EE] px-4 sm:px-6">
-        <Link
-          href="/"
-          onClick={close}
-          aria-label="CampusOS homepage"
-          className="flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-        >
-          <Logo
-            className="h-9 w-9 shrink-0"
-            showText={false}
-          />
+      <span
+        className={[
+          'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition',
+          active
+            ? 'bg-[#1754E8] text-white'
+            : 'bg-[#EEF2F7] text-[#667085] group-hover:bg-white group-hover:text-[#1754E8]',
+        ].join(' ')}
+      >
+        <CircleDot className="h-3.5 w-3.5" aria-hidden="true" />
+      </span>
 
-          <span className="whitespace-nowrap text-xl font-bold tracking-[-0.03em] text-[#101828]">
-            CampusOS
-          </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-[13px] font-extrabold leading-5 ${active ? 'text-[#1754E8]' : 'text-[#344054] group-hover:text-[#1754E8]'}`}>
+          {label}
+        </span>
+        <span className="mt-1 block line-clamp-2 text-[11px] leading-[1.55] text-[#7C8798]">
+          {menuDescriptionForHref(href)}
+        </span>
+      </span>
+
+      <ArrowRight className="mt-2 h-3.5 w-3.5 shrink-0 text-[#A0AABC] opacity-0 transition group-hover:translate-x-0.5 group-hover:text-[#1754E8] group-hover:opacity-100" aria-hidden="true" />
+    </Link>
+  );
+}
+
+function MenuStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-[#D9E3F0] bg-white p-3">
+      <dt className="text-[9px] font-extrabold uppercase tracking-[0.1em] text-[#8A95A6]">{label}</dt>
+      <dd className="mt-1 text-xl font-extrabold text-[#101D38]">{value}</dd>
+    </div>
+  );
+}
+
+function MobileMenu({
+  pathname,
+  expandedSection,
+  setExpandedSection,
+  close,
+}: {
+  pathname: string;
+  expandedSection: string | null;
+  setExpandedSection: (label: string | null) => void;
+  close: () => void;
+}) {
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Primary navigation" className="fixed inset-0 z-[120] flex flex-col bg-white xl:hidden">
+      <div className="flex h-16 shrink-0 items-center justify-between border-b border-[#DDE5F0] px-4 sm:px-6">
+        <Link href="/" onClick={close} className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
+          <Logo className="h-9 w-9" showText={false} />
+          <span className="text-xl font-extrabold tracking-[-0.035em] text-[#101D38]">CampusOS</span>
         </Link>
-
-        <button
-          ref={closeButtonRef}
-          type="button"
-          onClick={close}
-          aria-label="Close navigation menu"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[#344054] transition-colors hover:bg-[#F2F4F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
-        >
+        <button type="button" onClick={close} aria-label="Close navigation menu" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[#344054] transition hover:bg-[#F2F4F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
           <X className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto overscroll-contain">
-        <div className="border-b border-[#E4E9F0] px-4 py-5 sm:px-6">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7C889A]">
-            Region
-          </p>
-
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="border-b border-[#E4E9F0] bg-[#F7F9FC] px-4 py-4 sm:px-6">
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#7C889A]">Region and terminology</p>
           <RegionSelector />
         </div>
 
-        <nav
-          aria-label="Mobile primary navigation"
-          className="px-4 py-4 sm:px-6"
-        >
-          <div className="space-y-2">
-            {menuGroups.map((item) => {
-              const Icon = navIcons[item.label] ?? LayoutGrid;
-              const expanded = expandedSection === item.label;
-              const sectionId = `mobile-menu-${createId(item.label)}`;
-              const active = isActivePath(pathname, item.href);
+        <nav aria-label="Mobile primary navigation" className="space-y-3 px-4 py-5 sm:px-6">
+          {menuGroups.map((item) => {
+            const Icon = navIcons[item.label] ?? LayoutGrid;
+            const expanded = expandedSection === item.label;
+            const active = isActivePath(pathname, item.href);
 
-              return (
-                <section
-                  key={item.label}
-                  className={[
-                    'overflow-hidden rounded-2xl border bg-white',
-                    active
-                      ? 'border-[#B8CCEF]'
-                      : 'border-[#DFE6F0]',
-                  ].join(' ')}
+            return (
+              <section key={item.label} className={`overflow-hidden rounded-2xl border ${expanded || active ? 'border-[#B8CCEF]' : 'border-[#DDE5F0]'}`}>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => setExpandedSection(expanded ? null : item.label)}
+                  className={`flex min-h-16 w-full items-center justify-between gap-4 px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1754E8] ${expanded || active ? 'bg-[#F4F7FC]' : 'bg-white hover:bg-[#F7F9FC]'}`}
                 >
-                  <button
-                    type="button"
-                    aria-expanded={expanded}
-                    aria-controls={sectionId}
-                    onClick={() =>
-                      setExpandedSection((current) =>
-                        current === item.label
-                          ? null
-                          : item.label,
-                      )
-                    }
-                    className={[
-                      'flex min-h-14 w-full items-center justify-between gap-4 px-4 py-3',
-                      'text-left transition-colors',
-                      'focus-visible:outline-none focus-visible:ring-2',
-                      'focus-visible:ring-inset focus-visible:ring-[#1754E8]',
-                      expanded || active
-                        ? 'bg-[#F7F9FC]'
-                        : 'bg-white hover:bg-[#F7F9FC]',
-                    ].join(' ')}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span
-                        className={[
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-                          active
-                            ? 'bg-[#1754E8] text-white'
-                            : 'bg-[#EDF3FF] text-[#1754E8]',
-                        ].join(' ')}
-                      >
-                        <Icon
-                          className="h-[18px] w-[18px]"
-                          strokeWidth={2}
-                          aria-hidden="true"
-                        />
-                      </span>
-
-                      <span
-                        className={[
-                          'text-[15px] font-semibold',
-                          active
-                            ? 'text-[#1754E8]'
-                            : 'text-[#101828]',
-                        ].join(' ')}
-                      >
-                        {item.label}
-                      </span>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-[#1754E8] text-white' : 'bg-[#EDF3FF] text-[#1754E8]'}`}>
+                      <Icon className="h-5 w-5" aria-hidden="true" />
                     </span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-extrabold text-[#101D38]">{item.label}</span>
+                      <span className="mt-0.5 block truncate text-[11px] text-[#7C8798]">{menuDescriptionForHref(item.href)}</span>
+                    </span>
+                  </span>
+                  <ChevronDown className={`h-5 w-5 shrink-0 text-[#667085] transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+                </button>
 
-                    <ChevronDown
-                      className={[
-                        'h-5 w-5 shrink-0 text-[#667085] transition-transform',
-                        expanded ? 'rotate-180' : '',
-                      ].join(' ')}
-                      aria-hidden="true"
-                    />
-                  </button>
+                {expanded && (
+                  <div className="border-t border-[#E1E7EF] bg-[#FAFBFD] px-3 py-4">
+                    <Link href={item.href} onClick={close} className="group mb-5 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-[#101D38] px-4 text-sm font-extrabold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
+                      View {item.label.toLowerCase()} overview
+                      <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1" aria-hidden="true" />
+                    </Link>
 
-                  {expanded && (
-                    <div
-                      id={sectionId}
-                      className="border-t border-[#E4E9F0] bg-[#FAFBFC] px-3 py-4"
-                    >
-                      <div className="space-y-6">
-                        {item.groups.map((group) => (
-                          <div key={group.title}>
-                            <p className="px-3 text-[10px] font-bold uppercase tracking-[0.1em] text-[#7C889A]">
-                              {group.title}
-                            </p>
-
-                            <ul className="mt-2 space-y-1">
-                              {group.links.map(([label, href]) => (
-                                <li key={href}>
-                                  <NavDestination
-                                    href={href}
-                                    label={label}
-                                    pathname={pathname}
-                                    close={close}
-                                  />
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-
-                      <Link
-                        href={item.href}
-                        onClick={close}
-                        className="group mt-5 flex min-h-12 items-center justify-between gap-3 rounded-xl bg-[#101D38] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#172A4B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-                      >
-                        View all {item.label.toLowerCase()}
-
-                        <ArrowRight
-                          className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                          aria-hidden="true"
-                        />
-                      </Link>
+                    <div className="space-y-6">
+                      {item.groups.map((group) => (
+                        <section key={group.title}>
+                          <h3 className="px-2 text-[10px] font-extrabold uppercase tracking-[0.11em] text-[#7C889A]">{group.title}</h3>
+                          <ul className="mt-2 space-y-1.5">
+                            {group.links.map(([label, href]) => (
+                              <li key={href}>
+                                <DetailedMenuLink label={label} href={href} active={isActivePath(pathname, href)} close={close} />
+                              </li>
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
                     </div>
-                  )}
-                </section>
-              );
-            })}
-          </div>
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </nav>
       </div>
 
-      <div className="shrink-0 border-t border-[#DDE4EE] bg-white px-4 py-4 sm:px-6">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Link
-            href="/login"
-            onClick={close}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#C9D3E1] bg-white px-4 py-3 text-sm font-semibold text-[#101828] transition-colors hover:bg-[#F5F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
-          >
+      <div className="shrink-0 border-t border-[#DDE5F0] bg-white px-4 py-4 sm:px-6">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Link href="/login" onClick={close} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#C9D3E1] bg-white px-4 text-sm font-extrabold text-[#101828] transition hover:bg-[#F5F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
             <LogIn className="h-4 w-4" aria-hidden="true" />
             Sign In
           </Link>
-
-          <Link
-            href="/demo"
-            onClick={close}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#1754E8] bg-white px-4 py-3 text-sm font-semibold text-[#1754E8] transition-colors hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
-          >
+          <Link href="/demo" onClick={close} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#1754E8] bg-white px-4 text-sm font-extrabold text-[#1754E8] transition hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
             Book a Demo
           </Link>
-
-          <Link
-            href="/signup/institution"
-            onClick={close}
-            className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#1754E8] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-          >
+          <Link href="/signup/institution" onClick={close} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#1754E8] px-4 text-sm font-extrabold text-white transition hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2">
             Institution Signup
           </Link>
         </div>
       </div>
     </div>
-  );
-}
-
-export function PublicHeader() {
-  const pathname = usePathname();
-  const menuInstanceId = useId().replace(/:/g, '');
-
-  const [openDesktopMenu, setOpenDesktopMenu] =
-    useState<string | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const headerRef = useRef<HTMLElement>(null);
-  const mobileDialogRef = useRef<HTMLDivElement>(null);
-  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
-  const mobileCloseButtonRef = useRef<HTMLButtonElement>(null);
-
-  const activeDesktopItem = menuGroups.find(
-    (item) => item.label === openDesktopMenu,
-  );
-
-  const desktopMenuId = activeDesktopItem
-    ? `${menuInstanceId}-desktop-menu-${createId(
-        activeDesktopItem.label,
-      )}`
-    : `${menuInstanceId}-desktop-menu`;
-
-  function closeDesktopMenu() {
-    setOpenDesktopMenu(null);
-  }
-
-  function openMobileMenu() {
-    closeDesktopMenu();
-    setMobileOpen(true);
-  }
-
-  function closeMobileMenu() {
-    setMobileOpen(false);
-
-    requestAnimationFrame(() => {
-      mobileTriggerRef.current?.focus();
-    });
-  }
-
-  function handleDesktopMenuKeyDown(
-    event: ReactKeyboardEvent<HTMLButtonElement>,
-    label: string,
-  ) {
-    if (event.key !== 'ArrowDown') {
-      return;
-    }
-
-    event.preventDefault();
-    setOpenDesktopMenu(label);
-
-    requestAnimationFrame(() => {
-      const panelId = `${menuInstanceId}-desktop-menu-${createId(
-        label,
-      )}`;
-
-      document
-        .getElementById(panelId)
-        ?.querySelector<HTMLElement>('a[href]')
-        ?.focus();
-    });
-  }
-
-  useEffect(() => {
-    setOpenDesktopMenu(null);
-    setMobileOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (
-        openDesktopMenu &&
-        headerRef.current &&
-        !headerRef.current.contains(event.target as Node)
-      ) {
-        setOpenDesktopMenu(null);
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown);
-
-    return () => {
-      document.removeEventListener(
-        'pointerdown',
-        handlePointerDown,
-      );
-    };
-  }, [openDesktopMenu]);
-
-  useEffect(() => {
-    function handleKeyboard(event: KeyboardEvent) {
-      if (event.key !== 'Escape') {
-        return;
-      }
-
-      if (mobileOpen) {
-        closeMobileMenu();
-      } else {
-        closeDesktopMenu();
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyboard);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyboard);
-    };
-  }, [mobileOpen]);
-
-  useEffect(() => {
-    if (!mobileOpen) {
-      return;
-    }
-
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow =
-      document.documentElement.style.overflow;
-
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    requestAnimationFrame(() => {
-      mobileCloseButtonRef.current?.focus();
-    });
-
-    const focusableSelector = [
-      'a[href]',
-      'button:not([disabled])',
-      'input:not([disabled])',
-      'select:not([disabled])',
-      'textarea:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(',');
-
-    function trapFocus(event: KeyboardEvent) {
-      if (
-        event.key !== 'Tab' ||
-        !mobileDialogRef.current
-      ) {
-        return;
-      }
-
-      const elements = Array.from(
-        mobileDialogRef.current.querySelectorAll<HTMLElement>(
-          focusableSelector,
-        ),
-      ).filter((element) => {
-        return (
-          !element.hasAttribute('disabled') &&
-          element.getAttribute('aria-hidden') !== 'true' &&
-          element.getClientRects().length > 0
-        );
-      });
-
-      if (elements.length === 0) {
-        return;
-      }
-
-      const firstElement = elements[0];
-      const lastElement = elements[elements.length - 1];
-
-      if (
-        event.shiftKey &&
-        document.activeElement === firstElement
-      ) {
-        event.preventDefault();
-        lastElement.focus();
-        return;
-      }
-
-      if (
-        !event.shiftKey &&
-        document.activeElement === lastElement
-      ) {
-        event.preventDefault();
-        firstElement.focus();
-      }
-    }
-
-    document.addEventListener('keydown', trapFocus);
-
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow =
-        previousHtmlOverflow;
-
-      document.removeEventListener('keydown', trapFocus);
-    };
-  }, [mobileOpen]);
-
-  useEffect(() => {
-    function handleResize() {
-      if (window.innerWidth >= DESKTOP_BREAKPOINT) {
-        setMobileOpen(false);
-      } else {
-        setOpenDesktopMenu(null);
-      }
-    }
-
-    handleResize();
-
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return (
-    <header
-      ref={headerRef}
-      className="sticky top-0 z-50 border-b border-[#DDE4EE] bg-white"
-    >
-      <a
-        href="#main-content"
-        className="sr-only z-[110] rounded-lg bg-[#1754E8] px-4 py-2.5 text-sm font-semibold text-white focus:fixed focus:left-4 focus:top-3 focus:not-sr-only"
-      >
-        Skip to main content
-      </a>
-
-      <div className="mx-auto max-w-[1640px] px-4 sm:px-6 lg:px-8">
-        <div className="grid h-16 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 min-[1400px]:h-[72px] min-[1400px]:grid-cols-[auto_minmax(0,1fr)_auto]">
-          {/* Brand */}
-          <div className="flex min-w-0 shrink-0 items-center">
-            <Link
-              href="/"
-              aria-label="CampusOS homepage"
-              className="flex shrink-0 items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-            >
-              <Logo
-                className="h-9 w-9 shrink-0"
-                showText={false}
-              />
-
-              <span className="whitespace-nowrap text-[21px] font-bold tracking-[-0.03em] text-[#101828] sm:text-[22px]">
-                CampusOS
-              </span>
-            </Link>
-
-            <span className="ml-4 hidden whitespace-nowrap border-l border-[#DDE4EE] pl-4 text-xs font-medium text-[#667085] 2xl:inline-block">
-              University Operating System
-            </span>
-          </div>
-
-          {/* Desktop navigation */}
-          <nav
-            aria-label="Primary navigation"
-            className="hidden min-w-0 items-center justify-center min-[1400px]:flex"
-          >
-            {menuGroups.map((item) => {
-              const Icon = navIcons[item.label] ?? LayoutGrid;
-              const expanded =
-                openDesktopMenu === item.label;
-              const active = isActivePath(
-                pathname,
-                item.href,
-              );
-
-              const itemMenuId = `${menuInstanceId}-desktop-menu-${createId(
-                item.label,
-              )}`;
-
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  aria-expanded={expanded}
-                  aria-haspopup="true"
-                  aria-controls={itemMenuId}
-                  onClick={() =>
-                    setOpenDesktopMenu((current) =>
-                      current === item.label
-                        ? null
-                        : item.label,
-                    )
-                  }
-                  onKeyDown={(event) =>
-                    handleDesktopMenuKeyDown(
-                      event,
-                      item.label,
-                    )
-                  }
-                  className={[
-                    'relative flex h-[72px] shrink-0 items-center gap-1.5',
-                    'px-2.5 text-sm font-semibold transition-colors 2xl:px-3',
-                    'focus-visible:outline-none focus-visible:ring-2',
-                    'focus-visible:ring-inset focus-visible:ring-[#1754E8]',
-                    expanded || active
-                      ? 'text-[#1754E8]'
-                      : 'text-[#475467] hover:text-[#1754E8]',
-                  ].join(' ')}
-                >
-                  <Icon
-                    className="hidden h-4 w-4 shrink-0 2xl:block"
-                    strokeWidth={2}
-                    aria-hidden="true"
-                  />
-
-                  <span className="whitespace-nowrap">
-                    {item.label}
-                  </span>
-
-                  <ChevronDown
-                    className={[
-                      'h-4 w-4 shrink-0 transition-transform',
-                      expanded ? 'rotate-180' : '',
-                    ].join(' ')}
-                    aria-hidden="true"
-                  />
-
-                  {(expanded || active) && (
-                    <span
-                      className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#1754E8]"
-                      aria-hidden="true"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Desktop actions */}
-          <div className="hidden shrink-0 items-center justify-end gap-2 min-[1400px]:flex">
-            <RegionSelector compact />
-
-            <Link
-              href="/login"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap px-3 text-sm font-semibold text-[#344054] transition-colors hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-            >
-              Sign In
-            </Link>
-
-            <Link
-              href="/demo"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl border border-[#C9D3E1] bg-white px-4 py-2.5 text-sm font-semibold text-[#1754E8] transition-colors hover:border-[#1754E8] hover:bg-[#F5F8FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-            >
-              Book a Demo
-            </Link>
-
-            <Link
-              href="/signup/institution"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-[#1754E8] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(23,84,232,0.20)] transition-colors hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-            >
-              Institution Signup
-            </Link>
-          </div>
-
-          {/* Mobile and tablet actions */}
-          <div className="flex shrink-0 items-center justify-end gap-2 min-[1400px]:hidden">
-            <Link
-              href="/login"
-              className="hidden min-h-11 items-center justify-center whitespace-nowrap px-3 text-sm font-semibold text-[#344054] transition-colors hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] sm:inline-flex"
-            >
-              Sign In
-            </Link>
-
-            <Link
-              href="/demo"
-              className="hidden min-h-11 items-center justify-center whitespace-nowrap rounded-xl border border-[#C9D3E1] px-4 py-2.5 text-sm font-semibold text-[#1754E8] transition-colors hover:bg-[#F5F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] lg:inline-flex"
-            >
-              Book a Demo
-            </Link>
-
-            <button
-              ref={mobileTriggerRef}
-              type="button"
-              onClick={openMobileMenu}
-              aria-label="Open navigation menu"
-              aria-expanded={mobileOpen}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#D8E0EB] text-[#344054] transition-colors hover:border-[#B8C5D6] hover:bg-[#F5F7FB] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
-            >
-              <Menu
-                className="h-5 w-5"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {openDesktopMenu && (
-        <DesktopMenuPanel
-          activeLabel={openDesktopMenu}
-          pathname={pathname}
-          close={closeDesktopMenu}
-          menuId={desktopMenuId}
-        />
-      )}
-
-      <MobileNavigation
-        open={mobileOpen}
-        pathname={pathname}
-        close={closeMobileMenu}
-        dialogRef={mobileDialogRef}
-        closeButtonRef={mobileCloseButtonRef}
-      />
-    </header>
   );
 }
