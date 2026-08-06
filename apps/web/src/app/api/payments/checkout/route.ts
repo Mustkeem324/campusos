@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
+import { prisma } from '@/lib/db';
+import { assertNoPendingManualTransfer } from '@/lib/payment-pending-guard';
 import {
   activatePaymentAttempt,
   createPendingPaymentAttempt,
@@ -9,7 +11,6 @@ import {
   getPaymentSettings,
   resolvePayableInvoices,
 } from '@/lib/payment-portal';
-import { prisma } from '@/lib/db';
 
 const requestSchema = z.object({
   provider: z.enum(['RAZORPAY', 'STRIPE']),
@@ -36,6 +37,12 @@ export async function POST(request: Request) {
   try {
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Select valid invoices and a payment provider.' }, { status: 400 });
+
+    await assertNoPendingManualTransfer({
+      tenantId: context.tenantId,
+      payerUserId: context.userId,
+      invoiceIds: parsed.data.invoiceIds,
+    });
 
     const settings = await getPaymentSettings(context.tenantId);
     const provider = parsed.data.provider;
@@ -136,6 +143,6 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to start payment.';
     if (attemptId) await failPaymentAttempt(attemptId, message).catch(() => null);
     console.error('Payment checkout creation failed:', error);
-    return NextResponse.json({ error: message }, { status: /not allowed|unavailable|selected invoices|outstanding/i.test(message) ? 400 : 502 });
+    return NextResponse.json({ error: message }, { status: /not allowed|unavailable|selected invoices|outstanding|verification/i.test(message) ? 400 : 502 });
   }
 }
