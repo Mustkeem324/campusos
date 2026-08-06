@@ -94,14 +94,16 @@ function parseModules(value: unknown): string[] {
 }
 
 function contractHealth(row: ContractRow, now: Date): { health: ContractHealth; daysRemaining: number } {
+  const start = new Date(row.starts_at);
   const end = new Date(row.ends_at);
   const daysRemaining = Math.ceil((end.getTime() - now.getTime()) / 86_400_000);
   const status = row.status.toUpperCase();
 
   if (status === 'CANCELLED') return { health: 'CANCELLED', daysRemaining };
   if (status === 'SUSPENDED') return { health: 'SUSPENDED', daysRemaining };
-  if (status === 'TRIAL') return { health: daysRemaining < 0 ? 'EXPIRED' : 'TRIAL', daysRemaining };
   if (daysRemaining < 0 || status === 'EXPIRED') return { health: 'EXPIRED', daysRemaining };
+  if (start.getTime() > now.getTime()) return { health: 'PENDING', daysRemaining };
+  if (status === 'TRIAL') return { health: 'TRIAL', daysRemaining };
   if (daysRemaining <= Math.max(30, row.renewal_notice_days)) return { health: 'EXPIRING', daysRemaining };
   return { health: 'ACTIVE', daysRemaining };
 }
@@ -254,6 +256,8 @@ export async function getCompanyAdminDashboardData(): Promise<CompanyAdminDashbo
   });
 
   const { ready, contracts } = await readContracts(now);
+  // Contracts are ordered by end date ascending; later entries intentionally
+  // replace earlier ones here so each institution resolves to its latest term.
   const contractByInstitution = new Map(contracts.map((contract) => [contract.institutionId, contract]));
   const institutionNames = new Map(institutionsRaw.map((institution) => [institution.id, institution.name]));
   const events = await readEvents(institutionNames);
@@ -275,6 +279,10 @@ export async function getCompanyAdminDashboardData(): Promise<CompanyAdminDashbo
     contract: contractByInstitution.get(institution.id) ?? null,
   }));
 
+  const currentContracts = institutions
+    .map((institution) => institution.contract)
+    .filter((contract): contract is CompanyAdminContract => Boolean(contract));
+
   const metrics = {
     totalInstitutions: institutions.length,
     activeInstitutions: institutions.filter((item) => item.status.toUpperCase() === 'ACTIVE').length,
@@ -283,12 +291,13 @@ export async function getCompanyAdminDashboardData(): Promise<CompanyAdminDashbo
     totalUsers: institutions.reduce((sum, item) => sum + item.users, 0),
     totalStudents: institutions.reduce((sum, item) => sum + item.students, 0),
     totalCampuses: institutions.reduce((sum, item) => sum + item.campuses, 0),
-    activeContracts: contracts.filter((item) => item.health === 'ACTIVE').length,
-    expiringContracts: contracts.filter((item) => item.health === 'EXPIRING').length,
-    expiredContracts: contracts.filter((item) => item.health === 'EXPIRED').length,
+    activeContracts: currentContracts.filter((item) => item.health === 'ACTIVE').length,
+    pendingContracts: currentContracts.filter((item) => item.health === 'PENDING').length,
+    expiringContracts: currentContracts.filter((item) => item.health === 'EXPIRING').length,
+    expiredContracts: currentContracts.filter((item) => item.health === 'EXPIRED').length,
     uncontractedInstitutions: institutions.filter((item) => !item.contract).length,
-    annualizedPortfolioValueMinor: contracts
-      .filter((item) => ['ACTIVE', 'EXPIRING', 'TRIAL'].includes(item.health))
+    annualizedPortfolioValueMinor: currentContracts
+      .filter((item) => ['ACTIVE', 'PENDING', 'EXPIRING', 'TRIAL'].includes(item.health))
       .reduce((sum, item) => sum + item.annualizedValueMinor, 0),
     openSupportCases: institutions.reduce((sum, item) => sum + item.supportCases, 0),
     implementationProjects: institutions.reduce((sum, item) => sum + item.implementationProjects, 0),
