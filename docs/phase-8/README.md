@@ -1,8 +1,10 @@
-# CampusOS Phase 8 — Personal Workspace and Sidebar Control Centre
+# CampusOS Phase 8 — Personal Workspace and Dashboard Customisation
 
-Phase 8 starts with a lightweight, user-scoped account control layer that is available from every dashboard.
+Phase 8 adds a secure user-scoped workspace layer across every role dashboard.
 
-## Phase 8A scope
+## Phase 8A — Personal workspace and sidebar profile menu
+
+Delivered capabilities:
 
 - Sidebar profile trigger and slide-out account menu
 - User, role, institution and security status
@@ -13,18 +15,35 @@ Phase 8 starts with a lightweight, user-scoped account control layer that is ava
 - Current-device and all-device sign-out actions
 - Tenant-scoped, user-scoped backend overview endpoint
 
-## Safety boundaries
+## Phase 8B — Custom dashboard widgets and saved layouts
+
+Backend-first capabilities:
+
+- Role-authorised widget catalogue
+- Recommended role-specific default layout
+- Multiple named layouts and active layout per dashboard surface
+- Create, copy, rename, update, activate, delete and reset APIs
+- Server-side 12-column grid, overlap and size validation
+- Bounded widget settings and preference document size
+- Optimistic revision control and atomic lost-update protection
+- Tenant-scoped and user-scoped persistence in existing preferences JSON
+- Audit event for each successful mutation
+- No database schema migration in the backend foundation release
+
+See [`phase-8b-dashboard-layouts.md`](./phase-8b-dashboard-layouts.md) for the API contract and security rules.
+
+## Shared safety boundaries
 
 - No password hashes, MFA secrets, session tokens or protected record contents are returned
-- Approval counts follow the existing Phase 7 role policy
-- Non-approver roles see only their own submitted proposals
-- Recent activity is limited to the authenticated user and active tenant
-- The panel is additive and does not replace the full profile or security pages
+- Identity, tenant and role are always resolved server-side
+- Widgets are filtered by the persisted active role
+- Recent activity and saved layouts are limited to the authenticated user and tenant
+- Backend customisation is additive and does not replace the full role dashboards
 
 ## Next Phase 8 releases
 
-1. Phase 8A — Personal workspace and sidebar profile menu
-2. Phase 8B — Custom dashboard widgets and saved layouts
+1. Phase 8A — Personal workspace and sidebar profile menu — delivered
+2. Phase 8B — Custom dashboard widgets and saved layouts — backend foundation
 3. Phase 8C — Universal search and recent-item history
 4. Phase 8D — Workflow inbox, delegation and SLA escalation
 5. Phase 8E — Integration health and background-job operations
