@@ -47,8 +47,8 @@ export async function POST(request: Request) {
     let user = null;
 
     if (workspace) {
-      const institution = await prisma.institution.findUnique({ where: { subdomain: workspace }, select: { id: true, status: true } });
-      if (!institution || BLOCKED_INSTITUTION_STATUSES.has(institution.status.toUpperCase())) {
+      const institution = await prisma.institution.findUnique({ where: { subdomain: workspace }, select: { id: true } });
+      if (!institution) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
       user = await prisma.user.findFirst({
@@ -71,12 +71,20 @@ export async function POST(request: Request) {
       user = candidates[0] ?? null;
     }
 
-    // Lifecycle enforcement is intentionally repeated after account resolution
-    // so suspended/disabled institutions cannot bypass workspace checks through
-    // the generic email login path.
-    if (!user || !user.isActive || BLOCKED_INSTITUTION_STATUSES.has(user.institution.status.toUpperCase())) {
+    if (!user || !user.isActive) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+
+    // Customer access follows the institution lifecycle regardless of which
+    // login entry point was used. SUPER_ADMIN is the CampusOS company role and
+    // is intentionally not disabled by its required tenant relation.
+    if (
+      user.role !== 'SUPER_ADMIN' &&
+      BLOCKED_INSTITUTION_STATUSES.has(user.institution.status.toUpperCase())
+    ) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       return NextResponse.json({ error: 'Account is temporarily locked due to too many failed attempts. Please try again later.' }, { status: 429 });
     }
