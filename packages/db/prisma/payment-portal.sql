@@ -77,8 +77,14 @@ CREATE TABLE IF NOT EXISTS campusos_finance.manual_payment_submissions (
   CONSTRAINT manual_payment_status CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'RECONCILIATION_REQUIRED'))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS manual_payment_transaction_uq
-  ON campusos_finance.manual_payment_submissions (tenant_id, lower(transaction_reference));
+-- Early preview builds used a full-table unique index. Recreate it as a partial
+-- uniqueness rule so rejected evidence can be corrected and resubmitted with
+-- the same genuine bank UTR while active/approved references stay exclusive.
+DROP INDEX IF EXISTS campusos_finance.manual_payment_transaction_uq;
+CREATE UNIQUE INDEX manual_payment_transaction_uq
+  ON campusos_finance.manual_payment_submissions (tenant_id, lower(transaction_reference))
+  WHERE status IN ('PENDING', 'APPROVED', 'RECONCILIATION_REQUIRED');
+
 CREATE INDEX IF NOT EXISTS manual_payment_tenant_status_idx
   ON campusos_finance.manual_payment_submissions (tenant_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS manual_payment_payer_created_idx
