@@ -199,13 +199,15 @@ export function Header() {
         </div>
       </header>
 
-      <NotificationDrawer
-        isOpen={isNotifDrawerOpen}
-        onClose={() => {
-          setIsNotifDrawerOpen(false);
-          void refreshUnreadCount();
-        }}
-      />
+      {isNotifDrawerOpen && (
+        <NotificationDrawer
+          isOpen
+          onClose={() => {
+            setIsNotifDrawerOpen(false);
+            void refreshUnreadCount();
+          }}
+        />
+      )}
     </>
   );
 }
