@@ -37,14 +37,19 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (BLOCKED_STATUSES.has(parsed.data.status)) {
         // Revoke customer sessions immediately. Company SUPER_ADMIN sessions are
         // preserved even if their required tenant relation points at this record.
-        await tx.session.deleteMany({
+        const customerUsers = await tx.user.findMany({
           where: {
-            user: {
-              tenantId: current.id,
-              role: { not: 'SUPER_ADMIN' },
-            },
+            tenantId: current.id,
+            role: { not: 'SUPER_ADMIN' },
           },
+          select: { id: true },
         });
+
+        if (customerUsers.length > 0) {
+          await tx.session.deleteMany({
+            where: { userId: { in: customerUsers.map((user) => user.id) } },
+          });
+        }
       }
 
       return institution;
