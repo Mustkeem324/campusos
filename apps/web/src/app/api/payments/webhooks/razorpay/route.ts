@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 
 import { NextResponse } from 'next/server';
 
-import { finalizeGatewayAttempt, getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
+import { getPaymentAttemptByReference } from '@/lib/payment-portal';
 
 function safeEqualHex(left: string, right: string) {
   try {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const attempt = await getPaymentAttemptByReference('RAZORPAY', orderId);
     if (!attempt) return NextResponse.json({ received: true, ignored: true });
 
-    await finalizeGatewayAttempt({
+    await finalizeGatewayPayment({
       attemptId: attempt.id,
       externalPaymentReference: paymentId,
       method: 'RAZORPAY',
