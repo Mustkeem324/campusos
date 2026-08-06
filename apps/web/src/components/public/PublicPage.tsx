@@ -1,6 +1,5 @@
 import type { ElementType } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import {
   ArrowRight,
   BadgeDollarSign,
@@ -9,20 +8,11 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleHelp,
-  Code2,
-  Database,
   FileCheck2,
-  FileText,
-  Globe2,
-  Handshake,
   Layers3,
   LayoutDashboard,
-  LifeBuoy,
   LockKeyhole,
-  MapPin,
   Network,
-  Scale,
-  Settings2,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -30,1009 +20,470 @@ import {
 } from 'lucide-react';
 
 import {
-  regions,
-  titleFromSlug,
-  type Region,
-} from './site-data';
+  publicPageProfileForPath,
+  type PublicPageKind,
+  type PublicPageProfile,
+} from './public-page-data';
+import { regions, type Region } from './site-data';
 
-type SectionRoot =
-  | 'platform'
-  | 'solutions'
-  | 'roles'
-  | 'security'
-  | 'pricing'
-  | 'resources'
-  | 'legal'
-  | 'about'
-  | 'contact'
-  | 'demo'
-  | 'integrations'
-  | 'trust'
-  | 'developers'
-  | 'partners'
-  | 'status';
-
-type SectionConfig = {
-  eyebrow: string;
-  intro: string;
-  modules: readonly string[];
-  icon: ElementType;
-  previewTitle: string;
-  previewDescription: string;
-  primaryAction: {
-    label: string;
-    href: string;
-  };
-  secondaryAction: {
-    label: string;
-    href: string;
-  };
+const kindIcons: Record<PublicPageKind, ElementType> = {
+  platform: LayoutDashboard,
+  solution: Building2,
+  solutions: Layers3,
+  role: UsersRound,
+  roles: UsersRound,
+  resource: BookOpen,
+  resources: BookOpen,
+  security: ShieldCheck,
+  pricing: BadgeDollarSign,
+  company: Building2,
+  contact: Sparkles,
 };
 
-const sections: Record<SectionRoot, SectionConfig> = {
-  platform: {
-    eyebrow: 'CONNECTED PLATFORM',
-    intro:
-      'CampusOS brings academic, administrative and student-facing teams into one governed institutional operating model.',
-    modules: [
-      'Connected institutional records',
-      'Configurable operational workflows',
-      'Role-aware reporting',
-    ],
-    icon: LayoutDashboard,
-    previewTitle: 'Connected workspace',
-    previewDescription:
-      'See institutional responsibilities, approvals and records within the correct operational context.',
-    primaryAction: {
-      label: 'Explore the platform',
-      href: '/platform',
-    },
-    secondaryAction: {
-      label: 'Book a demonstration',
-      href: '/demo',
-    },
-  },
-
-  solutions: {
-    eyebrow: 'INSTITUTIONAL SOLUTIONS',
-    intro:
-      'Purpose-built operating patterns for the priorities, governance structures and service models of higher education.',
-    modules: [
-      'Institution-aware configuration',
-      'Cross-team operational visibility',
-      'Phased implementation planning',
-    ],
-    icon: Building2,
-    previewTitle: 'Institutional solution',
-    previewDescription:
-      'Configure CampusOS around your institution’s structure, programmes, campuses and responsibilities.',
-    primaryAction: {
-      label: 'Explore solutions',
-      href: '/solutions',
-    },
-    secondaryAction: {
-      label: 'Discuss requirements',
-      href: '/contact',
-    },
-  },
-
-  roles: {
-    eyebrow: 'ROLE-BASED OPERATIONS',
-    intro:
-      'Give each institutional role the right workspace, information and actions without unnecessarily broadening access.',
-    modules: [
-      'Prioritised daily work',
-      'Role-specific reporting',
-      'Permission-aware access',
-    ],
-    icon: UsersRound,
-    previewTitle: 'Role-aware workspace',
-    previewDescription:
-      'Each user sees workflows and information relevant to their assigned institutional responsibilities.',
-    primaryAction: {
-      label: 'Explore role experiences',
-      href: '/roles',
-    },
-    secondaryAction: {
-      label: 'Open demonstration',
-      href: '/demo',
-    },
-  },
-
-  security: {
-    eyebrow: 'TRUST AND SECURITY',
-    intro:
-      'Review controls and operating practices designed to support institution-configured security, privacy and governance programmes.',
-    modules: [
-      'Identity and access controls',
-      'Reviewable activity history',
-      'Documented security practices',
-    ],
-    icon: ShieldCheck,
-    previewTitle: 'Security overview',
-    previewDescription:
-      'Understand how identity, permissions, institutional context and workflow history can be applied.',
-    primaryAction: {
-      label: 'Visit Security Centre',
-      href: '/security',
-    },
-    secondaryAction: {
-      label: 'Contact our team',
-      href: '/contact',
-    },
-  },
-
-  pricing: {
-    eyebrow: 'FLEXIBLE PROCUREMENT',
-    intro:
-      'Shape CampusOS around your modules, campuses, active student population, deployment model and implementation scope.',
-    modules: [
-      'Institutional pricing model',
-      'Implementation planning',
-      'Procurement support',
-    ],
-    icon: BadgeDollarSign,
-    previewTitle: 'Institutional plan',
-    previewDescription:
-      'Review a CampusOS configuration aligned with your operational scale and deployment requirements.',
-    primaryAction: {
-      label: 'Review pricing options',
-      href: '/pricing',
-    },
-    secondaryAction: {
-      label: 'Request tailored pricing',
-      href: '/contact',
-    },
-  },
-
-  resources: {
-    eyebrow: 'CAMPUSOS RESOURCES',
-    intro:
-      'Practical material for teams selecting, implementing and operating connected higher-education systems.',
-    modules: [
-      'Institutional decision support',
-      'Implementation guidance',
-      'Operational playbooks',
-    ],
-    icon: BookOpen,
-    previewTitle: 'Resource library',
-    previewDescription:
-      'Explore practical guidance covering institutional technology, implementation and operations.',
-    primaryAction: {
-      label: 'Browse resources',
-      href: '/resources/guides',
-    },
-    secondaryAction: {
-      label: 'View product blueprint',
-      href: '/blueprint',
-    },
-  },
-
-  legal: {
-    eyebrow: 'LEGAL AND DATA INFORMATION',
-    intro:
-      'Review public information supporting transparent, responsible CampusOS operations and procurement discussions.',
-    modules: [
-      'Clear public information',
-      'Reviewable operating practices',
-      'Institutional responsibility',
-    ],
-    icon: Scale,
-    previewTitle: 'Legal information',
-    previewDescription:
-      'Review applicable public policies, terms and data-processing information.',
-    primaryAction: {
-      label: 'Review legal information',
-      href: '/legal/privacy',
-    },
-    secondaryAction: {
-      label: 'Contact CampusOS',
-      href: '/contact',
-    },
-  },
-
-  about: {
-    eyebrow: 'ABOUT CAMPUSOS',
-    intro:
-      'CampusOS helps higher-education institutions coordinate the work enabling learning, service and accountable administration.',
-    modules: [
-      'Higher-education focus',
-      'Connected operations',
-      'Responsible product delivery',
-    ],
-    icon: Building2,
-    previewTitle: 'CampusOS mission',
-    previewDescription:
-      'Connect academic, administrative and student-service responsibilities through one institutional platform.',
-    primaryAction: {
-      label: 'Learn about CampusOS',
-      href: '/about',
-    },
-    secondaryAction: {
-      label: 'Meet our team',
-      href: '/contact',
-    },
-  },
-
-  contact: {
-    eyebrow: 'CONTACT CAMPUSOS',
-    intro:
-      'Connect with a CampusOS specialist to discuss your institution’s operating priorities and implementation requirements.',
-    modules: [
-      'Discovery conversation',
-      'Regional and institutional context',
-      'Implementation planning',
-    ],
-    icon: LifeBuoy,
-    previewTitle: 'Institutional consultation',
-    previewDescription:
-      'Start with your current systems, priority workflows and desired implementation outcomes.',
-    primaryAction: {
-      label: 'Contact our team',
-      href: '/contact',
-    },
-    secondaryAction: {
-      label: 'Book a demonstration',
-      href: '/demo',
-    },
-  },
-
-  demo: {
-    eyebrow: 'CAMPUSOS DEMO',
-    intro:
-      'See a focused walkthrough of the workspaces and workflows most relevant to your institution.',
-    modules: [
-      'Role-based walkthrough',
-      'Connected workflow discussion',
-      'Clear next-step planning',
-    ],
-    icon: Sparkles,
-    previewTitle: 'Guided product demonstration',
-    previewDescription:
-      'Explore fictional role-aware workspaces and connected institutional workflows.',
-    primaryAction: {
-      label: 'Book a demonstration',
-      href: '/demo',
-    },
-    secondaryAction: {
-      label: 'Explore the platform',
-      href: '/platform',
-    },
-  },
-
-  integrations: {
-    eyebrow: 'INTEGRATIONS',
-    intro:
-      'Plan a connected higher-education technology environment with deliberate data, ownership and operating boundaries.',
-    modules: [
-      'Integration planning',
-      'Data ownership definition',
-      'Migration readiness',
-    ],
-    icon: Network,
-    previewTitle: 'Integration architecture',
-    previewDescription:
-      'Understand how approved institutional systems can exchange data through controlled integration boundaries.',
-    primaryAction: {
-      label: 'Explore integrations',
-      href: '/integrations',
-    },
-    secondaryAction: {
-      label: 'Discuss your systems',
-      href: '/contact',
-    },
-  },
-
-  trust: {
-    eyebrow: 'CAMPUSOS TRUST CENTRE',
-    intro:
-      'Review public information about CampusOS security, privacy, availability and continuity practices.',
-    modules: [
-      'Security overview',
-      'Privacy information',
-      'Availability planning',
-    ],
-    icon: LockKeyhole,
-    previewTitle: 'Trust information',
-    previewDescription:
-      'Review available security, privacy and operational information for institutional evaluation.',
-    primaryAction: {
-      label: 'Open Trust Centre',
-      href: '/trust',
-    },
-    secondaryAction: {
-      label: 'View security information',
-      href: '/security',
-    },
-  },
-
-  developers: {
-    eyebrow: 'DEVELOPER PORTAL',
-    intro:
-      'Technical resources for teams planning controlled and accountable CampusOS integrations.',
-    modules: [
-      'API planning',
-      'Integration patterns',
-      'Technical implementation support',
-    ],
-    icon: Code2,
-    previewTitle: 'Developer workspace',
-    previewDescription:
-      'Review integration patterns, technical boundaries and implementation considerations.',
-    primaryAction: {
-      label: 'Explore developer resources',
-      href: '/developers',
-    },
-    secondaryAction: {
-      label: 'Discuss an integration',
-      href: '/contact',
-    },
-  },
-
-  partners: {
-    eyebrow: 'CAMPUSOS PARTNERS',
-    intro:
-      'Work with CampusOS to support thoughtful higher-education transformation, delivery and adoption.',
-    modules: [
-      'Delivery partnerships',
-      'Technology partnerships',
-      'Shared institutional outcomes',
-    ],
-    icon: Handshake,
-    previewTitle: 'Partner ecosystem',
-    previewDescription:
-      'Coordinate delivery responsibilities, technology connections and institutional outcomes.',
-    primaryAction: {
-      label: 'Explore partnerships',
-      href: '/partners',
-    },
-    secondaryAction: {
-      label: 'Contact CampusOS',
-      href: '/contact',
-    },
-  },
-
-  status: {
-    eyebrow: 'SYSTEM STATUS',
-    intro:
-      'View public service-status information and planned operational communications.',
-    modules: [
-      'Service visibility',
-      'Incident communication',
-      'Maintenance planning',
-    ],
-    icon: Database,
-    previewTitle: 'Service-status information',
-    previewDescription:
-      'Review currently published information about platform availability and planned maintenance.',
-    primaryAction: {
-      label: 'View system status',
-      href: '/status',
-    },
-    secondaryAction: {
-      label: 'Contact support',
-      href: '/contact',
-    },
-  },
-};
-
-const operatingSteps = [
-  {
-    id: 'coordinate',
-    number: '01',
-    title: 'Coordinate',
-    description:
-      'Bring responsible teams, records and approvals into one visible workflow.',
-    icon: Workflow,
-  },
-  {
-    id: 'measure',
-    number: '02',
-    title: 'Measure',
-    description:
-      'Review progress, exceptions and institutional outcomes using authorised data.',
-    icon: FileCheck2,
-  },
-  {
-    id: 'improve',
-    number: '03',
-    title: 'Improve',
-    description:
-      'Refine processes using operational evidence, ownership and structured follow-up.',
-    icon: Settings2,
-  },
-] as const;
-
-const frequentlyAskedQuestions = [
-  {
-    question: 'Can CampusOS work with our current institutional systems?',
-    answer:
-      'Integration scope depends on the current systems, available interfaces, data ownership and technical requirements. These are reviewed during discovery and implementation planning.',
-  },
-  {
-    question: 'How is the CampusOS rollout planned?',
-    answer:
-      'Rollout planning normally considers institutional priorities, selected modules, data readiness, integrations, user training and an agreed phased implementation approach.',
-  },
-  {
-    question: 'How do regional requirements affect configuration?',
-    answer:
-      'Terminology, institutional structures, policies and operational expectations can vary by region. These requirements are reviewed with the institution during discovery.',
-  },
-] as const;
-
-type PublicPageProps = {
-  segments: string[];
-  region?: Region;
-};
+const capabilityIcons = [Layers3, Workflow, Network, FileCheck2] as const;
 
 export function PublicPage({
   segments,
-  region = 'us',
-}: PublicPageProps) {
-  const root = segments[0] as SectionRoot;
-  const config = sections[root];
-
-  if (!config) {
-    notFound();
-  }
-
-  const title =
-    segments.length === 1
-      ? titleFromSlug(root)
-      : titleFromSlug(segments[segments.length - 1]);
-
+  region = 'global',
+}: {
+  segments: string[];
+  region?: Region;
+}) {
+  const path = `/${segments.join('/')}`;
+  const profile = publicPageProfileForPath(path);
   const local = regions[region];
-
-  const isSecurityPage =
-    root === 'security' || root === 'trust';
-
-  const PageIcon = config.icon;
+  const PageIcon = kindIcons[profile.kind];
 
   return (
-    <div className="bg-white text-[#101828]">
-      <section className="border-b border-[#DDE4EE] bg-[#F7F9FC] px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-        <div className="mx-auto max-w-[1280px]">
-          <Breadcrumb
-            root={root}
-            segments={segments}
-            title={title}
-          />
+    <article className="overflow-hidden bg-white text-[#101828]">
+      <Hero profile={profile} localInstitution={local.institution} icon={PageIcon} />
 
-          <div className="mt-9 grid items-center gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
-            <div>
-              <div className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[#C8D8F5] bg-[#EDF3FF] px-4 text-xs font-bold tracking-[0.12em] text-[#1754E8]">
-                <PageIcon
-                  className="h-4 w-4"
-                  strokeWidth={2}
-                  aria-hidden="true"
-                />
+      <PageNavigation />
 
-                {config.eyebrow}
-              </div>
-
-              <h1 className="mt-6 max-w-[760px] text-balance text-4xl font-bold leading-[1.07] tracking-[-0.04em] text-[#101A32] sm:text-5xl lg:text-[58px]">
-                {title}
-                <span className="mt-2 block text-[#1754E8]">
-                  for modern higher education
-                </span>
-              </h1>
-
-              <p className="mt-6 max-w-[700px] text-base leading-7 text-[#5F6C7B] sm:text-lg sm:leading-8">
-                {config.intro}
-              </p>
-
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-[#D8E2EF] bg-white p-4">
-                <MapPin
-                  className="mt-0.5 h-5 w-5 shrink-0 text-[#1754E8]"
-                  aria-hidden="true"
-                />
-
-                <p className="text-sm leading-6 text-[#5F6C7B]">
-                  Presented using terminology and implementation context
-                  appropriate for{' '}
-                  <strong className="font-semibold text-[#101828]">
-                    {local.label}
-                  </strong>{' '}
-                  and a {local.institution}.
-                </p>
-              </div>
-
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href={config.primaryAction.href}
-                  className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#1754E8] px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(23,84,232,0.23)] transition-colors hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4 focus-visible:ring-offset-[#F7F9FC]"
-                >
-                  {config.primaryAction.label}
-
-                  <ArrowRight
-                    className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                    aria-hidden="true"
-                  />
-                </Link>
-
-                <Link
-                  href={config.secondaryAction.href}
-                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#C9D3E1] bg-white px-6 py-3 text-sm font-semibold text-[#101828] transition-colors hover:border-[#1754E8] hover:bg-[#F2F6FF] hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4"
-                >
-                  {config.secondaryAction.label}
-                </Link>
-              </div>
-            </div>
-
-            <ProductPreview
-              title={title}
-              config={config}
-            />
-          </div>
-        </div>
-      </section>
-
-      <main id="main-content">
-        <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
-          <div className="mx-auto max-w-[1280px]">
-            <div className="grid gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-16">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#1754E8]">
-                  Accountable operations
-                </p>
-
-                <h2 className="mt-4 text-3xl font-bold tracking-[-0.03em] text-[#101A32] sm:text-4xl">
-                  Designed around visible ownership and responsible action
-                </h2>
-
-                <p className="mt-5 text-base leading-7 text-[#5F6C7B]">
-                  Replace disconnected handoffs with clear responsibilities,
-                  reviewable decisions and operational context that follows the
-                  learner or institutional process.
-                </p>
-
-                <Link
-                  href="/platform"
-                  className="group mt-7 inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-semibold text-[#1754E8] hover:text-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-4"
-                >
-                  Explore connected operations
-
-                  <ArrowRight
-                    className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                    aria-hidden="true"
-                  />
-                </Link>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                {config.modules.map((module, index) => (
-                  <article
-                    key={module}
-                    className="rounded-2xl border border-[#DDE4EE] bg-white p-5 shadow-[0_8px_26px_rgba(16,24,40,0.045)]"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EDF3FF] text-[#1754E8]">
-                      <span className="text-xs font-bold">
-                        0{index + 1}
-                      </span>
-                    </div>
-
-                    <h3 className="mt-5 text-base font-semibold leading-6 text-[#101828]">
-                      {module}
-                    </h3>
-
-                    <p className="mt-2 text-sm leading-6 text-[#667085]">
-                      Configure this capability according to institutional
-                      responsibilities, policies and selected CampusOS modules.
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-y border-[#DDE4EE] bg-[#F7F9FC] px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
-          <div className="mx-auto max-w-[1280px]">
-            <header className="max-w-[760px]">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#1754E8]">
-                Connected operating model
-              </p>
-
-              <h2 className="mt-4 text-3xl font-bold tracking-[-0.03em] text-[#101A32] sm:text-4xl">
-                From daily work to institutional insight
-              </h2>
-
-              <p className="mt-5 text-base leading-7 text-[#5F6C7B]">
-                CampusOS helps responsible teams coordinate activity, review
-                outcomes and improve institutional processes over time.
-              </p>
-            </header>
-
-            <div className="mt-10 grid gap-5 md:grid-cols-3">
-              {operatingSteps.map((step, index) => {
-                const StepIcon = step.icon;
-
-                return (
-                  <article
-                    key={step.id}
-                    className="relative rounded-3xl border border-[#DDE4EE] bg-white p-6 shadow-[0_10px_30px_rgba(16,24,40,0.045)] sm:p-7"
-                  >
-                    {index < operatingSteps.length - 1 && (
-                      <ChevronRight
-                        className="absolute -right-[17px] top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 rounded-full border border-[#DDE4EE] bg-white p-2 text-[#1754E8] md:block"
-                        aria-hidden="true"
-                      />
-                    )}
-
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EDF3FF] text-[#1754E8]">
-                        <StepIcon
-                          className="h-5 w-5"
-                          aria-hidden="true"
-                        />
-                      </div>
-
-                      <span className="text-xs font-bold tracking-[0.1em] text-[#98A2B3]">
-                        {step.number}
-                      </span>
-                    </div>
-
-                    <h3 className="mt-6 text-xl font-bold text-[#101828]">
-                      {step.title} with context
-                    </h3>
-
-                    <p className="mt-3 text-sm leading-7 text-[#5F6C7B]">
-                      {step.description}
-                    </p>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
-          <div className="mx-auto max-w-[1280px]">
-            <div className="grid gap-8 lg:grid-cols-2">
-              <article className="rounded-3xl border border-[#DDE4EE] bg-white p-6 shadow-[0_10px_30px_rgba(16,24,40,0.045)] sm:p-8">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#EDF3FF] text-[#1754E8]">
-                  <Layers3 className="h-5 w-5" aria-hidden="true" />
-                </div>
-
-                <h2 className="mt-6 text-2xl font-bold tracking-[-0.025em] text-[#101828]">
-                  Implementation and integration
-                </h2>
-
-                <p className="mt-4 text-sm leading-7 text-[#5F6C7B]">
-                  Start with priority workflows, then plan configuration,
-                  migration, integrations, training and adoption milestones
-                  with responsible institutional teams.
-                </p>
-
-                <ul className="mt-6 space-y-3">
-                  {[
-                    'Institutional discovery and scope',
-                    'Data and integration readiness',
-                    'Role-based validation and training',
-                  ].map((item) => (
-                    <li
-                      key={item}
-                      className="flex items-start gap-3 text-sm text-[#475467]"
-                    >
-                      <CheckCircle2
-                        className="mt-0.5 h-4 w-4 shrink-0 text-[#078A57]"
-                        aria-hidden="true"
-                      />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/contact"
-                  className="group mt-7 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#1754E8]"
-                >
-                  Discuss implementation
-
-                  <ArrowRight
-                    className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                    aria-hidden="true"
-                  />
-                </Link>
-              </article>
-
-              <article className="rounded-3xl border border-[#29466F] bg-[#101D38] p-6 text-white shadow-[0_18px_48px_rgba(16,29,56,0.16)] sm:p-8">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-[#8CB2FF]">
-                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                </div>
-
-                <h2 className="mt-6 text-2xl font-bold tracking-[-0.025em]">
-                  Security and governance consideration
-                </h2>
-
-                <p className="mt-4 text-sm leading-7 text-[#BBC7D9]">
-                  Access is designed around institution-configured roles,
-                  institutional context and reviewable actions.
-                </p>
-
-                <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.05] p-4">
-                  <p className="text-sm leading-6 text-[#D5DEEB]">
-                    {isSecurityPage
-                      ? 'This page describes product practices and available information. It does not represent an independent certification or legal conclusion.'
-                      : 'Security, privacy and governance requirements should be reviewed with your institution during implementation.'}
-                  </p>
-                </div>
-
-                <Link
-                  href="/security"
-                  className="group mt-7 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-white"
-                >
-                  Review trust information
-
-                  <ArrowRight
-                    className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                    aria-hidden="true"
-                  />
-                </Link>
-              </article>
-            </div>
-          </div>
-        </section>
-
-        <FaqSection />
-
-        <section className="bg-[#101D38] px-4 py-16 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-[1280px] flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-[760px]">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#8CB2FF]">
-                Next step
-              </p>
-
-              <h2 className="mt-4 text-3xl font-bold tracking-[-0.03em] text-white sm:text-4xl">
-                Plan the next stage of your institutional operations
-              </h2>
-
-              <p className="mt-4 text-base leading-7 text-[#BBC7D9]">
-                Talk with a CampusOS specialist about your priorities,
-                workflows and implementation requirements for {local.label}.
-              </p>
-            </div>
-
-            <Link
-              href="/demo"
-              className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-[#101D38] transition-colors hover:bg-[#EEF3FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#101D38]"
-            >
-              Book a demonstration
-
-              <ArrowRight
-                className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1"
-                aria-hidden="true"
-              />
-            </Link>
-          </div>
-        </section>
+      <main>
+        <CapabilitySection profile={profile} />
+        <WorkflowSection profile={profile} />
+        <AudienceAndOutcomeSection profile={profile} />
+        <GovernanceSection profile={profile} />
+        <QuestionsSection profile={profile} />
+        <RelatedSection profile={profile} />
+        <CallToAction profile={profile} />
       </main>
-    </div>
+    </article>
   );
 }
 
-function Breadcrumb({
-  root,
-  segments,
-  title,
+function Hero({
+  profile,
+  localInstitution,
+  icon: Icon,
 }: {
-  root: string;
-  segments: string[];
-  title: string;
+  profile: PublicPageProfile;
+  localInstitution: string;
+  icon: ElementType;
 }) {
   return (
-    <nav
-      aria-label="Breadcrumb"
-      className="flex flex-wrap items-center gap-2 text-sm text-[#667085]"
-    >
-      <Link
-        href="/"
-        className="rounded-sm transition-colors hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-      >
-        Home
-      </Link>
-
-      <ChevronRight
-        className="h-4 w-4 text-[#98A2B3]"
+    <section className="relative border-b border-[#DDE5F0] bg-[#F7F9FD] px-4 pb-14 pt-10 sm:px-6 sm:pb-18 sm:pt-12 lg:px-8 lg:pb-20 lg:pt-14">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-70"
         aria-hidden="true"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 12% 18%, rgba(23,84,232,0.12), transparent 28%), radial-gradient(circle at 88% 12%, rgba(7,138,87,0.08), transparent 24%)',
+        }}
       />
 
-      {segments.length > 1 ? (
-        <>
-          <Link
-            href={`/${root}`}
-            className="rounded-sm transition-colors hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
-          >
-            {titleFromSlug(root)}
-          </Link>
+      <div className="relative mx-auto max-w-[1320px]">
+        <Breadcrumb profile={profile} />
 
-          <ChevronRight
-            className="h-4 w-4 text-[#98A2B3]"
-            aria-hidden="true"
-          />
+        <div className="mt-9 grid min-w-0 items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.72fr)] lg:gap-14">
+          <div className="min-w-0">
+            <div className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#BFD1F2] bg-white px-4 text-[11px] font-extrabold uppercase tracking-[0.13em] text-[#1754E8] shadow-sm">
+              <Icon className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+              {profile.eyebrow}
+            </div>
 
-          <span
-            className="font-medium text-[#344054]"
-            aria-current="page"
-          >
-            {title}
-          </span>
-        </>
-      ) : (
-        <span
-          className="font-medium text-[#344054]"
-          aria-current="page"
-        >
-          {title}
-        </span>
-      )}
+            <h1 className="mt-6 max-w-[850px] text-4xl font-extrabold leading-[1.05] tracking-[-0.045em] text-[#101D38] sm:text-5xl lg:text-[62px]">
+              {profile.title}
+            </h1>
+
+            <p className="mt-6 max-w-[790px] text-base leading-7 text-[#5F6C7B] sm:text-lg sm:leading-8">
+              {profile.summary}
+            </p>
+
+            <div className="mt-7 flex flex-wrap gap-2">
+              <ContextPill icon={Building2} label={`Designed for a ${localInstitution}`} />
+              <ContextPill icon={LockKeyhole} label="Role and permission aware" />
+              <ContextPill icon={FileCheck2} label="Reviewable operating context" />
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href={profile.primaryAction.href}
+                className="group inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-[#1754E8] px-6 py-3.5 text-sm font-extrabold text-white shadow-[0_14px_30px_rgba(23,84,232,0.25)] transition hover:bg-[#103FC2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
+              >
+                {profile.primaryAction.label}
+                <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1" aria-hidden="true" />
+              </Link>
+
+              <Link
+                href={profile.secondaryAction.href}
+                className="inline-flex min-h-13 items-center justify-center rounded-xl border border-[#B9C9DE] bg-white px-6 py-3.5 text-sm font-extrabold text-[#101D38] transition hover:border-[#8FA9C9] hover:bg-[#F7F9FD] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2"
+              >
+                {profile.secondaryAction.label}
+              </Link>
+            </div>
+          </div>
+
+          <aside className="min-w-0 overflow-hidden rounded-[28px] border border-[#D5E0EE] bg-white shadow-[0_30px_80px_rgba(16,29,56,0.12)]">
+            <div className="border-b border-[#DDE5F0] bg-[#101D38] px-6 py-5 text-white sm:px-7">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#9EBBEE]">
+                {profile.categoryLabel}
+              </p>
+              <h2 className="mt-2 text-xl font-extrabold tracking-[-0.025em]">
+                Operational scope at a glance
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-[#C7D3E4]">
+                Four areas that define the practical scope of this page.
+              </p>
+            </div>
+
+            <ol className="divide-y divide-[#E3E9F1] px-5 sm:px-6">
+              {profile.focus.map((item, index) => (
+                <li key={item} className="flex items-start gap-4 py-5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EDF3FF] text-xs font-extrabold text-[#1754E8]">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div>
+                    <p className="text-sm font-extrabold leading-6 text-[#101D38]">{item}</p>
+                    <p className="mt-1 text-xs leading-5 text-[#667085]">
+                      Scope, ownership and evidence should be confirmed during institutional discovery.
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </aside>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Breadcrumb({ profile }: { profile: PublicPageProfile }) {
+  const root = profile.href.split('/').filter(Boolean)[0] ?? 'platform';
+  const rootLabel = root.charAt(0).toUpperCase() + root.slice(1).replace(/-/g, ' ');
+
+  return (
+    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#758196]">
+      <Link href="/" className="rounded-md transition hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
+        Home
+      </Link>
+      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+      <Link href={`/${root}`} className="rounded-md transition hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
+        {rootLabel}
+      </Link>
+      <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="text-[#1754E8]" aria-current="page">{profile.title}</span>
     </nav>
   );
 }
 
-function ProductPreview({
-  title,
-  config,
-}: {
-  title: string;
-  config: SectionConfig;
-}) {
-  const PreviewIcon = config.icon;
+function ContextPill({ icon: Icon, label }: { icon: ElementType; label: string }) {
+  return (
+    <span className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-[#D5E0EE] bg-white px-3 text-xs font-bold text-[#536175] shadow-sm">
+      <Icon className="h-4 w-4 text-[#1754E8]" aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function PageNavigation() {
+  const items = [
+    ['Scope', '#scope'],
+    ['Workflow', '#workflow'],
+    ['Outcomes', '#outcomes'],
+    ['Governance', '#governance'],
+    ['Questions', '#questions'],
+  ] as const;
 
   return (
-    <div
-      className="relative mx-auto w-full max-w-[650px]"
-      aria-label={`Illustrative CampusOS ${title} workspace`}
-    >
-      <div className="absolute -inset-5 rounded-[32px] bg-[#E5ECFA] opacity-70 blur-2xl" />
-
-      <div className="relative overflow-hidden rounded-3xl border border-[#C9D5E5] bg-white shadow-[0_28px_70px_rgba(16,42,91,0.15)]">
-        <div className="flex items-center justify-between border-b border-[#DDE4EE] bg-white px-5 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1754E8] text-white">
-              <PreviewIcon
-                className="h-4.5 w-4.5"
-                aria-hidden="true"
-              />
-            </div>
-
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#101828]">
-                {config.previewTitle}
-              </p>
-
-              <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.09em] text-[#8A95A6]">
-                Illustrative CampusOS workspace
-              </p>
-            </div>
-          </div>
-
-          <span className="hidden rounded-full border border-[#C8D8F5] bg-[#EDF3FF] px-3 py-1 text-[9px] font-bold uppercase tracking-[0.08em] text-[#1754E8] sm:inline-flex">
-            Example interface
-          </span>
-        </div>
-
-        <div className="bg-[#F5F7FB] p-5 sm:p-6">
-          <h3 className="text-xl font-bold tracking-[-0.02em] text-[#101828]">
-            {title}
-          </h3>
-
-          <p className="mt-2 text-sm leading-6 text-[#667085]">
-            {config.previewDescription}
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
-            {config.modules.map((module, index) => (
-              <div
-                key={module}
-                className="rounded-xl border border-[#DDE4EE] bg-white p-4 shadow-[0_5px_18px_rgba(16,24,40,0.04)]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EDF3FF] text-xs font-bold text-[#1754E8]">
-                    0{index + 1}
-                  </span>
-
-                  <CheckCircle2
-                    className="h-4 w-4 text-[#078A57]"
-                    aria-hidden="true"
-                  />
-                </div>
-
-                <p className="mt-4 text-xs font-semibold leading-5 text-[#344054]">
-                  {module}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-xl border border-[#DDE4EE] bg-white p-4">
-            <div className="flex items-center gap-2">
-              <Workflow
-                className="h-4 w-4 text-[#1754E8]"
-                aria-hidden="true"
-              />
-
-              <p className="text-xs font-semibold text-[#101828]">
-                Connected workflow context
-              </p>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              {[
-                'Responsible user and assigned role',
-                'Institutional record and current status',
-                'Required action and review history',
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-3 rounded-lg bg-[#F7F9FC] px-3 py-2.5"
-                >
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full bg-[#1754E8]"
-                    aria-hidden="true"
-                  />
-
-                  <span className="text-[11px] font-medium text-[#5F6C7B]">
-                    {item}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-[#DDE4EE] bg-white px-5 py-3 text-center text-[10px] text-[#7C889A]">
-          Illustrative interface. Capabilities depend on configured CampusOS
-          modules.
-        </div>
-      </div>
+    <div className="sticky top-[72px] z-20 border-b border-[#DDE5F0] bg-white/95 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+      <nav aria-label="Page sections" className="mx-auto flex max-w-[1320px] gap-1 overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {items.map(([label, href]) => (
+          <a
+            key={href}
+            href={href}
+            className="inline-flex min-h-10 shrink-0 items-center rounded-lg px-4 text-xs font-extrabold text-[#667085] transition hover:bg-[#EDF3FF] hover:text-[#1754E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]"
+          >
+            {label}
+          </a>
+        ))}
+      </nav>
     </div>
   );
 }
 
-function FaqSection() {
+function CapabilitySection({ profile }: { profile: PublicPageProfile }) {
   return (
-    <section className="border-y border-[#DDE4EE] bg-[#F7F9FC] px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
-      <div className="mx-auto max-w-[1000px]">
-        <header className="max-w-[700px]">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#EDF3FF] text-[#1754E8]">
-            <CircleHelp className="h-5 w-5" aria-hidden="true" />
+    <section id="scope" className="scroll-mt-32 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-[1320px]">
+        <SectionHeading
+          eyebrow="OPERATIONAL SCOPE"
+          title={`What ${profile.title} should make clearer`}
+          description="The page is organised around practical institutional responsibilities rather than generic feature claims."
+        />
+
+        <div className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {profile.focus.map((item, index) => {
+            const Icon = capabilityIcons[index];
+            return (
+              <article key={item} className="group rounded-[24px] border border-[#DDE5F0] bg-white p-6 shadow-[0_12px_34px_rgba(16,29,56,0.05)] transition hover:-translate-y-1 hover:border-[#B8CBE6] hover:shadow-[0_22px_52px_rgba(16,29,56,0.1)]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EDF3FF] text-[#1754E8]">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <p className="mt-5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#8A95A6]">
+                  Scope {String(index + 1).padStart(2, '0')}
+                </p>
+                <h3 className="mt-2 text-lg font-extrabold leading-7 tracking-[-0.02em] text-[#101D38]">
+                  {item}
+                </h3>
+                <p className="mt-3 text-sm leading-6 text-[#667085]">
+                  Define the responsible teams, records, statuses, exceptions and evidence required to operate this area consistently.
+                </p>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkflowSection({ profile }: { profile: PublicPageProfile }) {
+  return (
+    <section id="workflow" className="scroll-mt-32 border-y border-[#DDE5F0] bg-[#F7F9FD] px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-[1320px]">
+        <SectionHeading
+          eyebrow="OPERATING MODEL"
+          title="A disciplined path from scope to improvement"
+          description="A useful implementation connects configuration, daily work and evidence instead of treating the page as a static feature list."
+        />
+
+        <div className="mt-10 grid gap-4 lg:grid-cols-4">
+          {profile.workflow.map((step, index) => (
+            <article key={step.number} className="relative rounded-[24px] border border-[#D6E0ED] bg-white p-6 shadow-[0_14px_38px_rgba(16,29,56,0.06)]">
+              {index < profile.workflow.length - 1 && (
+                <div className="pointer-events-none absolute -right-3 top-10 hidden h-px w-6 bg-[#B8C9DF] lg:block" aria-hidden="true" />
+              )}
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-3xl font-extrabold tracking-[-0.04em] text-[#1754E8]">{step.number}</span>
+                <Workflow className="h-5 w-5 text-[#8DA6C5]" aria-hidden="true" />
+              </div>
+              <h3 className="mt-5 text-lg font-extrabold text-[#101D38]">{step.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-[#667085]">{step.description}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AudienceAndOutcomeSection({ profile }: { profile: PublicPageProfile }) {
+  return (
+    <section id="outcomes" className="scroll-mt-32 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mx-auto grid max-w-[1320px] gap-6 lg:grid-cols-2">
+        <section className="rounded-[28px] border border-[#DDE5F0] bg-white p-6 shadow-[0_16px_46px_rgba(16,29,56,0.06)] sm:p-8" aria-labelledby="audience-heading">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EDF3FF] text-[#1754E8]">
+              <UsersRound className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#1754E8]">WHO SHOULD BE INVOLVED</p>
+              <h2 id="audience-heading" className="mt-2 text-2xl font-extrabold tracking-[-0.03em] text-[#101D38]">Cross-functional evaluation</h2>
+            </div>
           </div>
 
-          <h2 className="mt-5 text-3xl font-bold tracking-[-0.03em] text-[#101A32] sm:text-4xl">
-            Frequently asked questions
-          </h2>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            {profile.audiences.map((audience) => (
+              <div key={audience} className="flex min-h-20 items-center gap-3 rounded-2xl border border-[#E1E7EF] bg-[#F7F9FC] p-4">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-[#078A57]" aria-hidden="true" />
+                <p className="text-sm font-extrabold leading-6 text-[#344054]">{audience}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          <p className="mt-4 text-base leading-7 text-[#5F6C7B]">
-            Common considerations for institutions evaluating CampusOS.
-          </p>
-        </header>
+        <section className="rounded-[28px] border border-[#263D61] bg-[#101D38] p-6 text-white shadow-[0_22px_60px_rgba(16,29,56,0.18)] sm:p-8" aria-labelledby="outcome-heading">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1754E8] text-white">
+              <Sparkles className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#9EBBEE]">EXPECTED OPERATING OUTCOMES</p>
+              <h2 id="outcome-heading" className="mt-2 text-2xl font-extrabold tracking-[-0.03em]">What better coordination looks like</h2>
+            </div>
+          </div>
 
-        <div className="mt-9 divide-y divide-[#DDE4EE] overflow-hidden rounded-2xl border border-[#DDE4EE] bg-white">
-          {frequentlyAskedQuestions.map((item) => (
-            <details
-              key={item.question}
-              className="group px-5 py-5 sm:px-6"
-            >
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 rounded-lg font-semibold text-[#101828] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]">
-                <span>{item.question}</span>
+          <ul className="mt-7 space-y-3">
+            {profile.outcomes.map((outcome) => (
+              <li key={outcome} className="flex items-start gap-3 rounded-2xl border border-[#385477] bg-[#0D1A2E] p-4">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#6EE7B7]" aria-hidden="true" />
+                <span className="text-sm leading-6 text-[#D5DFEC]">{outcome}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </section>
+  );
+}
 
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F2F4F7] text-[#667085] transition-transform group-open:rotate-90">
-                  <ChevronRight
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
+function GovernanceSection({ profile }: { profile: PublicPageProfile }) {
+  return (
+    <section id="governance" className="scroll-mt-32 border-y border-[#DDE5F0] bg-[#F7F9FD] px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-[1320px]">
+        <SectionHeading
+          eyebrow="GOVERNANCE AND DELIVERY"
+          title="Keep responsibility visible as the workflow scales"
+          description="The following controls prevent a polished interface from hiding ownership, access boundaries or implementation assumptions."
+        />
+
+        <div className="mt-9 grid gap-4 md:grid-cols-2">
+          {profile.governance.map((item, index) => (
+            <article key={item} className="flex items-start gap-4 rounded-[22px] border border-[#D8E2EF] bg-white p-5 shadow-[0_10px_30px_rgba(16,29,56,0.04)] sm:p-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EDF3FF] text-sm font-extrabold text-[#1754E8]">
+                {index + 1}
+              </span>
+              <div>
+                <h3 className="text-sm font-extrabold text-[#101D38]">Control principle</h3>
+                <p className="mt-2 text-sm leading-6 text-[#667085]">{item}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="mt-6 flex items-start gap-4 rounded-[22px] border border-amber-200 bg-amber-50 p-5 text-amber-950 sm:p-6">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-extrabold">Important scope note</p>
+            <p className="mt-1 text-sm leading-6 text-amber-900/80">{profile.note}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function QuestionsSection({ profile }: { profile: PublicPageProfile }) {
+  return (
+    <section id="questions" className="scroll-mt-32 px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+      <div className="mx-auto max-w-[1040px]">
+        <SectionHeading
+          eyebrow="COMMON EVALUATION QUESTIONS"
+          title={`Questions to ask about ${profile.title}`}
+          description="Use these answers as a starting point, then confirm institution-specific requirements during discovery."
+          centered
+        />
+
+        <div className="mt-9 space-y-3">
+          {profile.questions.map((item, index) => (
+            <details key={item.question} className="group rounded-2xl border border-[#DDE5F0] bg-white shadow-[0_8px_24px_rgba(16,29,56,0.04)]" open={index === 0}>
+              <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left text-sm font-extrabold text-[#101D38] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1754E8] sm:px-6">
+                <span className="flex items-center gap-3">
+                  <CircleHelp className="h-5 w-5 shrink-0 text-[#1754E8]" aria-hidden="true" />
+                  {item.question}
                 </span>
+                <span className="text-xl font-normal text-[#8A95A6] transition-transform group-open:rotate-45" aria-hidden="true">+</span>
               </summary>
-
-              <p className="mt-4 max-w-[820px] text-sm leading-7 text-[#5F6C7B]">
+              <div className="border-t border-[#E5EAF1] px-5 py-5 text-sm leading-7 text-[#667085] sm:px-6">
                 {item.answer}
-              </p>
+              </div>
             </details>
           ))}
         </div>
       </div>
     </section>
+  );
+}
+
+function RelatedSection({ profile }: { profile: PublicPageProfile }) {
+  return (
+    <section className="border-t border-[#DDE5F0] bg-[#F7F9FD] px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-20">
+      <div className="mx-auto max-w-[1320px]">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#1754E8]">CONTINUE EXPLORING</p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.03em] text-[#101D38] sm:text-3xl">Related CampusOS pages</h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-[#667085]">Review adjacent capabilities and operating contexts before defining the final institutional scope.</p>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {profile.related.map((item) => (
+            <Link key={item.href} href={item.href} className="group flex min-h-52 flex-col rounded-[22px] border border-[#D9E3F0] bg-white p-5 shadow-[0_10px_30px_rgba(16,29,56,0.04)] transition hover:-translate-y-1 hover:border-[#B5C9E5] hover:shadow-[0_20px_48px_rgba(16,29,56,0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] focus-visible:ring-offset-2">
+              <span className="inline-flex w-fit rounded-full bg-[#EDF3FF] px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#1754E8]">
+                Related page
+              </span>
+              <h3 className="mt-5 text-lg font-extrabold text-[#101D38]">{item.label}</h3>
+              <p className="mt-3 flex-1 text-sm leading-6 text-[#667085]">{item.description}</p>
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-[#1754E8]">
+                Open page
+                <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1" aria-hidden="true" />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CallToAction({ profile }: { profile: PublicPageProfile }) {
+  return (
+    <section className="bg-[#101D38] px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8">
+      <div className="mx-auto flex max-w-[1180px] flex-col items-center text-center">
+        <span className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[#3B567A] bg-[#172A4B] px-4 text-[10px] font-extrabold uppercase tracking-[0.13em] text-[#B9CDF0]">
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          Plan the next step
+        </span>
+        <h2 className="mt-6 max-w-4xl text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl lg:text-5xl">
+          Review {profile.title.toLowerCase()} in your institution’s real operating context.
+        </h2>
+        <p className="mt-5 max-w-3xl text-base leading-7 text-[#C7D3E4]">
+          Bring your current systems, responsible teams, priority workflows and implementation constraints into a focused CampusOS discussion.
+        </p>
+        <div className="mt-8 flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+          <Link href={profile.primaryAction.href} className="group inline-flex min-h-13 items-center justify-center gap-2 rounded-xl bg-[#1754E8] px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-[#2A67F2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+            {profile.primaryAction.label}
+            <ArrowRight className="h-4 w-4 transition-transform motion-safe:group-hover:translate-x-1" aria-hidden="true" />
+          </Link>
+          <Link href="/contact" className="inline-flex min-h-13 items-center justify-center rounded-xl border border-[#526B8D] bg-[#172A4B] px-6 py-3.5 text-sm font-extrabold text-white transition hover:border-[#7894BA] hover:bg-[#20385F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+            Talk to our team
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+  centered = false,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  centered?: boolean;
+}) {
+  return (
+    <div className={centered ? 'mx-auto max-w-3xl text-center' : 'max-w-3xl'}>
+      <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#1754E8]">{eyebrow}</p>
+      <h2 className="mt-3 text-3xl font-extrabold leading-tight tracking-[-0.035em] text-[#101D38] sm:text-4xl">{title}</h2>
+      <p className="mt-4 text-base leading-7 text-[#667085]">{description}</p>
+    </div>
   );
 }
