@@ -1,5 +1,30 @@
 import { cookies } from 'next/headers';
+
 import { PublicPage } from '@/components/public/PublicPage';
-import { titleFromSlug, type Region } from '@/components/public/site-data';
-export async function generateMetadata({ params }: { params: { slug: string[] } }) { const title = titleFromSlug(params.slug.at(-1) || 'CampusOS'); const path = '/' + params.slug.join('/'); return { title: `${title} | CampusOS`, description: `${title} resources and product information for connected higher education operations.`, alternates: { canonical: path }, openGraph: { title: `${title} | CampusOS`, description: `${title} for modern higher education.` } }; }
-export default function CatchAll({ params }: { params: { slug: string[] } }) { const r = (cookies().get('campus_region')?.value || 'us') as Region; return <PublicPage segments={params.slug} region={r} />; }
+import { publicPageProfileForPath } from '@/components/public/public-page-data';
+import type { Region } from '@/components/public/site-data';
+
+type CatchAllProps = {
+  params: { slug: string[] };
+};
+
+export async function generateMetadata({ params }: CatchAllProps) {
+  const path = `/${params.slug.join('/')}`;
+  const profile = publicPageProfileForPath(path);
+
+  return {
+    title: `${profile.title} | CampusOS`,
+    description: profile.summary,
+    alternates: { canonical: path },
+    openGraph: {
+      title: `${profile.title} | CampusOS`,
+      description: profile.summary,
+      type: 'website',
+    },
+  };
+}
+
+export default function CatchAll({ params }: CatchAllProps) {
+  const region = (cookies().get('campus_region')?.value || 'global') as Region;
+  return <PublicPage segments={params.slug} region={region} />;
+}
