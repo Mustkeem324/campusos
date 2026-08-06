@@ -19,6 +19,8 @@ on:
       - 'packages/db/prisma/payment-portal.sql'
       - 'scripts/prepare-database.mjs'
       - '.env.example'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/company-admin-validation.yml'
   push:
     branches:
@@ -41,6 +43,8 @@ on:
       - 'packages/db/prisma/payment-portal.sql'
       - 'scripts/prepare-database.mjs'
       - '.env.example'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/company-admin-validation.yml'
 
 permissions:
