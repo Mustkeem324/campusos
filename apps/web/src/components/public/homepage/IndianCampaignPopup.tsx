@@ -17,6 +17,8 @@ import {
   X,
 } from 'lucide-react';
 
+import { useDialogFocusTrap } from '@/components/ui/useDialogFocusTrap';
+
 const DISMISS_KEY = 'campusos-india-institution-popup-v3-dismissed';
 const OPEN_DELAY_MS = 900;
 const CAMPUS_IMAGE = 'https://images.pexels.com/photos/4622108/pexels-photo-4622108.jpeg?auto=compress&cs=tinysrgb&w=1200';
@@ -37,23 +39,21 @@ const operatingPrinciples = [
 
 export function IndianCampaignPopup() {
   const [isOpen, setIsOpen] = React.useState(false);
+  const dialogRef = React.useRef<HTMLElement>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
-  const previousActiveElementRef = React.useRef<HTMLElement | null>(null);
 
   const dismissPopup = React.useCallback(() => {
     try { window.sessionStorage.setItem(DISMISS_KEY, 'true'); } catch { /* storage can be unavailable */ }
     setIsOpen(false);
-    window.setTimeout(() => previousActiveElementRef.current?.focus(), 0);
   }, []);
+
+  useDialogFocusTrap({ active: isOpen, containerRef: dialogRef, initialFocusRef: closeButtonRef });
 
   React.useEffect(() => {
     let dismissed = false;
     try { dismissed = window.sessionStorage.getItem(DISMISS_KEY) === 'true'; } catch { dismissed = false; }
     if (dismissed) return;
-    const timer = window.setTimeout(() => {
-      previousActiveElementRef.current = document.activeElement as HTMLElement | null;
-      setIsOpen(true);
-    }, OPEN_DELAY_MS);
+    const timer = window.setTimeout(() => setIsOpen(true), OPEN_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -61,7 +61,6 @@ export function IndianCampaignPopup() {
     if (!isOpen) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') dismissPopup(); };
     document.addEventListener('keydown', onKeyDown);
     return () => {
@@ -74,7 +73,7 @@ export function IndianCampaignPopup() {
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#071225]/72 p-0 backdrop-blur-[5px] sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dismissPopup(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="campaign-popup-title" aria-describedby="campaign-popup-description" className="relative w-full max-w-[1220px] overflow-hidden rounded-t-[28px] border border-white/70 bg-[#FFFDF9] shadow-[0_38px_120px_rgba(0,0,0,0.42)] sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[30px]">
+      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="campaign-popup-title" aria-describedby="campaign-popup-description" className="relative w-full max-w-[1220px] overflow-hidden rounded-t-[28px] border border-white/70 bg-[#FFFDF9] shadow-[0_38px_120px_rgba(0,0,0,0.42)] outline-none sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[30px]">
         <button ref={closeButtonRef} type="button" onClick={dismissPopup} className="absolute right-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#D7DFEA] bg-white/95 text-[#0F1F3A] shadow-[0_8px_24px_rgba(15,31,58,0.18)] transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] sm:right-5 sm:top-5" aria-label="Close institutional information"><X className="h-5 w-5" aria-hidden="true" /></button>
 
         <div className="grid max-h-[100dvh] overflow-y-auto [scrollbar-color:#1D4ED8_#E5E7EB] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#E5E7EB] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#1D4ED8] sm:max-h-[calc(100dvh-2.5rem)] lg:grid-cols-[minmax(0,1.28fr)_minmax(420px,0.92fr)]">
