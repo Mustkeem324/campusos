@@ -3,13 +3,11 @@ import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
 import { prisma } from '@/lib/db';
-import { assertNoPendingManualTransfer } from '@/lib/payment-pending-guard';
+import { PaymentRequestError, reserveGatewayPayment } from '@/lib/payment-request';
 import {
   activatePaymentAttempt,
-  createPendingPaymentAttempt,
   failPaymentAttempt,
   getPaymentSettings,
-  resolvePayableInvoices,
 } from '@/lib/payment-portal';
 
 const requestSchema = z.object({
@@ -29,6 +27,20 @@ function providerError(payload: unknown, fallback: string) {
   return fallback;
 }
 
+function configuredPublicOrigin() {
+  const configured = (process.env.APP_PUBLIC_URL ?? '').trim().replace(/\/+$/, '');
+  if (!configured) {
+    throw new PaymentRequestError('The application public URL is not configured for Stripe Checkout.', 503);
+  }
+  try {
+    const parsed = new URL(configured);
+    if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error('invalid');
+    return parsed.origin;
+  } catch {
+    throw new PaymentRequestError('APP_PUBLIC_URL must be a valid absolute HTTP or HTTPS origin.', 503);
+  }
+}
+
 export async function POST(request: Request) {
   const context = await requireActiveUserContext().catch(() => null);
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -37,12 +49,6 @@ export async function POST(request: Request) {
   try {
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Select valid invoices and a payment provider.' }, { status: 400 });
-
-    await assertNoPendingManualTransfer({
-      tenantId: context.tenantId,
-      payerUserId: context.userId,
-      invoiceIds: parsed.data.invoiceIds,
-    });
 
     const settings = await getPaymentSettings(context.tenantId);
     const provider = parsed.data.provider;
@@ -53,20 +59,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Stripe is not enabled for this institution.' }, { status: 409 });
     }
 
-    const payable = await resolvePayableInvoices(context, parsed.data.invoiceIds);
+    // Validate the redirect origin before reserving invoices, so a missing
+    // deployment variable cannot leave a stale Stripe payment attempt behind.
+    const stripeOrigin = provider === 'STRIPE' ? configuredPublicOrigin() : null;
+
+    const reservation = await reserveGatewayPayment({
+      context,
+      provider,
+      invoiceIds: parsed.data.invoiceIds,
+      currency: settings.currency,
+    });
+    attemptId = reservation.attemptId;
+
     const [institution, payer] = await Promise.all([
       prisma.institution.findUnique({ where: { id: context.tenantId }, select: { name: true } }),
       prisma.user.findFirst({ where: { id: context.userId, tenantId: context.tenantId }, select: { name: true, email: true, phone: true } }),
     ]);
-    if (!institution || !payer) throw new Error('Unable to resolve payment identity.');
-
-    attemptId = await createPendingPaymentAttempt({
-      context,
-      provider,
-      invoiceIds: payable.invoices.map((invoice) => invoice.id),
-      amountMinor: payable.totalMinor,
-      currency: settings.currency,
-    });
+    if (!institution || !payer) throw new PaymentRequestError('Unable to resolve payment identity.', 403);
 
     if (provider === 'RAZORPAY') {
       const keyId = process.env.RAZORPAY_KEY_ID!;
@@ -78,7 +87,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: payable.totalMinor,
+          amount: reservation.totalMinor,
           currency: settings.currency,
           receipt: `COS-${attemptId.slice(0, 20)}`,
           notes: {
@@ -100,27 +109,26 @@ export async function POST(request: Request) {
         attemptId,
         keyId,
         orderId,
-        amount: payable.totalMinor,
+        amount: reservation.totalMinor,
         currency: settings.currency,
         institutionName: institution.name,
         payer: { name: payer.name, email: payer.email, phone: payer.phone ?? '' },
       });
     }
 
-    const origin = new URL(request.url).origin;
     const body = new URLSearchParams();
     body.set('mode', 'payment');
-    body.set('success_url', `${origin}/payments?payment=success&session_id={CHECKOUT_SESSION_ID}`);
-    body.set('cancel_url', `${origin}/payments?payment=cancelled`);
+    body.set('success_url', `${stripeOrigin}/payments?payment=success&session_id={CHECKOUT_SESSION_ID}`);
+    body.set('cancel_url', `${stripeOrigin}/payments?payment=cancelled`);
     body.set('client_reference_id', attemptId);
     body.set('customer_email', payer.email);
     body.set('metadata[attempt_id]', attemptId);
     body.set('metadata[tenant_id]', context.tenantId);
     body.set('payment_intent_data[metadata][attempt_id]', attemptId);
     body.set('line_items[0][price_data][currency]', settings.currency.toLowerCase());
-    body.set('line_items[0][price_data][unit_amount]', String(payable.totalMinor));
+    body.set('line_items[0][price_data][unit_amount]', String(reservation.totalMinor));
     body.set('line_items[0][price_data][product_data][name]', `${institution.name} fee payment`);
-    body.set('line_items[0][price_data][product_data][description]', `${payable.invoices.length} CampusOS invoice${payable.invoices.length === 1 ? '' : 's'}`);
+    body.set('line_items[0][price_data][product_data][description]', `${reservation.invoices.length} CampusOS invoice${reservation.invoices.length === 1 ? '' : 's'}`);
     body.set('line_items[0][quantity]', '1');
 
     const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -143,6 +151,9 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Unable to start payment.';
     if (attemptId) await failPaymentAttempt(attemptId, message).catch(() => null);
     console.error('Payment checkout creation failed:', error);
-    return NextResponse.json({ error: message }, { status: /not allowed|unavailable|selected invoices|outstanding|verification/i.test(message) ? 400 : 502 });
+    return NextResponse.json(
+      { error: message },
+      { status: error instanceof PaymentRequestError ? error.status : 502 },
+    );
   }
 }
