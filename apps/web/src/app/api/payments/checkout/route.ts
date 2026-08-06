@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     const body = new URLSearchParams();
     body.set('mode', 'payment');
-    body.set('success_url', `${origin}/payments?payment=success`);
+    body.set('success_url', `${origin}/payments?payment=success&session_id={CHECKOUT_SESSION_ID}`);
     body.set('cancel_url', `${origin}/payments?payment=cancelled`);
     body.set('client_reference_id', attemptId);
     body.set('customer_email', payer.email);
