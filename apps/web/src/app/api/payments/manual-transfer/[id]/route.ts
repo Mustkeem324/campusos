@@ -39,12 +39,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     if (parsed.data.action === 'REJECT') {
       await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${submission.id}))`;
         const current = await tx.$queryRaw<SubmissionIdentity[]>`
           SELECT id, tenant_id, status, transaction_reference
           FROM campusos_finance.manual_payment_submissions
           WHERE id = ${submission.id}::uuid AND tenant_id = ${context.tenantId}::uuid
           LIMIT 1
+          FOR UPDATE
         `;
         if (!current[0] || !['PENDING', 'RECONCILIATION_REQUIRED'].includes(current[0].status)) {
           throw new Error('This transfer submission has already been reviewed.');
