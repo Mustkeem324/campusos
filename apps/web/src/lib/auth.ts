@@ -6,6 +6,7 @@ import { prisma } from './db';
 import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_campusos_key_for_development';
+const BLOCKED_INSTITUTION_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
 
 export interface TokenPayload {
   sessionId: string;
@@ -46,11 +47,19 @@ export async function getSessionFromCookies(): Promise<TokenPayload | null> {
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  // Validate session against database for real production auth
+  // Validate session against database for real production auth. Institution
+  // lifecycle is part of session validity so suspension takes effect for
+  // already-signed-in users, not only on their next login attempt.
   try {
     const session = await prisma.session.findUnique({
       where: { token: payload.sessionId },
-      include: { user: true },
+      include: {
+        user: {
+          include: {
+            institution: { select: { status: true } },
+          },
+        },
+      },
     });
 
     if (!session || session.expiresAt < new Date() || session.userId !== payload.userId) {
@@ -58,7 +67,17 @@ export async function getSessionFromCookies(): Promise<TokenPayload | null> {
     }
 
     if (!session.user.isActive || session.user.tenantId !== payload.tenantId || session.user.role !== payload.role) {
-       return null;
+      return null;
+    }
+
+    // SUPER_ADMIN is the CampusOS company control-plane role. Its mandatory
+    // tenant relation is a persistence detail and must not make company access
+    // dependent on a customer institution's commercial lifecycle.
+    if (
+      session.user.role !== RoleType.SUPER_ADMIN &&
+      BLOCKED_INSTITUTION_STATUSES.has(session.user.institution.status.toUpperCase())
+    ) {
+      return null;
     }
 
     return payload;

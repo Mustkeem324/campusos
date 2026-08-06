@@ -1,0 +1,61 @@
+name: Company Admin Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/app/(company-admin)/**'
+      - 'apps/web/src/app/api/company-admin/**'
+      - 'apps/web/src/components/company-admin/**'
+      - 'apps/web/src/lib/company-admin*'
+      - 'apps/web/src/lib/auth.ts'
+      - 'apps/web/src/app/api/auth/login/route.ts'
+      - 'packages/db/prisma/company-admin.sql'
+      - 'scripts/prepare-database.mjs'
+      - '.github/workflows/company-admin-validation.yml'
+  push:
+    branches:
+      - agent/company-super-admin
+    paths:
+      - 'apps/web/src/app/(company-admin)/**'
+      - 'apps/web/src/app/api/company-admin/**'
+      - 'apps/web/src/components/company-admin/**'
+      - 'apps/web/src/lib/company-admin*'
+      - 'apps/web/src/lib/auth.ts'
+      - 'apps/web/src/app/api/auth/login/route.ts'
+      - 'packages/db/prisma/company-admin.sql'
+      - 'scripts/prepare-database.mjs'
+      - '.github/workflows/company-admin-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        env:
+          CAMPUSOS_AUTO_DB_PUSH: 'false'
+        run: npm run build

@@ -22,6 +22,12 @@ function shouldSeedSyntheticCampus() {
   return process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC === 'true';
 }
 
+function prismaBinary() {
+  return process.platform === 'win32'
+    ? path.join(process.cwd(), 'node_modules', '.bin', 'prisma.cmd')
+    : path.join(process.cwd(), 'node_modules', '.bin', 'prisma');
+}
+
 function runCommand(command, args, label, extraEnv = {}) {
   const result = spawnSync(command, args, {
     env: { ...process.env, ...extraEnv },
@@ -34,14 +40,23 @@ function runCommand(command, args, label, extraEnv = {}) {
 }
 
 function runPrismaDbPush() {
-  const binary = process.platform === 'win32'
-    ? path.join(process.cwd(), 'node_modules', '.bin', 'prisma.cmd')
-    : path.join(process.cwd(), 'node_modules', '.bin', 'prisma');
-
   runCommand(
-    binary,
+    prismaBinary(),
     ['db', 'push', '--schema=packages/db/prisma/schema.prisma', '--skip-generate'],
     'Prisma schema synchronization',
+  );
+}
+
+function provisionCompanyAdminStorage() {
+  runCommand(
+    prismaBinary(),
+    [
+      'db',
+      'execute',
+      '--file=packages/db/prisma/company-admin.sql',
+      '--schema=packages/db/prisma/schema.prisma',
+    ],
+    'Company administration control-plane provisioning',
   );
 }
 
@@ -76,6 +91,10 @@ function prepareDatabase() {
   console.log('Synchronizing the Prisma schema with the connected database...');
   runPrismaDbPush();
   console.log('Prisma schema synchronization completed.');
+
+  console.log('Provisioning CampusOS company administration control-plane tables...');
+  provisionCompanyAdminStorage();
+  console.log('Company administration storage is ready.');
 
   if (shouldSeedSyntheticCampus()) {
     console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');
