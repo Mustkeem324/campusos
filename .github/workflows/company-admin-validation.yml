@@ -1,29 +1,46 @@
-name: Company Admin Validation
+name: Production Surface Validation
 
 on:
   pull_request:
     paths:
       - 'apps/web/src/app/(company-admin)/**'
+      - 'apps/web/src/app/(dashboard)/**'
       - 'apps/web/src/app/api/company-admin/**'
+      - 'apps/web/src/app/api/payments/**'
       - 'apps/web/src/components/company-admin/**'
+      - 'apps/web/src/components/finance/payment/**'
+      - 'apps/web/src/components/layout/Header.tsx'
+      - 'apps/web/src/components/notifications/NotificationDrawer.tsx'
       - 'apps/web/src/lib/company-admin*'
+      - 'apps/web/src/lib/payment-*'
       - 'apps/web/src/lib/auth.ts'
       - 'apps/web/src/app/api/auth/login/route.ts'
       - 'packages/db/prisma/company-admin.sql'
+      - 'packages/db/prisma/payment-portal.sql'
       - 'scripts/prepare-database.mjs'
+      - '.env.example'
       - '.github/workflows/company-admin-validation.yml'
   push:
     branches:
       - agent/company-super-admin
+      - agent/payment-center-dashboard-ui
     paths:
       - 'apps/web/src/app/(company-admin)/**'
+      - 'apps/web/src/app/(dashboard)/**'
       - 'apps/web/src/app/api/company-admin/**'
+      - 'apps/web/src/app/api/payments/**'
       - 'apps/web/src/components/company-admin/**'
+      - 'apps/web/src/components/finance/payment/**'
+      - 'apps/web/src/components/layout/Header.tsx'
+      - 'apps/web/src/components/notifications/NotificationDrawer.tsx'
       - 'apps/web/src/lib/company-admin*'
+      - 'apps/web/src/lib/payment-*'
       - 'apps/web/src/lib/auth.ts'
       - 'apps/web/src/app/api/auth/login/route.ts'
       - 'packages/db/prisma/company-admin.sql'
+      - 'packages/db/prisma/payment-portal.sql'
       - 'scripts/prepare-database.mjs'
+      - '.env.example'
       - '.github/workflows/company-admin-validation.yml'
 
 permissions:
@@ -32,7 +49,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
