@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { CampusCommandCenterSection } from '@/components/public/homepage/CampusCommandCenterSection';
 import { CustomerProofSection } from '@/components/public/homepage/CustomerProofSection';
 import { FinalCta } from '@/components/public/homepage/FinalCta';
 import { HeroSection } from '@/components/public/homepage/HeroSection';
@@ -10,12 +9,9 @@ import { InstitutionTypeSection } from '@/components/public/homepage/Institution
 import { OperatingStorySection } from '@/components/public/homepage/OperatingStorySection';
 import { PlatformSystemsSection } from '@/components/public/homepage/PlatformSystemsSection';
 import { PricingSection } from '@/components/public/homepage/PricingSection';
-import { ProductTourSection } from '@/components/public/homepage/ProductTourSection';
 import { RegionalCapabilities } from '@/components/public/homepage/RegionalCapabilities';
 import { ResourcePreview } from '@/components/public/homepage/ResourcePreview';
-import { RoleExperienceSection } from '@/components/public/homepage/RoleExperienceSection';
 import { SecuritySection } from '@/components/public/homepage/SecuritySection';
-import { WorkflowSection } from '@/components/public/homepage/WorkflowSection';
 
 export default function Homepage() {
   return (
@@ -23,12 +19,8 @@ export default function Homepage() {
       <IndianCampaignPopup />
       <HeroSection />
       <OperatingStorySection />
-      <CampusCommandCenterSection />
       <InstitutionTypeSection />
       <PlatformSystemsSection />
-      <RoleExperienceSection />
-      <ProductTourSection />
-      <WorkflowSection />
       <RegionalCapabilities />
       <ImplementationJourney />
       <SecuritySection />
