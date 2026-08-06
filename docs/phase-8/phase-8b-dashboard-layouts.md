@@ -1,12 +1,39 @@
 # Phase 8B — Custom Dashboard Widgets and Saved Layouts
 
-Phase 8B is backend-first. It establishes the persistence, authorisation, validation and concurrency contract required by a later drag-and-drop dashboard editor.
+Phase 8B provides the complete persistence, authorisation, validation, concurrency and frontend editing contract for personal dashboard layouts.
+
+## Frontend dashboard designer
+
+Authenticated users can open:
+
+```text
+/dashboard/customize
+```
+
+A **Customize dashboard** shortcut is also displayed across dashboard workspaces.
+
+The designer includes:
+
+- a role-authorised widget gallery
+- search and category filters
+- drag-and-drop reordering
+- keyboard-friendly earlier/later movement controls
+- bounded width and height controls
+- add, remove and deterministic auto-arrange actions
+- multiple named layouts
+- create, copy, rename, activate and delete operations
+- reset to the recommended role layout
+- unsaved-change detection and browser-leave protection
+- revision-conflict guidance when another session saved first
+- a responsive 12-column desktop canvas and mobile stacked view
+
+The canvas previews structure, order and size only. It deliberately does not fabricate academic, financial or operational values. Live widget data remains subject to existing server-side role, tenant and domain policies.
 
 ## Storage design
 
 Dashboard layouts are stored under `User.preferences.phase8DashboardLayouts`.
 
-This intentionally avoids a database migration for the first release while preserving all unrelated user preferences. The stored envelope includes:
+This intentionally avoids a database migration for this release while preserving all unrelated user preferences. The stored envelope includes:
 
 - schema version
 - optimistic revision
@@ -105,6 +132,7 @@ Content-Type: application/json
 - The catalogue is filtered by persisted active role.
 - A user cannot save a widget unavailable to that role.
 - Widget bounds, per-widget size rules, duplicate IDs and rectangle overlap are validated server-side.
+- The frontend deterministically repacks cards after drag, movement and resize operations to avoid overlaps before save.
 - Settings are limited to 8 KiB per widget.
 - The complete preference document is limited to 96 KiB.
 - A layout may contain at most 30 widgets.
@@ -115,14 +143,8 @@ Content-Type: application/json
 - Responses use private no-store caching.
 - Password hashes, session tokens, MFA secrets and protected domain records are never included.
 
-## Frontend follow-up
+## Tests
 
-The next frontend release can safely build on this contract to add:
+Backend policy tests cover catalogue isolation, role defaults, placement validation, overlap rejection, storage limits, preference preservation and stale-role sanitisation.
 
-- widget gallery
-- drag-and-drop placement
-- resize controls
-- create, duplicate, rename, activate and delete layout actions
-- reset to role recommendation
-- revision-conflict reload UI
-- mobile single-column rendering derived from the saved desktop grid
+Frontend helper tests cover deterministic packing, drag-target reordering, keyboard movement, bounded resizing, widget creation, removal and change comparison.
