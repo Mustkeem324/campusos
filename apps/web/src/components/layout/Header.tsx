@@ -11,6 +11,7 @@ import {
   Moon,
   Search,
   ShieldCheck,
+  Sparkles,
   Sun,
 } from 'lucide-react';
 
@@ -49,7 +50,9 @@ export function Header() {
       pathname === item.href ||
       (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`)),
   );
-  const pageTitle = activeNavigationItem?.label ?? formatPathname(pathname);
+  const pageTitle = pathname.startsWith('/phase-7')
+    ? 'Phase 7 Command Centre'
+    : activeNavigationItem?.label ?? formatPathname(pathname);
   const institutionName = currentSession?.institutionName ?? 'CampusOS';
 
   const handleNavigationToggle = () => {
@@ -112,6 +115,15 @@ export function Header() {
             <ShieldCheck className="h-4 w-4 text-[#078A57]" aria-hidden="true" />
             Secure context
           </div>
+
+          <Link
+            href="/phase-7"
+            className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl transition ${pathname.startsWith('/phase-7') ? 'bg-[#EDF3FF] text-[#1754E8] dark:bg-blue-950/40 dark:text-blue-300' : 'text-[#536175] hover:bg-[#F4F7FB] hover:text-[#1754E8] dark:text-slate-300 dark:hover:bg-slate-900'}`}
+            aria-label="Open Phase 7 command centre"
+            title="Phase 7 command centre"
+          >
+            <Sparkles className="h-[19px] w-[19px]" aria-hidden="true" />
+          </Link>
 
           <button
             type="button"
