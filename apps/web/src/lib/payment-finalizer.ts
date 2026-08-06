@@ -53,15 +53,6 @@ function makeReceiptNumber() {
   return `COS-${date}-${randomUUID().slice(0, 8).toUpperCase()}`;
 }
 
-async function acquirePaymentLock(tx: Prisma.TransactionClient, id: string) {
-  // The transaction-scoped advisory lock serializes browser confirmation,
-  // provider webhook delivery and webhook retries for the same payment object.
-  // `hashtext` collisions only serialize unrelated payments; they cannot merge data.
-  await tx.$queryRaw`
-    SELECT pg_advisory_xact_lock(hashtext(${id}))
-  `;
-}
-
 async function postConfirmedPayments(
   tx: Prisma.TransactionClient,
   input: {
@@ -136,14 +127,15 @@ export async function finalizeGatewayPayment(input: {
   verifiedCurrency: string;
 }) {
   return prisma.$transaction(async (tx) => {
-    await acquirePaymentLock(tx, input.attemptId);
-
+    // Row-level locking serializes provider webhook retries and browser-return
+    // confirmation for this attempt without relying on driver-specific lock values.
     const rows = await tx.$queryRaw<AttemptRow[]>`
       SELECT id, tenant_id, payer_user_id, provider, provider_reference,
              invoice_ids, amount_minor, currency, status, receipt_number
       FROM campusos_finance.payment_attempts
       WHERE id = ${input.attemptId}::uuid
       LIMIT 1
+      FOR UPDATE
     `;
     const attempt = rows[0];
     if (!attempt) throw new Error('Payment attempt not found.');
@@ -200,14 +192,13 @@ export async function approveManualPaymentSubmission(input: {
   reviewerUserId: string;
 }) {
   return prisma.$transaction(async (tx) => {
-    await acquirePaymentLock(tx, input.submissionId);
-
     const rows = await tx.$queryRaw<ManualRow[]>`
       SELECT id, tenant_id, payer_user_id, invoice_ids, amount_minor, currency,
              transaction_reference, status, receipt_number
       FROM campusos_finance.manual_payment_submissions
       WHERE id = ${input.submissionId}::uuid
       LIMIT 1
+      FOR UPDATE
     `;
     const submission = rows[0];
     if (!submission) throw new Error('Manual payment submission not found.');
