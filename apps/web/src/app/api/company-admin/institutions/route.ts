@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       });
 
       await tx.$executeRaw`
-        INSERT INTO platform_contracts
+        INSERT INTO campusos_control.platform_contracts
           (id, institution_id, contract_number, plan_name, status, currency,
            contract_value_minor, billing_cycle, starts_at, ends_at, auto_renew,
            renewal_notice_days, licensed_students, licensed_staff, modules,
