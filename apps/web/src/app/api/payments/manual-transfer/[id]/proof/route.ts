@@ -30,7 +30,10 @@ export async function GET(_request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return new NextResponse(proof.proof_bytes, {
+    const body = new ArrayBuffer(proof.proof_bytes.byteLength);
+    new Uint8Array(body).set(proof.proof_bytes);
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         'Content-Type': proof.proof_mime_type,
