@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 
 import { NextResponse } from 'next/server';
 
-import { finalizeGatewayAttempt, getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
+import { getPaymentAttemptByReference } from '@/lib/payment-portal';
 
 const SIGNATURE_TOLERANCE_SECONDS = 300;
 
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
     const attempt = await getPaymentAttemptByReference('STRIPE', sessionId);
     if (!attempt) return NextResponse.json({ received: true, ignored: true });
 
-    await finalizeGatewayAttempt({
+    await finalizeGatewayPayment({
       attemptId: attempt.id,
       externalPaymentReference: paymentIntent,
       method: 'STRIPE',
