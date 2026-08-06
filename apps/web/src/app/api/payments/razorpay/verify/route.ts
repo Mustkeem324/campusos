@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { finalizeGatewayAttempt, getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
+import { getPaymentAttemptByReference } from '@/lib/payment-portal';
 
 const requestSchema = z.object({
   razorpay_order_id: z.string().min(4).max(200),
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Razorpay returned an incomplete payment confirmation.' }, { status: 409 });
     }
 
-    const receiptNumber = await finalizeGatewayAttempt({
+    const receiptNumber = await finalizeGatewayPayment({
       attemptId: attempt.id,
       externalPaymentReference: input.razorpay_payment_id,
       method: 'RAZORPAY',
