@@ -146,7 +146,7 @@ async function readContracts(now: Date) {
              renewal_notice_days, licensed_students, licensed_staff, modules,
              primary_contact_name, primary_contact_email, primary_contact_phone,
              account_owner, notes, updated_at
-      FROM platform_contracts
+      FROM campusos_control.platform_contracts
       ORDER BY ends_at ASC
     `;
     return { ready: true, contracts: rows.map((row) => normalizeContract(row, now)) };
@@ -160,7 +160,7 @@ async function readEvents(institutionNames: Map<string, string>) {
   try {
     const rows = await prisma.$queryRaw<EventRow[]>`
       SELECT id, actor_user_id, institution_id, event_type, summary, detail, created_at
-      FROM platform_admin_events
+      FROM campusos_control.platform_admin_events
       ORDER BY created_at DESC
       LIMIT 80
     `;
@@ -212,7 +212,7 @@ export async function writeCompanyAdminEvent(input: {
 }) {
   try {
     await prisma.$executeRaw`
-      INSERT INTO platform_admin_events
+      INSERT INTO campusos_control.platform_admin_events
         (id, actor_user_id, institution_id, event_type, summary, detail, created_at)
       VALUES
         (${randomUUID()}::uuid, ${input.actorUserId}::uuid,
