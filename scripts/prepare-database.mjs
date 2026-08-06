@@ -2,17 +2,15 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
-function isVercelPreview() {
-  return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'preview';
-}
-
 function shouldPrepareDatabase() {
   if (process.env.CAMPUSOS_AUTO_DB_PUSH === 'false') return false;
 
+  // Preview builds are validation environments and must not mutate a connected
+  // database implicitly. Production may prepare automatically; any other
+  // environment must opt in explicitly.
   return (
     process.env.CAMPUSOS_AUTO_DB_PUSH === 'true' ||
-    process.env.VERCEL_ENV === 'production' ||
-    isVercelPreview()
+    process.env.VERCEL_ENV === 'production'
   );
 }
 
