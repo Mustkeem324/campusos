@@ -7,7 +7,9 @@ export type PublicPageKind =
   | 'resource'
   | 'resources'
   | 'security'
-  | 'pricing';
+  | 'pricing'
+  | 'company'
+  | 'contact';
 
 export type PublicPageSeed = {
   href: string;
@@ -17,11 +19,38 @@ export type PublicPageSeed = {
   focus: readonly [string, string, string, string];
 };
 
+export type PublicPageAction = {
+  label: string;
+  href: string;
+};
+
+export type PublicPageWorkflowStep = {
+  number: string;
+  title: string;
+  description: string;
+};
+
+export type PublicPageQuestion = {
+  question: string;
+  answer: string;
+};
+
+export type PublicPageRelatedLink = {
+  label: string;
+  href: string;
+  description: string;
+};
+
 export type PublicPageProfile = PublicPageSeed & {
   eyebrow: string;
+  categoryLabel: string;
   audiences: readonly string[];
   outcomes: readonly string[];
-  workflow: readonly { title: string; description: string }[];
+  workflow: readonly PublicPageWorkflowStep[];
   governance: readonly string[];
+  questions: readonly PublicPageQuestion[];
   note: string;
+  primaryAction: PublicPageAction;
+  secondaryAction: PublicPageAction;
+  related: readonly PublicPageRelatedLink[];
 };
