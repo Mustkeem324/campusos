@@ -40,6 +40,17 @@ export function IndianCampaignPopup() {
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   const previousActiveElementRef = React.useRef<HTMLElement | null>(null);
 
+  const dismissPopup = React.useCallback(() => {
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, 'true');
+    } catch {
+      // Storage can be unavailable in strict privacy modes. Closing still works.
+    }
+
+    setIsOpen(false);
+    window.setTimeout(() => previousActiveElementRef.current?.focus(), 0);
+  }, []);
+
   React.useEffect(() => {
     let dismissed = false;
 
@@ -76,18 +87,7 @@ export function IndianCampaignPopup() {
       document.body.style.overflow = originalOverflow;
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isOpen]);
-
-  const dismissPopup = React.useCallback(() => {
-    try {
-      window.sessionStorage.setItem(DISMISS_KEY, 'true');
-    } catch {
-      // Storage can be unavailable in strict privacy modes. Closing still works.
-    }
-
-    setIsOpen(false);
-    window.setTimeout(() => previousActiveElementRef.current?.focus(), 0);
-  }, []);
+  }, [dismissPopup, isOpen]);
 
   if (!isOpen) return null;
 
@@ -225,7 +225,7 @@ export function IndianCampaignPopup() {
 
             <div className="relative mx-auto -mt-2 flex w-fit items-end justify-center" aria-label="Campus team collaboration">
               <Avatar initials="AS" className="-mr-3 h-14 w-14 bg-[#F2A65A]" />
-              <Avatar initials="RK" className="z-10 h-17 w-17 bg-[#2F74D0]" />
+              <Avatar initials="RK" className="z-10 h-[68px] w-[68px] bg-[#2F74D0]" />
               <Avatar initials="PS" className="-ml-3 h-14 w-14 bg-[#2E9B61]" />
             </div>
 
