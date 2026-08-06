@@ -5,6 +5,13 @@ import type { PaymentMethod, Prisma } from '@prisma/client';
 
 import { prisma } from './db';
 
+export class PaymentReconciliationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PaymentReconciliationError';
+  }
+}
+
 type AttemptRow = {
   id: string;
   tenant_id: string;
@@ -16,6 +23,7 @@ type AttemptRow = {
   currency: string;
   status: string;
   receipt_number: string | null;
+  failure_reason: string | null;
 };
 
 type ManualRow = {
@@ -64,7 +72,9 @@ async function postConfirmedPayments(
   },
 ) {
   const uniqueInvoiceIds = Array.from(new Set(input.invoiceIds));
-  if (uniqueInvoiceIds.length === 0) throw new Error('No invoices are attached to this payment.');
+  if (uniqueInvoiceIds.length === 0) {
+    throw new PaymentReconciliationError('No invoices are attached to this payment.');
+  }
 
   const invoices = await tx.invoice.findMany({
     where: { tenantId: input.tenantId, id: { in: uniqueInvoiceIds } },
@@ -75,7 +85,7 @@ async function postConfirmedPayments(
     },
   });
   if (invoices.length !== uniqueInvoiceIds.length) {
-    throw new Error('Invoice allocation changed before payment confirmation.');
+    throw new PaymentReconciliationError('Invoice allocation changed before payment confirmation.');
   }
 
   const byId = new Map(invoices.map((invoice) => [invoice.id, invoice]));
@@ -86,7 +96,7 @@ async function postConfirmedPayments(
   });
   const totalBalanceMinor = balances.reduce((sum, invoice) => sum + invoice.balanceMinor, 0);
   if (input.amountMinor > totalBalanceMinor + 1) {
-    throw new Error('Confirmed payment exceeds the remaining selected invoice balance and needs reconciliation.');
+    throw new PaymentReconciliationError('Confirmed payment exceeds the remaining selected invoice balance and needs reconciliation.');
   }
 
   let remaining = input.amountMinor;
@@ -115,8 +125,31 @@ async function postConfirmedPayments(
   }
 
   if (remaining > 1) {
-    throw new Error('Confirmed payment could not be fully allocated to the selected invoices.');
+    throw new PaymentReconciliationError('Confirmed payment could not be fully allocated to the selected invoices.');
   }
+}
+
+async function markGatewayReconciliation(input: {
+  attemptId: string;
+  externalPaymentReference: string;
+  message: string;
+}) {
+  const updated = await prisma.$executeRaw`
+    UPDATE campusos_finance.payment_attempts
+    SET status = 'RECONCILIATION_REQUIRED', failure_reason = ${input.message.slice(0, 500)},
+        external_payment_reference = ${input.externalPaymentReference}, updated_at = now()
+    WHERE id = ${input.attemptId}::uuid AND status <> 'PAID'
+  `;
+  if (updated === 0) {
+    const rows = await prisma.$queryRaw<Array<{ status: string; receipt_number: string | null }>>`
+      SELECT status, receipt_number
+      FROM campusos_finance.payment_attempts
+      WHERE id = ${input.attemptId}::uuid
+      LIMIT 1
+    `;
+    if (rows[0]?.status === 'PAID') return rows[0].receipt_number;
+  }
+  return null;
 }
 
 export async function finalizeGatewayPayment(input: {
@@ -126,38 +159,32 @@ export async function finalizeGatewayPayment(input: {
   verifiedAmountMinor: number;
   verifiedCurrency: string;
 }) {
-  return prisma.$transaction(async (tx) => {
-    // Row-level locking serializes provider webhook retries and browser-return
-    // confirmation for this attempt without relying on driver-specific lock values.
-    const rows = await tx.$queryRaw<AttemptRow[]>`
-      SELECT id, tenant_id, payer_user_id, provider, provider_reference,
-             invoice_ids, amount_minor, currency, status, receipt_number
-      FROM campusos_finance.payment_attempts
-      WHERE id = ${input.attemptId}::uuid
-      LIMIT 1
-      FOR UPDATE
-    `;
-    const attempt = rows[0];
-    if (!attempt) throw new Error('Payment attempt not found.');
-    if (attempt.status === 'PAID') return attempt.receipt_number;
-
-    const expectedAmount = dbNumber(attempt.amount_minor);
-    if (
-      expectedAmount !== input.verifiedAmountMinor ||
-      attempt.currency.toUpperCase() !== input.verifiedCurrency.toUpperCase()
-    ) {
-      await tx.$executeRaw`
-        UPDATE campusos_finance.payment_attempts
-        SET status = 'RECONCILIATION_REQUIRED',
-            failure_reason = 'Gateway amount or currency did not match the CampusOS attempt.',
-            external_payment_reference = ${input.externalPaymentReference}, updated_at = now()
-        WHERE id = ${attempt.id}::uuid
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<AttemptRow[]>`
+        SELECT id, tenant_id, payer_user_id, provider, provider_reference,
+               invoice_ids, amount_minor, currency, status, receipt_number, failure_reason
+        FROM campusos_finance.payment_attempts
+        WHERE id = ${input.attemptId}::uuid
+        LIMIT 1
+        FOR UPDATE
       `;
-      throw new Error('Gateway amount or currency does not match the CampusOS payment attempt.');
-    }
+      const attempt = rows[0];
+      if (!attempt) throw new Error('Payment attempt not found.');
+      if (attempt.status === 'PAID') return attempt.receipt_number;
+      if (attempt.status === 'RECONCILIATION_REQUIRED') {
+        throw new PaymentReconciliationError(attempt.failure_reason || 'This payment requires institution reconciliation.');
+      }
 
-    const receiptNumber = makeReceiptNumber();
-    try {
+      const expectedAmount = dbNumber(attempt.amount_minor);
+      if (
+        expectedAmount !== input.verifiedAmountMinor ||
+        attempt.currency.toUpperCase() !== input.verifiedCurrency.toUpperCase()
+      ) {
+        throw new PaymentReconciliationError('Gateway amount or currency does not match the CampusOS payment attempt.');
+      }
+
+      const receiptNumber = makeReceiptNumber();
       await postConfirmedPayments(tx, {
         tenantId: attempt.tenant_id,
         invoiceIds: parseStringArray(attempt.invoice_ids),
@@ -165,50 +192,74 @@ export async function finalizeGatewayPayment(input: {
         method: input.method,
         externalReference: input.externalPaymentReference,
       });
-    } catch (error) {
+
       await tx.$executeRaw`
         UPDATE campusos_finance.payment_attempts
-        SET status = 'RECONCILIATION_REQUIRED',
-            failure_reason = ${error instanceof Error ? error.message.slice(0, 500) : 'Payment allocation failed.'},
-            external_payment_reference = ${input.externalPaymentReference}, updated_at = now()
+        SET status = 'PAID', receipt_number = ${receiptNumber},
+            external_payment_reference = ${input.externalPaymentReference},
+            failure_reason = NULL, updated_at = now()
         WHERE id = ${attempt.id}::uuid
       `;
-      throw error;
+      return receiptNumber;
+    }, { timeout: 15_000 });
+  } catch (error) {
+    if (error instanceof PaymentReconciliationError) {
+      const existingReceipt = await markGatewayReconciliation({
+        attemptId: input.attemptId,
+        externalPaymentReference: input.externalPaymentReference,
+        message: error.message,
+      });
+      if (existingReceipt) return existingReceipt;
     }
+    throw error;
+  }
+}
 
-    await tx.$executeRaw`
-      UPDATE campusos_finance.payment_attempts
-      SET status = 'PAID', receipt_number = ${receiptNumber},
-          external_payment_reference = ${input.externalPaymentReference},
-          failure_reason = NULL, updated_at = now()
-      WHERE id = ${attempt.id}::uuid
+async function markManualReconciliation(input: {
+  submissionId: string;
+  reviewerUserId: string;
+  message: string;
+}) {
+  const updated = await prisma.$executeRaw`
+    UPDATE campusos_finance.manual_payment_submissions
+    SET status = 'RECONCILIATION_REQUIRED', reviewer_user_id = ${input.reviewerUserId}::uuid,
+        review_note = ${input.message.slice(0, 500)}, reviewed_at = now(), updated_at = now()
+    WHERE id = ${input.submissionId}::uuid AND status IN ('PENDING', 'RECONCILIATION_REQUIRED')
+  `;
+  if (updated === 0) {
+    const rows = await prisma.$queryRaw<Array<{ status: string; receipt_number: string | null }>>`
+      SELECT status, receipt_number
+      FROM campusos_finance.manual_payment_submissions
+      WHERE id = ${input.submissionId}::uuid
+      LIMIT 1
     `;
-    return receiptNumber;
-  }, { timeout: 15_000 });
+    if (rows[0]?.status === 'APPROVED') return rows[0].receipt_number;
+  }
+  return null;
 }
 
 export async function approveManualPaymentSubmission(input: {
   submissionId: string;
   reviewerUserId: string;
 }) {
-  return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<ManualRow[]>`
-      SELECT id, tenant_id, payer_user_id, invoice_ids, amount_minor, currency,
-             transaction_reference, status, receipt_number
-      FROM campusos_finance.manual_payment_submissions
-      WHERE id = ${input.submissionId}::uuid
-      LIMIT 1
-      FOR UPDATE
-    `;
-    const submission = rows[0];
-    if (!submission) throw new Error('Manual payment submission not found.');
-    if (submission.status === 'APPROVED') return submission.receipt_number;
-    if (!['PENDING', 'RECONCILIATION_REQUIRED'].includes(submission.status)) {
-      throw new Error('This transfer submission has already been closed.');
-    }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<ManualRow[]>`
+        SELECT id, tenant_id, payer_user_id, invoice_ids, amount_minor, currency,
+               transaction_reference, status, receipt_number
+        FROM campusos_finance.manual_payment_submissions
+        WHERE id = ${input.submissionId}::uuid
+        LIMIT 1
+        FOR UPDATE
+      `;
+      const submission = rows[0];
+      if (!submission) throw new Error('Manual payment submission not found.');
+      if (submission.status === 'APPROVED') return submission.receipt_number;
+      if (!['PENDING', 'RECONCILIATION_REQUIRED'].includes(submission.status)) {
+        throw new Error('This transfer submission has already been closed.');
+      }
 
-    const receiptNumber = makeReceiptNumber();
-    try {
+      const receiptNumber = makeReceiptNumber();
       await postConfirmedPayments(tx, {
         tenantId: submission.tenant_id,
         invoiceIds: parseStringArray(submission.invoice_ids),
@@ -216,25 +267,26 @@ export async function approveManualPaymentSubmission(input: {
         method: 'NETBANKING',
         externalReference: submission.transaction_reference,
       });
-    } catch (error) {
+
       await tx.$executeRaw`
         UPDATE campusos_finance.manual_payment_submissions
-        SET status = 'RECONCILIATION_REQUIRED', reviewer_user_id = ${input.reviewerUserId}::uuid,
-            review_note = ${error instanceof Error ? error.message.slice(0, 500) : 'Payment allocation failed.'},
+        SET status = 'APPROVED', receipt_number = ${receiptNumber},
+            reviewer_user_id = ${input.reviewerUserId}::uuid,
+            review_note = 'Verified by institution finance.',
             reviewed_at = now(), updated_at = now()
         WHERE id = ${submission.id}::uuid
       `;
-      throw error;
+      return receiptNumber;
+    }, { timeout: 15_000 });
+  } catch (error) {
+    if (error instanceof PaymentReconciliationError) {
+      const existingReceipt = await markManualReconciliation({
+        submissionId: input.submissionId,
+        reviewerUserId: input.reviewerUserId,
+        message: error.message,
+      });
+      if (existingReceipt) return existingReceipt;
     }
-
-    await tx.$executeRaw`
-      UPDATE campusos_finance.manual_payment_submissions
-      SET status = 'APPROVED', receipt_number = ${receiptNumber},
-          reviewer_user_id = ${input.reviewerUserId}::uuid,
-          review_note = 'Verified by institution finance.',
-          reviewed_at = now(), updated_at = now()
-      WHERE id = ${submission.id}::uuid
-    `;
-    return receiptNumber;
-  }, { timeout: 15_000 });
+    throw error;
+  }
 }
