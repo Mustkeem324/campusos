@@ -9,6 +9,8 @@ const updateSchema = z.object({
   reason: z.string().trim().max(500).optional().default(''),
 });
 
+const BLOCKED_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
+
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const actor = await requireCompanySuperAdmin().catch(() => null);
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -25,10 +27,27 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     });
     if (!current) return NextResponse.json({ error: 'Institution not found.' }, { status: 404 });
 
-    const updated = await prisma.institution.update({
-      where: { id: current.id },
-      data: { status: parsed.data.status },
-      select: { id: true, name: true, status: true, updatedAt: true },
+    const updated = await prisma.$transaction(async (tx) => {
+      const institution = await tx.institution.update({
+        where: { id: current.id },
+        data: { status: parsed.data.status },
+        select: { id: true, name: true, status: true, updatedAt: true },
+      });
+
+      if (BLOCKED_STATUSES.has(parsed.data.status)) {
+        // Revoke customer sessions immediately. Company SUPER_ADMIN sessions are
+        // preserved even if their required tenant relation points at this record.
+        await tx.session.deleteMany({
+          where: {
+            user: {
+              tenantId: current.id,
+              role: { not: 'SUPER_ADMIN' },
+            },
+          },
+        });
+      }
+
+      return institution;
     });
 
     await writeCompanyAdminEvent({
@@ -40,6 +59,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         previousStatus: current.status,
         newStatus: updated.status,
         reason: parsed.data.reason || null,
+        customerSessionsRevoked: BLOCKED_STATUSES.has(parsed.data.status),
       },
     });
 
