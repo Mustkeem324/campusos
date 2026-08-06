@@ -2,10 +2,11 @@ import crypto from 'node:crypto';
 
 import { NextResponse } from 'next/server';
 
-import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
-import { getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { findPaymentAttemptByReference } from '@/lib/payment-attempts';
+import { finalizeGatewayPayment, PaymentReconciliationError } from '@/lib/payment-finalizer';
 
 const SIGNATURE_TOLERANCE_SECONDS = 300;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function verifyStripeSignature(rawBody: string, header: string, secret: string) {
   const fields = header.split(',').map((part) => part.trim());
@@ -50,11 +51,13 @@ export async function POST(request: Request) {
     const currency = typeof session.currency === 'string' ? session.currency : '';
     const amount = Number(session.amount_total);
     const paymentIntent = typeof session.payment_intent === 'string' ? session.payment_intent : sessionId;
-    if (!sessionId || !currency || !Number.isFinite(amount)) {
+    const metadata = session.metadata && typeof session.metadata === 'object' ? session.metadata as Record<string, unknown> : {};
+    const tenantId = typeof metadata.tenant_id === 'string' ? metadata.tenant_id : '';
+    if (!sessionId || !currency || !Number.isFinite(amount) || !UUID_PATTERN.test(tenantId)) {
       return NextResponse.json({ received: true, ignored: true });
     }
 
-    const attempt = await getPaymentAttemptByReference('STRIPE', sessionId);
+    const attempt = await findPaymentAttemptByReference({ provider: 'STRIPE', reference: sessionId, tenantId });
     if (!attempt) return NextResponse.json({ received: true, ignored: true });
 
     await finalizeGatewayPayment({
@@ -66,6 +69,10 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ received: true });
   } catch (error) {
+    if (error instanceof PaymentReconciliationError) {
+      console.error('Stripe payment requires reconciliation:', error.message);
+      return NextResponse.json({ received: true, reconciliationRequired: true });
+    }
     console.error('Stripe webhook processing failed:', error);
     return NextResponse.json({ error: 'Webhook processing failed.' }, { status: 500 });
   }
