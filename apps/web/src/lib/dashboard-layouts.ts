@@ -1,4 +1,4 @@
-import { Prisma, RoleType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 import type { ActiveUserContext } from './active-user-context';
 import { prisma } from './db';
@@ -161,15 +161,16 @@ export async function createDashboardLayout(
   },
   ipAddress?: string | null,
 ) {
-  let createdLayoutId = '';
+  const metadata: DashboardLayoutMutationMetadata = {
+    operation: 'CREATE_LAYOUT',
+    dashboardKey: input.dashboardKey,
+    ipAddress,
+  };
+
   const state = await persistDashboardLayoutMutation(
     context,
     input.expectedRevision,
-    {
-      operation: 'CREATE_LAYOUT',
-      dashboardKey: input.dashboardKey,
-      ipAddress,
-    },
+    metadata,
     (current, now) => {
       if (current.layouts.length >= MAX_DASHBOARD_LAYOUTS) {
         throw new DashboardLayoutError(
@@ -199,7 +200,7 @@ export async function createDashboardLayout(
         source: 'custom',
         now,
       });
-      createdLayoutId = layout.id;
+      metadata.layoutId = layout.id;
       current.layouts.push(layout);
       if (input.activate) current.activeLayoutByDashboard[input.dashboardKey] = layout.id;
       return current;
@@ -207,7 +208,7 @@ export async function createDashboardLayout(
   );
 
   return {
-    createdLayoutId,
+    createdLayoutId: metadata.layoutId,
     ...publicDashboardLayoutResponse(context.activeRole, state, input.dashboardKey),
   };
 }
@@ -223,23 +224,24 @@ export async function updateDashboardLayout(
   },
   ipAddress?: string | null,
 ) {
-  let dashboardKey = 'main';
+  const metadata: DashboardLayoutMutationMetadata = {
+    operation: 'UPDATE_LAYOUT',
+    layoutId,
+    dashboardKey: 'main',
+    ipAddress,
+  };
+
   const state = await persistDashboardLayoutMutation(
     context,
     input.expectedRevision,
-    {
-      operation: 'UPDATE_LAYOUT',
-      layoutId,
-      dashboardKey,
-      ipAddress,
-    },
+    metadata,
     (current, now) => {
       const layoutIndex = current.layouts.findIndex((layout) => layout.id === layoutId);
       const layout = current.layouts[layoutIndex];
       if (!layout) {
         throw new DashboardLayoutError('The dashboard layout was not found.', 404, 'LAYOUT_NOT_FOUND');
       }
-      dashboardKey = layout.dashboardKey;
+      metadata.dashboardKey = layout.dashboardKey;
 
       const updated: SavedDashboardLayout = {
         ...layout,
@@ -253,12 +255,12 @@ export async function updateDashboardLayout(
       };
 
       current.layouts[layoutIndex] = updated;
-      if (input.activate) current.activeLayoutByDashboard[dashboardKey] = layoutId;
+      if (input.activate) current.activeLayoutByDashboard[layout.dashboardKey] = layoutId;
       return current;
     },
   );
 
-  return publicDashboardLayoutResponse(context.activeRole, state, dashboardKey);
+  return publicDashboardLayoutResponse(context.activeRole, state, metadata.dashboardKey);
 }
 
 export async function deleteDashboardLayout(
@@ -267,41 +269,46 @@ export async function deleteDashboardLayout(
   expectedRevision: number,
   ipAddress?: string | null,
 ) {
-  let dashboardKey = 'main';
+  const metadata: DashboardLayoutMutationMetadata = {
+    operation: 'DELETE_LAYOUT',
+    layoutId,
+    dashboardKey: 'main',
+    ipAddress,
+  };
+
   const state = await persistDashboardLayoutMutation(
     context,
     expectedRevision,
-    {
-      operation: 'DELETE_LAYOUT',
-      layoutId,
-      dashboardKey,
-      ipAddress,
-    },
+    metadata,
     (current, now) => {
       const layout = current.layouts.find((candidate) => candidate.id === layoutId);
       if (!layout) {
         throw new DashboardLayoutError('The dashboard layout was not found.', 404, 'LAYOUT_NOT_FOUND');
       }
-      dashboardKey = layout.dashboardKey;
+      metadata.dashboardKey = layout.dashboardKey;
       current.layouts = current.layouts.filter((candidate) => candidate.id !== layoutId);
 
       const remainingForDashboard = current.layouts.filter(
-        (candidate) => candidate.dashboardKey === dashboardKey,
+        (candidate) => candidate.dashboardKey === layout.dashboardKey,
       );
 
       if (remainingForDashboard.length === 0) {
-        const replacement = createDefaultDashboardLayout(context.activeRole, dashboardKey, now);
+        const replacement = createDefaultDashboardLayout(
+          context.activeRole,
+          layout.dashboardKey,
+          now,
+        );
         current.layouts.push(replacement);
-        current.activeLayoutByDashboard[dashboardKey] = replacement.id;
-      } else if (current.activeLayoutByDashboard[dashboardKey] === layoutId) {
-        current.activeLayoutByDashboard[dashboardKey] = remainingForDashboard[0]!.id;
+        current.activeLayoutByDashboard[layout.dashboardKey] = replacement.id;
+      } else if (current.activeLayoutByDashboard[layout.dashboardKey] === layoutId) {
+        current.activeLayoutByDashboard[layout.dashboardKey] = remainingForDashboard[0]!.id;
       }
 
       return current;
     },
   );
 
-  return publicDashboardLayoutResponse(context.activeRole, state, dashboardKey);
+  return publicDashboardLayoutResponse(context.activeRole, state, metadata.dashboardKey);
 }
 
 export async function activateDashboardLayout(
@@ -310,28 +317,29 @@ export async function activateDashboardLayout(
   expectedRevision: number,
   ipAddress?: string | null,
 ) {
-  let dashboardKey = 'main';
+  const metadata: DashboardLayoutMutationMetadata = {
+    operation: 'ACTIVATE_LAYOUT',
+    layoutId,
+    dashboardKey: 'main',
+    ipAddress,
+  };
+
   const state = await persistDashboardLayoutMutation(
     context,
     expectedRevision,
-    {
-      operation: 'ACTIVATE_LAYOUT',
-      layoutId,
-      dashboardKey,
-      ipAddress,
-    },
+    metadata,
     (current) => {
       const layout = current.layouts.find((candidate) => candidate.id === layoutId);
       if (!layout) {
         throw new DashboardLayoutError('The dashboard layout was not found.', 404, 'LAYOUT_NOT_FOUND');
       }
-      dashboardKey = layout.dashboardKey;
-      current.activeLayoutByDashboard[dashboardKey] = layout.id;
+      metadata.dashboardKey = layout.dashboardKey;
+      current.activeLayoutByDashboard[layout.dashboardKey] = layout.id;
       return current;
     },
   );
 
-  return publicDashboardLayoutResponse(context.activeRole, state, dashboardKey);
+  return publicDashboardLayoutResponse(context.activeRole, state, metadata.dashboardKey);
 }
 
 export async function resetDashboardLayouts(
@@ -363,8 +371,4 @@ export async function resetDashboardLayouts(
   );
 
   return publicDashboardLayoutResponse(context.activeRole, state, input.dashboardKey);
-}
-
-export function dashboardLayoutRoleLabel(role: RoleType) {
-  return role.toLowerCase().replace(/_/g, '-');
 }
