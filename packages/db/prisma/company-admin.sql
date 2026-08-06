@@ -30,6 +30,11 @@ CREATE TABLE IF NOT EXISTS platform_contracts (
   CONSTRAINT platform_contracts_notice CHECK (renewal_notice_days BETWEEN 0 AND 3650)
 );
 
+-- An early preview version used one contract per institution. Remove that
+-- constraint defensively so subsequent renewals preserve signed history.
+ALTER TABLE platform_contracts
+  DROP CONSTRAINT IF EXISTS platform_contracts_institution_id_key;
+
 CREATE INDEX IF NOT EXISTS platform_contracts_institution_idx
   ON platform_contracts (institution_id, ends_at DESC);
 CREATE INDEX IF NOT EXISTS platform_contracts_ends_at_idx
