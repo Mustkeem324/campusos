@@ -8,11 +8,10 @@ import { StudentDashboardError } from '@/components/dashboard/StudentDashboardSt
 export const dynamic = 'force-dynamic';
 
 /**
- * Administrator dashboard — server component.
+ * Institution administrator dashboard — server component.
  *
- * Authorization is enforced here, on the server, before any UI renders:
- *   session → active tenant → role must be INSTITUTION_ADMIN or SUPER_ADMIN →
- *   tenant-scoped aggregates only. The client never decides access.
+ * SUPER_ADMIN is intentionally routed to the CampusOS company control plane.
+ * Institution administrators remain strictly tenant-scoped here.
  */
 export default async function AdminDashboardPage() {
   let context;
@@ -22,7 +21,11 @@ export default async function AdminDashboardPage() {
     redirect('/login');
   }
 
-  if (context.activeRole !== RoleType.INSTITUTION_ADMIN && context.activeRole !== RoleType.SUPER_ADMIN) {
+  if (context.activeRole === RoleType.SUPER_ADMIN) {
+    redirect('/company-admin');
+  }
+
+  if (context.activeRole !== RoleType.INSTITUTION_ADMIN) {
     redirect(dashboardPathForRole(context.activeRole));
   }
 
