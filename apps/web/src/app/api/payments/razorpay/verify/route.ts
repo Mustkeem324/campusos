@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
-import { getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { findPaymentAttemptByReference } from '@/lib/payment-attempts';
+import { finalizeGatewayPayment, PaymentReconciliationError } from '@/lib/payment-finalizer';
 
 const requestSchema = z.object({
   razorpay_order_id: z.string().min(4).max(200),
@@ -35,8 +35,12 @@ export async function POST(request: Request) {
     const keyId = process.env.RAZORPAY_KEY_ID;
     if (!secret || !keyId) return NextResponse.json({ error: 'Razorpay is not configured.' }, { status: 503 });
 
-    const attempt = await getPaymentAttemptByReference('RAZORPAY', input.razorpay_order_id);
-    if (!attempt || attempt.tenant_id !== context.tenantId || attempt.payer_user_id !== context.userId) {
+    const attempt = await findPaymentAttemptByReference({
+      provider: 'RAZORPAY',
+      reference: input.razorpay_order_id,
+      tenantId: context.tenantId,
+    });
+    if (!attempt || attempt.payer_user_id !== context.userId) {
       return NextResponse.json({ error: 'Payment attempt not found.' }, { status: 404 });
     }
 
@@ -80,6 +84,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, receiptNumber });
   } catch (error) {
+    if (error instanceof PaymentReconciliationError) {
+      return NextResponse.json({ error: error.message, reconciliationRequired: true }, { status: 409 });
+    }
     console.error('Razorpay payment verification failed:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to verify Razorpay payment.' }, { status: 500 });
   }
