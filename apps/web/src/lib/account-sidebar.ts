@@ -3,6 +3,7 @@ import { AiActionStatus } from '@prisma/client';
 import type { ActiveUserContext } from './active-user-context';
 import { prisma } from './db';
 import { canApprovePhase7 } from './phase7';
+import { canReviewPhase7Proposal } from './phase7-approval-policy';
 
 export type AccountSidebarActivity = {
   id: string;
@@ -52,7 +53,7 @@ export async function loadAccountSidebarOverview(
   const now = new Date();
   const proposalScope = accountSidebarProposalScope(context);
 
-  const [user, unreadNotifications, pendingApprovals, openSupportCases, recentActivity] = await Promise.all([
+  const [user, unreadNotifications, pendingProposalRows, openSupportCases, recentActivity] = await Promise.all([
     prisma.user.findFirst({
       where: {
         id: context.userId,
@@ -81,11 +82,12 @@ export async function loadAccountSidebarOverview(
         isArchived: false,
       },
     }),
-    prisma.aiActionProposal.count({
+    prisma.aiActionProposal.findMany({
       where: {
         ...proposalScope,
         status: AiActionStatus.PROPOSED,
       },
+      select: { requiredPermission: true },
     }),
     prisma.supportCase.count({
       where: {
@@ -113,6 +115,12 @@ export async function loadAccountSidebarOverview(
   if (!user) {
     throw new Error('The active account could not be resolved.');
   }
+
+  const pendingApprovals = canApprovePhase7(context.activeRole)
+    ? pendingProposalRows.filter((proposal) =>
+        canReviewPhase7Proposal(context.activeRole, proposal.requiredPermission),
+      ).length
+    : pendingProposalRows.length;
 
   return {
     account: {
