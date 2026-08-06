@@ -1,6 +1,9 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 
 import { DemoOnboardingProvider } from '../../components/demo/DemoOnboardingProvider';
 import { DemoEnvironmentBanner } from '../../components/demo/DemoEnvironmentBanner';
@@ -26,6 +29,7 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
   const { isSidebarCollapsed } = useAuthStore();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [restartTourKey, setRestartTourKey] = useState(0);
@@ -74,6 +78,8 @@ export default function DashboardShell({
     setRestartTourKey((previousKey) => previousKey + 1);
   };
 
+  const showDashboardDesignerShortcut = pathname !== '/dashboard/customize';
+
   return (
     <DemoOnboardingProvider key={restartTourKey}>
       <PwaRegistration />
@@ -115,6 +121,17 @@ export default function DashboardShell({
 
           <div className="relative mx-auto w-full max-w-[var(--content-max-w)] px-4 sm:px-6 lg:px-8">
             <WorkspaceContextBar />
+            {showDashboardDesignerShortcut && (
+              <div className="mb-4 flex justify-end">
+                <Link
+                  href="/dashboard/customize"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#C8D7EA] bg-white px-3.5 text-xs font-extrabold text-[#1754E8] shadow-sm transition hover:border-[#AFC4DF] hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-blue-950/40"
+                >
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                  Customize dashboard
+                </Link>
+              </div>
+            )}
             <div className="dashboard-content-stage">{children}</div>
           </div>
         </main>
