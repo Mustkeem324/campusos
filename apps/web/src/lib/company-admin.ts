@@ -94,7 +94,6 @@ function parseModules(value: unknown): string[] {
 }
 
 function contractHealth(row: ContractRow, now: Date): { health: ContractHealth; daysRemaining: number } {
-  const start = new Date(row.starts_at);
   const end = new Date(row.ends_at);
   const daysRemaining = Math.ceil((end.getTime() - now.getTime()) / 86_400_000);
   const status = row.status.toUpperCase();
@@ -102,7 +101,6 @@ function contractHealth(row: ContractRow, now: Date): { health: ContractHealth; 
   if (status === 'CANCELLED') return { health: 'CANCELLED', daysRemaining };
   if (status === 'SUSPENDED') return { health: 'SUSPENDED', daysRemaining };
   if (daysRemaining < 0 || status === 'EXPIRED') return { health: 'EXPIRED', daysRemaining };
-  if (start.getTime() > now.getTime()) return { health: 'PENDING', daysRemaining };
   if (status === 'TRIAL') return { health: 'TRIAL', daysRemaining };
   if (daysRemaining <= Math.max(30, row.renewal_notice_days)) return { health: 'EXPIRING', daysRemaining };
   return { health: 'ACTIVE', daysRemaining };
@@ -292,12 +290,11 @@ export async function getCompanyAdminDashboardData(): Promise<CompanyAdminDashbo
     totalStudents: institutions.reduce((sum, item) => sum + item.students, 0),
     totalCampuses: institutions.reduce((sum, item) => sum + item.campuses, 0),
     activeContracts: currentContracts.filter((item) => item.health === 'ACTIVE').length,
-    pendingContracts: currentContracts.filter((item) => item.health === 'PENDING').length,
     expiringContracts: currentContracts.filter((item) => item.health === 'EXPIRING').length,
     expiredContracts: currentContracts.filter((item) => item.health === 'EXPIRED').length,
     uncontractedInstitutions: institutions.filter((item) => !item.contract).length,
     annualizedPortfolioValueMinor: currentContracts
-      .filter((item) => ['ACTIVE', 'PENDING', 'EXPIRING', 'TRIAL'].includes(item.health))
+      .filter((item) => ['ACTIVE', 'EXPIRING', 'TRIAL'].includes(item.health))
       .reduce((sum, item) => sum + item.annualizedValueMinor, 0),
     openSupportCases: institutions.reduce((sum, item) => sum + item.supportCases, 0),
     implementationProjects: institutions.reduce((sum, item) => sum + item.implementationProjects, 0),
