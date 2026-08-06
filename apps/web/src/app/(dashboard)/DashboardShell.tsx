@@ -2,8 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 
-import { DemoOnboardingProvider } from '../../components/demo/DemoOnboardingProvider';
-import { DemoEnvironmentBanner } from '../../components/demo/DemoEnvironmentBanner';
 import { ImpersonationBanner } from '../../components/auth/ImpersonationBanner';
 import { BulkImportModal } from '../../components/users/BulkImportModal';
 import { CommandPalette } from '../../components/layout/CommandPalette';
@@ -18,6 +16,7 @@ const dashboardShellVariables = {
   '--sidebar-w': '264px',
   '--sidebar-collapsed-w': '80px',
   '--content-max-w': '1500px',
+  '--demo-banner-h': '0px',
 } as React.CSSProperties;
 
 export default function DashboardShell({
@@ -28,7 +27,6 @@ export default function DashboardShell({
   const [mounted, setMounted] = useState(false);
   const { isSidebarCollapsed } = useAuthStore();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [restartTourKey, setRestartTourKey] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -70,16 +68,12 @@ export default function DashboardShell({
     );
   }
 
-  const handleRestartTour = () => {
-    setRestartTourKey((previousKey) => previousKey + 1);
-  };
-
   const sidebarWidth = isSidebarCollapsed
     ? 'var(--sidebar-collapsed-w)'
     : 'var(--sidebar-w)';
 
   return (
-    <DemoOnboardingProvider key={restartTourKey}>
+    <>
       <PwaRegistration />
       <div
         className="isolate min-h-screen w-full max-w-full overflow-x-hidden overscroll-x-none bg-[#F2F5FA] text-[#172033] dark:bg-[#090D16] dark:text-slate-100"
@@ -94,8 +88,6 @@ export default function DashboardShell({
         </a>
 
         <ImpersonationBanner />
-        <DemoEnvironmentBanner onRestartTutorial={handleRestartTour} />
-
         <Header />
         <Sidebar />
 
@@ -127,6 +119,6 @@ export default function DashboardShell({
           </div>
         </main>
       </div>
-    </DemoOnboardingProvider>
+    </>
   );
 }

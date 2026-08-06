@@ -2,17 +2,15 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 
-function isVercelPreview() {
-  return process.env.VERCEL === '1' && process.env.VERCEL_ENV === 'preview';
-}
-
 function shouldPrepareDatabase() {
   if (process.env.CAMPUSOS_AUTO_DB_PUSH === 'false') return false;
 
+  // Preview builds are validation environments and must not mutate a connected
+  // database implicitly. Production may prepare automatically; any other
+  // environment must opt in explicitly.
   return (
     process.env.CAMPUSOS_AUTO_DB_PUSH === 'true' ||
-    process.env.VERCEL_ENV === 'production' ||
-    isVercelPreview()
+    process.env.VERCEL_ENV === 'production'
   );
 }
 
@@ -47,16 +45,30 @@ function runPrismaDbPush() {
   );
 }
 
-function provisionCompanyAdminStorage() {
+function executeSqlFile(file, label) {
   runCommand(
     prismaBinary(),
     [
       'db',
       'execute',
-      '--file=packages/db/prisma/company-admin.sql',
+      `--file=${file}`,
       '--schema=packages/db/prisma/schema.prisma',
     ],
+    label,
+  );
+}
+
+function provisionCompanyAdminStorage() {
+  executeSqlFile(
+    'packages/db/prisma/company-admin.sql',
     'Company administration control-plane provisioning',
+  );
+}
+
+function provisionPaymentPortalStorage() {
+  executeSqlFile(
+    'packages/db/prisma/payment-portal.sql',
+    'Payment portal orchestration provisioning',
   );
 }
 
@@ -95,6 +107,10 @@ function prepareDatabase() {
   console.log('Provisioning CampusOS company administration control-plane tables...');
   provisionCompanyAdminStorage();
   console.log('Company administration storage is ready.');
+
+  console.log('Provisioning CampusOS payment orchestration tables...');
+  provisionPaymentPortalStorage();
+  console.log('Payment orchestration storage is ready.');
 
   if (shouldSeedSyntheticCampus()) {
     console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');
