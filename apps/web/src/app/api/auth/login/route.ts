@@ -17,6 +17,7 @@ const LOCKOUT_DURATION_MINUTES = 15;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 const WORKSPACE_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const LOGIN_BODY_LIMIT_BYTES = 4 * 1024;
+const BLOCKED_INSTITUTION_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
 
 export async function POST(request: Request) {
   try {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
     if (workspace) {
       const institution = await prisma.institution.findUnique({ where: { subdomain: workspace }, select: { id: true, status: true } });
-      if (!institution || ['SUSPENDED', 'INACTIVE', 'DISABLED'].includes(institution.status.toUpperCase())) {
+      if (!institution || BLOCKED_INSTITUTION_STATUSES.has(institution.status.toUpperCase())) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
       user = await prisma.user.findFirst({
@@ -70,7 +71,10 @@ export async function POST(request: Request) {
       user = candidates[0] ?? null;
     }
 
-    if (!user || !user.isActive) {
+    // Lifecycle enforcement is intentionally repeated after account resolution
+    // so suspended/disabled institutions cannot bypass workspace checks through
+    // the generic email login path.
+    if (!user || !user.isActive || BLOCKED_INSTITUTION_STATUSES.has(user.institution.status.toUpperCase())) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
     if (user.lockedUntil && user.lockedUntil > new Date()) {
