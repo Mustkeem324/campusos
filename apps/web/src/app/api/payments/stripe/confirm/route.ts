@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { finalizeGatewayAttempt, getPaymentAttemptByReference } from '@/lib/payment-portal';
+import { finalizeGatewayPayment } from '@/lib/payment-finalizer';
+import { getPaymentAttemptByReference } from '@/lib/payment-portal';
 
 export async function GET(request: Request) {
   const context = await requireActiveUserContext().catch(() => null);
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Stripe returned an incomplete payment confirmation.' }, { status: 409 });
     }
 
-    const receiptNumber = await finalizeGatewayAttempt({
+    const receiptNumber = await finalizeGatewayPayment({
       attemptId: attempt.id,
       externalPaymentReference: externalReference,
       method: 'STRIPE',
