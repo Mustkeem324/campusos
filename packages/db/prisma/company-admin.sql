@@ -1,10 +1,12 @@
 -- CampusOS company-level commercial control plane.
--- This is intentionally separate from institution-owned academic/finance data.
--- It stores only the SaaS relationship between CampusOS and each institution.
+-- The control plane lives outside Prisma's managed `public` schema so normal
+-- tenant db-push operations cannot treat commercial history as unmanaged data.
 
-CREATE TABLE IF NOT EXISTS platform_contracts (
+CREATE SCHEMA IF NOT EXISTS campusos_control;
+
+CREATE TABLE IF NOT EXISTS campusos_control.platform_contracts (
   id uuid PRIMARY KEY,
-  institution_id uuid NOT NULL REFERENCES institutions(id) ON DELETE CASCADE,
+  institution_id uuid NOT NULL REFERENCES public.institutions(id) ON DELETE CASCADE,
   contract_number text NOT NULL UNIQUE,
   plan_name text NOT NULL,
   status text NOT NULL DEFAULT 'ACTIVE',
@@ -32,22 +34,22 @@ CREATE TABLE IF NOT EXISTS platform_contracts (
 
 -- An early preview version used one contract per institution. Remove that
 -- constraint defensively so subsequent renewals preserve signed history.
-ALTER TABLE platform_contracts
+ALTER TABLE campusos_control.platform_contracts
   DROP CONSTRAINT IF EXISTS platform_contracts_institution_id_key;
 
 CREATE INDEX IF NOT EXISTS platform_contracts_institution_idx
-  ON platform_contracts (institution_id, ends_at DESC);
+  ON campusos_control.platform_contracts (institution_id, ends_at DESC);
 CREATE INDEX IF NOT EXISTS platform_contracts_ends_at_idx
-  ON platform_contracts (ends_at);
+  ON campusos_control.platform_contracts (ends_at);
 CREATE INDEX IF NOT EXISTS platform_contracts_status_idx
-  ON platform_contracts (status);
+  ON campusos_control.platform_contracts (status);
 CREATE INDEX IF NOT EXISTS platform_contracts_account_owner_idx
-  ON platform_contracts (account_owner);
+  ON campusos_control.platform_contracts (account_owner);
 
-CREATE TABLE IF NOT EXISTS platform_admin_events (
+CREATE TABLE IF NOT EXISTS campusos_control.platform_admin_events (
   id uuid PRIMARY KEY,
-  actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
-  institution_id uuid REFERENCES institutions(id) ON DELETE SET NULL,
+  actor_user_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  institution_id uuid REFERENCES public.institutions(id) ON DELETE SET NULL,
   event_type text NOT NULL,
   summary text NOT NULL,
   detail jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -55,6 +57,6 @@ CREATE TABLE IF NOT EXISTS platform_admin_events (
 );
 
 CREATE INDEX IF NOT EXISTS platform_admin_events_created_at_idx
-  ON platform_admin_events (created_at DESC);
+  ON campusos_control.platform_admin_events (created_at DESC);
 CREATE INDEX IF NOT EXISTS platform_admin_events_institution_idx
-  ON platform_admin_events (institution_id, created_at DESC);
+  ON campusos_control.platform_admin_events (institution_id, created_at DESC);
