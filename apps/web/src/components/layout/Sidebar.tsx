@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import React from 'react';
 import {
   Award,
   BookOpen,
@@ -12,7 +12,6 @@ import {
   Bus,
   Calendar,
   CheckSquare,
-  ChevronRight,
   Database,
   DollarSign,
   FileText,
@@ -33,6 +32,7 @@ import {
 
 import { useAuthStore } from '../../lib/auth-store';
 import { dashboardDefinitionForRole } from '../../lib/dashboard/registry';
+import { SidebarProfileMenu } from './SidebarProfileMenu';
 
 interface NavItem {
   label: string;
@@ -69,11 +69,12 @@ function initialsFor(value: string) {
 
 function iconForHref(href: string): React.ElementType {
   if (href.startsWith('/dashboard')) return LayoutDashboard;
+  if (href.startsWith('/phase-7')) return Brain;
+  if (href.startsWith('/profile')) return User;
   if (href.startsWith('/lms') || href.startsWith('/learning')) return BookOpen;
   if (href.startsWith('/assignments')) return FileText;
   if (href.startsWith('/timetable')) return Calendar;
-  if (href.startsWith('/attendance')) return CheckSquare;
-  if (href.startsWith('/registration')) return CheckSquare;
+  if (href.startsWith('/attendance') || href.startsWith('/registration')) return CheckSquare;
   if (href.startsWith('/examinations')) return FileText;
   if (href.startsWith('/results')) return GraduationCap;
   if (href.startsWith('/microcredentials')) return Award;
@@ -139,7 +140,6 @@ export function Sidebar() {
 
   const roleLabel = formatRole(currentSession?.role);
   const institutionName = currentSession?.institutionName ?? 'CampusOS Institution';
-  const userName = currentSession?.name ?? 'CampusOS user';
   const showExpandedContent = !isSidebarCollapsed || isMobileOpen;
 
   return (
@@ -240,7 +240,9 @@ export function Sidebar() {
               <div className="space-y-1">
                 {group.items.map((item) => {
                   const Icon = item.icon;
-                  const isSelected = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
+                  const isSelected =
+                    pathname === item.href ||
+                    (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
 
                   return (
                     <Link
@@ -258,7 +260,9 @@ export function Sidebar() {
                       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                       {showExpandedContent && <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>}
                       {showExpandedContent && item.badge && (
-                        <span className="rounded-full bg-[#1754E8] px-2 py-0.5 text-[10px] font-bold text-white">{item.badge}</span>
+                        <span className="rounded-full bg-[#1754E8] px-2 py-0.5 text-[10px] font-bold text-white">
+                          {item.badge}
+                        </span>
                       )}
                     </Link>
                   );
@@ -269,28 +273,18 @@ export function Sidebar() {
 
           {navGroups.length === 0 && showExpandedContent && (
             <div className="rounded-2xl border border-dashed border-[#CBD5E1] p-4 text-center dark:border-slate-700">
-              <p className="text-xs font-semibold text-[#667085] dark:text-slate-400">Loading authorised navigation…</p>
+              <p className="text-xs font-semibold text-[#667085] dark:text-slate-400">
+                Loading authorised navigation…
+              </p>
             </div>
           )}
         </nav>
 
         <div className="shrink-0 border-t border-[#E1E7EF] p-3 dark:border-slate-800">
-          <div
-            className={`flex items-center rounded-2xl bg-[#F7F9FC] p-2.5 dark:bg-slate-900 ${
-              showExpandedContent ? 'gap-3' : 'justify-center'
-            }`}
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#DCE7FF] text-xs font-extrabold text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
-              {initialsFor(userName)}
-            </div>
-            {showExpandedContent && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-bold text-[#101D38] dark:text-white">{userName}</p>
-                <p className="mt-0.5 truncate text-[11px] text-[#667085] dark:text-slate-400">{roleLabel}</p>
-              </div>
-            )}
-            {showExpandedContent && <ChevronRight className="h-4 w-4 shrink-0 text-[#98A2B3]" aria-hidden="true" />}
-          </div>
+          <SidebarProfileMenu
+            expanded={showExpandedContent}
+            onNavigate={() => setIsMobileOpen(false)}
+          />
         </div>
       </aside>
     </>
