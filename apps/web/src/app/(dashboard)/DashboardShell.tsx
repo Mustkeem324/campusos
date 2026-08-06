@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { LayoutDashboard, SlidersHorizontal } from 'lucide-react';
 
 import { DemoOnboardingProvider } from '../../components/demo/DemoOnboardingProvider';
 import { DemoEnvironmentBanner } from '../../components/demo/DemoEnvironmentBanner';
@@ -78,7 +78,9 @@ export default function DashboardShell({
     setRestartTourKey((previousKey) => previousKey + 1);
   };
 
-  const showDashboardDesignerShortcut = pathname !== '/dashboard/customize';
+  const isPersonalDashboardPage = pathname === '/dashboard/personalized';
+  const isDashboardDesignerPage = pathname === '/dashboard/customize';
+  const showPhase8Shortcuts = !isPersonalDashboardPage && !isDashboardDesignerPage;
 
   return (
     <DemoOnboardingProvider key={restartTourKey}>
@@ -121,8 +123,15 @@ export default function DashboardShell({
 
           <div className="relative mx-auto w-full max-w-[var(--content-max-w)] px-4 sm:px-6 lg:px-8">
             <WorkspaceContextBar />
-            {showDashboardDesignerShortcut && (
-              <div className="mb-4 flex justify-end">
+            {showPhase8Shortcuts && (
+              <div className="mb-4 flex flex-wrap justify-end gap-2">
+                <Link
+                  href="/dashboard/personalized"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#C8D7EA] bg-white px-3.5 text-xs font-extrabold text-[#334155] shadow-sm transition hover:border-[#AFC4DF] hover:bg-[#F7F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                >
+                  <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                  My layout
+                </Link>
                 <Link
                   href="/dashboard/customize"
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#C8D7EA] bg-white px-3.5 text-xs font-extrabold text-[#1754E8] shadow-sm transition hover:border-[#AFC4DF] hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:bg-slate-950 dark:text-blue-300 dark:hover:bg-blue-950/40"
