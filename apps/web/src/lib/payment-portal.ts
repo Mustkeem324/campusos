@@ -1,10 +1,8 @@
 import 'server-only';
 
-import { randomUUID } from 'node:crypto';
-import type { PaymentMethod } from '@prisma/client';
-
 import { requireActiveUserContext, type ActiveUserContext } from './active-user-context';
 import { getTenantDb, prisma } from './db';
+import { canManageInstitutionPaymentSettings } from './payment-permissions';
 import type {
   ManualPaymentReviewItem,
   PaymentPortalData,
@@ -164,7 +162,6 @@ async function payerStudentIds(context: ActiveUserContext) {
     });
     return student ? [student.id] : [];
   }
-
   if (context.activeRole === 'PARENT') {
     const guardian = await prisma.guardian.findFirst({
       where: { tenantId: context.tenantId, userId: context.userId },
@@ -172,7 +169,6 @@ async function payerStudentIds(context: ActiveUserContext) {
     });
     return guardian?.students.map((student) => student.id) ?? [];
   }
-
   return [];
 }
 
@@ -213,7 +209,6 @@ async function readReviewQueue(tenantId: string): Promise<ManualPaymentReviewIte
       ORDER BY submission.created_at ASC
       LIMIT 100
     `;
-
     return rows.map((row) => ({
       id: row.id,
       payerUserId: row.payer_user_id,
@@ -282,12 +277,11 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
     }),
     getPaymentSettings(context.tenantId),
   ]);
-
   if (!institution || !payer) throw new Error('Unable to resolve payment workspace identity.');
 
   const canPay = PAYER_ROLES.has(context.activeRole);
   const canReviewManualTransfers = isFinancePaymentOperator(context);
-  const canManagePaymentSettings = isFinancePaymentOperator(context);
+  const canManagePaymentSettings = canManageInstitutionPaymentSettings(context);
   const studentIds = canPay ? await payerStudentIds(context) : [];
   const manualRows = canPay ? await readManualSubmissionsForPayer(context) : [];
   const pendingInvoiceIds = new Set(
@@ -316,10 +310,7 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
             user: { select: { name: true } },
           },
         },
-        payments: {
-          where: { status: 'PAID' },
-          select: { amount: true },
-        },
+        payments: { where: { status: 'PAID' }, select: { amount: true } },
       },
     });
 
@@ -357,12 +348,7 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
         status: true,
         transactionId: true,
         paidAt: true,
-        invoice: {
-          select: {
-            id: true,
-            feeStructure: { select: { name: true } },
-          },
-        },
+        invoice: { select: { id: true, feeStructure: { select: { name: true } } } },
       },
     });
 
@@ -415,39 +401,51 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
       method: payment.method,
       invoiceLabel: `${payment.invoice.feeStructure.name} · ${payment.invoice.student.rollNumber}`,
       amount: payment.amount,
-      status: payment.status === 'PAID' ? 'SUCCESSFUL' : payment.status === 'REFUNDED' ? 'REFUNDED' : payment.status === 'FAILED' ? 'FAILED' : 'PROCESSING',
+      status: payment.status === 'PAID'
+        ? 'SUCCESSFUL'
+        : payment.status === 'REFUNDED'
+          ? 'REFUNDED'
+          : payment.status === 'FAILED'
+            ? 'FAILED'
+            : 'PROCESSING',
       receiptNo: null,
     }));
   }
 
   const manualTransactions: PaymentPortalTransaction[] = manualRows
     .filter((row) => row.status !== 'APPROVED')
-    .map((row) => ({
-      id: row.id,
-      providerReference: row.transaction_reference,
-      date: row.created_at.toISOString(),
-      method: 'Bank transfer',
-      invoiceLabel: `${parseStringArray(row.invoice_ids).length} invoice${parseStringArray(row.invoice_ids).length === 1 ? '' : 's'}`,
-      amount: dbNumber(row.amount_minor) / 100,
-      status: row.status === 'REJECTED' ? 'REJECTED' : 'VERIFICATION_PENDING',
-      receiptNo: row.receipt_number,
-      detail: row.review_note,
-    }));
+    .map((row) => {
+      const count = parseStringArray(row.invoice_ids).length;
+      return {
+        id: row.id,
+        providerReference: row.transaction_reference,
+        date: row.created_at.toISOString(),
+        method: 'Bank transfer',
+        invoiceLabel: `${count} invoice${count === 1 ? '' : 's'}`,
+        amount: dbNumber(row.amount_minor) / 100,
+        status: row.status === 'REJECTED' ? 'REJECTED' : 'VERIFICATION_PENDING',
+        receiptNo: row.receipt_number,
+        detail: row.review_note,
+      };
+    });
 
   const attempts = canPay ? await readAttemptsForPayer(context) : [];
   const attemptTransactions: PaymentPortalTransaction[] = attempts
     .filter((attempt) => attempt.status !== 'PAID')
-    .map((attempt) => ({
-      id: attempt.id,
-      providerReference: attempt.provider_reference,
-      date: attempt.created_at.toISOString(),
-      method: attempt.provider === 'RAZORPAY' ? 'Razorpay' : 'Stripe',
-      invoiceLabel: `${parseStringArray(attempt.invoice_ids).length} invoice${parseStringArray(attempt.invoice_ids).length === 1 ? '' : 's'}`,
-      amount: dbNumber(attempt.amount_minor) / 100,
-      status: attempt.status === 'FAILED' ? 'FAILED' : 'PROCESSING',
-      receiptNo: attempt.receipt_number,
-      detail: attempt.failure_reason,
-    }));
+    .map((attempt) => {
+      const count = parseStringArray(attempt.invoice_ids).length;
+      return {
+        id: attempt.id,
+        providerReference: attempt.provider_reference,
+        date: attempt.created_at.toISOString(),
+        method: attempt.provider === 'RAZORPAY' ? 'Razorpay' : 'Stripe',
+        invoiceLabel: `${count} invoice${count === 1 ? '' : 's'}`,
+        amount: dbNumber(attempt.amount_minor) / 100,
+        status: attempt.status === 'FAILED' ? 'FAILED' : 'PROCESSING',
+        receiptNo: attempt.receipt_number,
+        detail: attempt.failure_reason,
+      } as PaymentPortalTransaction;
+    });
 
   const transactions = [...manualTransactions, ...attemptTransactions, ...paymentTransactions]
     .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
@@ -457,8 +455,7 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
   const nextDue = outstandingInvoices
     .filter((invoice) => invoice.status !== 'VERIFICATION_PENDING')
     .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())[0];
-  const successfulTransactions = transactions.filter((transaction) => transaction.status === 'SUCCESSFUL');
-  const latestSuccessful = successfulTransactions[0] ?? null;
+  const latestSuccessful = transactions.find((transaction) => transaction.status === 'SUCCESSFUL') ?? null;
   const reviewQueue = canReviewManualTransfers ? await readReviewQueue(context.tenantId) : [];
 
   return {
@@ -474,7 +471,9 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
       overdueInvoiceCount: invoices.filter((invoice) => invoice.status === 'OVERDUE').length,
       lastPaymentAmount: latestSuccessful?.amount ?? null,
       lastPaymentDate: latestSuccessful?.date ?? null,
-      pendingVerificationCount: manualRows.filter((row) => ['PENDING', 'RECONCILIATION_REQUIRED'].includes(row.status)).length,
+      pendingVerificationCount: manualRows.filter((row) =>
+        ['PENDING', 'RECONCILIATION_REQUIRED'].includes(row.status),
+      ).length,
     },
     invoices,
     transactions,
@@ -482,255 +481,26 @@ export async function getPaymentPortalData(): Promise<PaymentPortalData> {
   };
 }
 
-export async function resolvePayableInvoices(context: ActiveUserContext, invoiceIds: string[]) {
-  if (!PAYER_ROLES.has(context.activeRole)) throw new Error('This account is not allowed to initiate fee payments.');
-  const uniqueIds = Array.from(new Set(invoiceIds.filter(Boolean)));
-  if (uniqueIds.length === 0 || uniqueIds.length > 20) throw new Error('Select between 1 and 20 invoices.');
-
-  const studentIds = await payerStudentIds(context);
-  if (studentIds.length === 0) throw new Error('No authorised student profile is available for payment.');
-
-  const db = getTenantDb(context.tenantId);
-  const invoices = await db.invoice.findMany({
-    where: { id: { in: uniqueIds }, studentId: { in: studentIds } },
-    select: {
-      id: true,
-      amount: true,
-      status: true,
-      payments: { where: { status: 'PAID' }, select: { amount: true } },
-    },
-  });
-
-  if (invoices.length !== uniqueIds.length) throw new Error('One or more selected invoices are unavailable for this account.');
-
-  const resolved = invoices.map((invoice) => {
-    const paid = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
-    return { id: invoice.id, balanceMinor: Math.max(0, Math.round((invoice.amount - paid) * 100)) };
-  }).filter((invoice) => invoice.balanceMinor > 0);
-
-  if (resolved.length === 0) throw new Error('The selected invoices have no outstanding balance.');
-  return {
-    invoices: resolved,
-    totalMinor: resolved.reduce((sum, invoice) => sum + invoice.balanceMinor, 0),
-  };
-}
-
-export async function createPendingPaymentAttempt(input: {
-  context: ActiveUserContext;
-  provider: 'RAZORPAY' | 'STRIPE';
-  invoiceIds: string[];
-  amountMinor: number;
-  currency: string;
-}) {
-  const id = randomUUID();
-  const pendingReference = `pending:${id}`;
-  await prisma.$executeRaw`
-    INSERT INTO campusos_finance.payment_attempts
-      (id, tenant_id, payer_user_id, provider, provider_reference,
-       invoice_ids, amount_minor, currency, status, created_at, updated_at)
-    VALUES
-      (${id}::uuid, ${input.context.tenantId}::uuid, ${input.context.userId}::uuid,
-       ${input.provider}, ${pendingReference}, CAST(${JSON.stringify(input.invoiceIds)} AS jsonb),
-       ${input.amountMinor}, ${input.currency}, 'CREATING', now(), now())
-  `;
-  return id;
-}
-
+/**
+ * Converts a reserved CampusOS payment attempt from its local `CREATING`
+ * placeholder to the provider's durable order/session reference.
+ */
 export async function activatePaymentAttempt(attemptId: string, providerReference: string) {
   await prisma.$executeRaw`
     UPDATE campusos_finance.payment_attempts
     SET provider_reference = ${providerReference}, status = 'CREATED', updated_at = now()
-    WHERE id = ${attemptId}::uuid
+    WHERE id = ${attemptId}::uuid AND status = 'CREATING'
   `;
 }
 
+/**
+ * Releases an initiation reservation after provider checkout creation failed.
+ * Confirmed/reconciliation records are never overwritten by this helper.
+ */
 export async function failPaymentAttempt(attemptId: string, message: string) {
   await prisma.$executeRaw`
     UPDATE campusos_finance.payment_attempts
     SET status = 'FAILED', failure_reason = ${message.slice(0, 500)}, updated_at = now()
-    WHERE id = ${attemptId}::uuid
+    WHERE id = ${attemptId}::uuid AND status IN ('CREATING', 'CREATED')
   `;
-}
-
-export async function getPaymentAttemptByReference(provider: 'RAZORPAY' | 'STRIPE', reference: string) {
-  const rows = await prisma.$queryRaw<AttemptRow[]>`
-    SELECT id, tenant_id, payer_user_id, provider, provider_reference,
-           invoice_ids, amount_minor, currency, status, receipt_number,
-           external_payment_reference, failure_reason, created_at
-    FROM campusos_finance.payment_attempts
-    WHERE provider = ${provider} AND provider_reference = ${reference}
-    LIMIT 1
-  `;
-  return rows[0] ?? null;
-}
-
-function makeReceiptNumber() {
-  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  return `COS-${date}-${randomUUID().slice(0, 8).toUpperCase()}`;
-}
-
-async function postConfirmedPayments(input: {
-  tenantId: string;
-  invoiceIds: string[];
-  amountMinor: number;
-  method: PaymentMethod;
-  externalReference: string;
-  receiptNumber: string;
-}) {
-  return prisma.$transaction(async (tx) => {
-    const invoices = await tx.invoice.findMany({
-      where: { tenantId: input.tenantId, id: { in: input.invoiceIds } },
-      select: {
-        id: true,
-        amount: true,
-        payments: { where: { status: 'PAID' }, select: { amount: true } },
-      },
-    });
-    if (invoices.length !== input.invoiceIds.length) throw new Error('Invoice allocation changed before payment confirmation.');
-
-    const balances = invoices.map((invoice) => {
-      const paid = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
-      return { id: invoice.id, balanceMinor: Math.max(0, Math.round((invoice.amount - paid) * 100)) };
-    });
-    const totalBalanceMinor = balances.reduce((sum, invoice) => sum + invoice.balanceMinor, 0);
-    if (input.amountMinor > totalBalanceMinor + 1) {
-      throw new Error('Confirmed payment exceeds the remaining selected invoice balance and needs reconciliation.');
-    }
-
-    let remaining = input.amountMinor;
-    for (const invoice of balances) {
-      if (remaining <= 0 || invoice.balanceMinor <= 0) continue;
-      const allocationMinor = Math.min(remaining, invoice.balanceMinor);
-      const transactionId = `${input.externalReference}:${invoice.id}`;
-      await tx.payment.create({
-        data: {
-          tenantId: input.tenantId,
-          invoiceId: invoice.id,
-          amount: allocationMinor / 100,
-          method: input.method,
-          status: 'PAID',
-          transactionId,
-          paidAt: new Date(),
-        },
-      });
-      const newBalanceMinor = invoice.balanceMinor - allocationMinor;
-      await tx.invoice.update({
-        where: { id: invoice.id },
-        data: { status: newBalanceMinor <= 1 ? 'PAID' : 'PARTIAL' },
-      });
-      remaining -= allocationMinor;
-    }
-    if (remaining > 1) throw new Error('Confirmed payment could not be fully allocated to the selected invoices.');
-    return input.receiptNumber;
-  });
-}
-
-export async function finalizeGatewayAttempt(input: {
-  attemptId: string;
-  externalPaymentReference: string;
-  method: Extract<PaymentMethod, 'RAZORPAY' | 'STRIPE'>;
-  verifiedAmountMinor: number;
-  verifiedCurrency: string;
-}) {
-  const rows = await prisma.$queryRaw<AttemptRow[]>`
-    SELECT id, tenant_id, payer_user_id, provider, provider_reference,
-           invoice_ids, amount_minor, currency, status, receipt_number,
-           external_payment_reference, failure_reason, created_at
-    FROM campusos_finance.payment_attempts
-    WHERE id = ${input.attemptId}::uuid
-    LIMIT 1
-  `;
-  const attempt = rows[0];
-  if (!attempt) throw new Error('Payment attempt not found.');
-  if (attempt.status === 'PAID') return attempt.receipt_number;
-
-  const expectedAmount = dbNumber(attempt.amount_minor);
-  if (expectedAmount !== input.verifiedAmountMinor || attempt.currency.toUpperCase() !== input.verifiedCurrency.toUpperCase()) {
-    await prisma.$executeRaw`
-      UPDATE campusos_finance.payment_attempts
-      SET status = 'RECONCILIATION_REQUIRED',
-          failure_reason = 'Gateway amount or currency did not match the CampusOS attempt.',
-          external_payment_reference = ${input.externalPaymentReference}, updated_at = now()
-      WHERE id = ${attempt.id}::uuid
-    `;
-    throw new Error('Gateway amount or currency does not match the CampusOS payment attempt.');
-  }
-
-  const receiptNumber = makeReceiptNumber();
-  try {
-    await postConfirmedPayments({
-      tenantId: attempt.tenant_id,
-      invoiceIds: parseStringArray(attempt.invoice_ids),
-      amountMinor: expectedAmount,
-      method: input.method,
-      externalReference: input.externalPaymentReference,
-      receiptNumber,
-    });
-  } catch (error) {
-    await prisma.$executeRaw`
-      UPDATE campusos_finance.payment_attempts
-      SET status = 'RECONCILIATION_REQUIRED',
-          failure_reason = ${error instanceof Error ? error.message.slice(0, 500) : 'Payment allocation failed.'},
-          external_payment_reference = ${input.externalPaymentReference}, updated_at = now()
-      WHERE id = ${attempt.id}::uuid
-    `;
-    throw error;
-  }
-
-  await prisma.$executeRaw`
-    UPDATE campusos_finance.payment_attempts
-    SET status = 'PAID', receipt_number = ${receiptNumber},
-        external_payment_reference = ${input.externalPaymentReference},
-        failure_reason = NULL, updated_at = now()
-    WHERE id = ${attempt.id}::uuid
-  `;
-  return receiptNumber;
-}
-
-export async function finalizeManualSubmission(submissionId: string, reviewerUserId: string) {
-  const rows = await prisma.$queryRaw<ManualSubmissionRow[]>`
-    SELECT id, tenant_id, payer_user_id, invoice_ids, amount_minor, currency,
-           transaction_reference, bank_name, transfer_date, payer_note,
-           proof_file_name, proof_mime_type, status, receipt_number,
-           review_note, created_at
-    FROM campusos_finance.manual_payment_submissions
-    WHERE id = ${submissionId}::uuid
-    LIMIT 1
-  `;
-  const submission = rows[0];
-  if (!submission) throw new Error('Manual payment submission not found.');
-  if (submission.status === 'APPROVED') return submission.receipt_number;
-  if (!['PENDING', 'RECONCILIATION_REQUIRED'].includes(submission.status)) {
-    throw new Error('This transfer submission has already been closed.');
-  }
-
-  const receiptNumber = makeReceiptNumber();
-  try {
-    await postConfirmedPayments({
-      tenantId: submission.tenant_id,
-      invoiceIds: parseStringArray(submission.invoice_ids),
-      amountMinor: dbNumber(submission.amount_minor),
-      method: 'NETBANKING',
-      externalReference: submission.transaction_reference,
-      receiptNumber,
-    });
-  } catch (error) {
-    await prisma.$executeRaw`
-      UPDATE campusos_finance.manual_payment_submissions
-      SET status = 'RECONCILIATION_REQUIRED', reviewer_user_id = ${reviewerUserId}::uuid,
-          review_note = ${error instanceof Error ? error.message.slice(0, 500) : 'Payment allocation failed.'},
-          reviewed_at = now(), updated_at = now()
-      WHERE id = ${submission.id}::uuid
-    `;
-    throw error;
-  }
-
-  await prisma.$executeRaw`
-    UPDATE campusos_finance.manual_payment_submissions
-    SET status = 'APPROVED', receipt_number = ${receiptNumber},
-        reviewer_user_id = ${reviewerUserId}::uuid, review_note = 'Verified by institution finance.',
-        reviewed_at = now(), updated_at = now()
-    WHERE id = ${submission.id}::uuid
-  `;
-  return receiptNumber;
 }
