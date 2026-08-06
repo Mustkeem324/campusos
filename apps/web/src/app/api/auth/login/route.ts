@@ -8,29 +8,62 @@ import { createMfaChallenge } from '../../../../lib/mfa-challenge';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MINUTES = 15;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+const WORKSPACE_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
-    const email = typeof body === 'object' && body && 'email' in body
-      ? String(body.email).trim().toLowerCase()
-      : '';
-    const password = typeof body === 'object' && body && 'password' in body
-      ? String(body.password)
-      : '';
+    const payload = body && typeof body === 'object' ? body as Record<string, unknown> : {};
+    const email = String(payload.email ?? '').trim().toLowerCase();
+    const password = String(payload.password ?? '');
+    const rememberMe = payload.rememberMe === true;
+    const workspace = String(payload.workspace ?? '').trim().toLowerCase();
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    // Email is unique inside a tenant, not globally. Reject an ambiguous global
-    // match rather than signing into an arbitrary institution account.
-    const candidates = await prisma.user.findMany({
-      where: { email: { equals: email, mode: 'insensitive' } },
-      include: { institution: true },
-      take: 2,
-    });
-    const user = candidates.length === 1 ? candidates[0] : null;
+    if (workspace && !WORKSPACE_PATTERN.test(workspace)) {
+      return NextResponse.json({ error: 'Invalid institution workspace' }, { status: 400 });
+    }
+
+    let user = null;
+
+    if (workspace) {
+      const institution = await prisma.institution.findUnique({
+        where: { subdomain: workspace },
+        select: { id: true, status: true },
+      });
+
+      if (!institution || ['SUSPENDED', 'INACTIVE', 'DISABLED'].includes(institution.status.toUpperCase())) {
+        return NextResponse.json({ error: 'Institution workspace is unavailable' }, { status: 401 });
+      }
+
+      user = await prisma.user.findFirst({
+        where: {
+          tenantId: institution.id,
+          email: { equals: email, mode: 'insensitive' },
+        },
+        include: { institution: true },
+      });
+    } else {
+      // Email addresses are unique inside a tenant, not necessarily globally.
+      // Refuse an ambiguous global match and ask the user to select a workspace.
+      const candidates = await prisma.user.findMany({
+        where: { email: { equals: email, mode: 'insensitive' } },
+        include: { institution: true },
+        take: 2,
+      });
+
+      if (candidates.length > 1) {
+        return NextResponse.json(
+          { error: 'This email exists in more than one institution. Select your institution workspace first.' },
+          { status: 409 },
+        );
+      }
+
+      user = candidates[0] ?? null;
+    }
 
     if (!user || !user.isActive) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
@@ -54,18 +87,17 @@ export async function POST(request: Request) {
         where: { id: user.id },
         data: { loginAttempts: attempts, lockedUntil },
       });
+
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     if (user.mfaEnabled) {
-      // Preserve the legacy response field used by the current login UI, but
-      // store a signed five-minute challenge instead of exposing a raw user ID.
       const challenge = createMfaChallenge(user.id, user.tenantId);
       return NextResponse.json({ mfaRequired: true, userId: challenge });
     }
 
     const userAgent = request.headers.get('user-agent') || 'Unknown';
-    const ipAddress = request.headers.get('x-forwarded-for') || 'Unknown IP';
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'Unknown IP';
     const sessionRecord = await createSession(user.id, userAgent, ipAddress);
     const token = signToken({
       sessionId: sessionRecord.token,
@@ -85,7 +117,14 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: SESSION_TTL_SECONDS,
+      ...(rememberMe ? { maxAge: SESSION_TTL_SECONDS } : {}),
+    });
+    cookieStore.set('campusos_workspace', user.institution.subdomain, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      ...(rememberMe ? { maxAge: SESSION_TTL_SECONDS } : {}),
     });
 
     return NextResponse.json({
