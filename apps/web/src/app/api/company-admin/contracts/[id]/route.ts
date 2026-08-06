@@ -49,7 +49,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const current = await prisma.$queryRaw<ContractIdentity[]>`
       SELECT id, institution_id, contract_number
-      FROM platform_contracts
+      FROM campusos_control.platform_contracts
       WHERE id = ${params.id}::uuid
       LIMIT 1
     `;
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     const valueMinor = Math.round(input.contractValue * 100);
 
     await prisma.$executeRaw`
-      UPDATE platform_contracts
+      UPDATE campusos_control.platform_contracts
       SET plan_name = ${input.planName},
           status = ${input.status},
           currency = ${input.currency},
