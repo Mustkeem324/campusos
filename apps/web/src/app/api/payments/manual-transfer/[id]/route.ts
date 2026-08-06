@@ -38,12 +38,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     if (parsed.data.action === 'REJECT') {
-      await prisma.$executeRaw`
-        UPDATE campusos_finance.manual_payment_submissions
-        SET status = 'REJECTED', reviewer_user_id = ${context.userId}::uuid,
-            review_note = ${parsed.data.note}, reviewed_at = now(), updated_at = now()
-        WHERE id = ${submission.id}::uuid AND tenant_id = ${context.tenantId}::uuid
-      `;
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${submission.id}))`;
+        const current = await tx.$queryRaw<SubmissionIdentity[]>`
+          SELECT id, tenant_id, status, transaction_reference
+          FROM campusos_finance.manual_payment_submissions
+          WHERE id = ${submission.id}::uuid AND tenant_id = ${context.tenantId}::uuid
+          LIMIT 1
+        `;
+        if (!current[0] || !['PENDING', 'RECONCILIATION_REQUIRED'].includes(current[0].status)) {
+          throw new Error('This transfer submission has already been reviewed.');
+        }
+        await tx.$executeRaw`
+          UPDATE campusos_finance.manual_payment_submissions
+          SET status = 'REJECTED', reviewer_user_id = ${context.userId}::uuid,
+              review_note = ${parsed.data.note}, reviewed_at = now(), updated_at = now()
+          WHERE id = ${submission.id}::uuid AND tenant_id = ${context.tenantId}::uuid
+        `;
+      }, { timeout: 15_000 });
       return NextResponse.json({ success: true, status: 'REJECTED' });
     }
 
@@ -62,6 +74,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch (error) {
     console.error('Manual payment review failed:', error);
     const message = error instanceof Error ? error.message : 'Unable to review the transfer.';
-    return NextResponse.json({ error: message }, { status: /reconciliation|balance|closed/i.test(message) ? 409 : 500 });
+    return NextResponse.json({ error: message }, { status: /reconciliation|balance|closed|already been reviewed/i.test(message) ? 409 : 500 });
   }
 }
