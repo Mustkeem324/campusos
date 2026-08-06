@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const data = await getPaymentPortalData();
+    data.capabilities.canManagePaymentSettings = ['INSTITUTION_ADMIN', 'FINANCE_OFFICER'].includes(data.role);
     return NextResponse.json(data, {
       headers: { 'Cache-Control': 'no-store, max-age=0' },
     });
