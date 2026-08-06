@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
 import { prisma } from '@/lib/db';
+import { assertNoPendingManualTransfer } from '@/lib/payment-pending-guard';
 import { getPaymentSettings, resolvePayableInvoices } from '@/lib/payment-portal';
 
 const ALLOWED_PROOF_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Payment proof must be 3 MB or smaller.' }, { status: 413 });
     }
 
+    await assertNoPendingManualTransfer({
+      tenantId: context.tenantId,
+      payerUserId: context.userId,
+      invoiceIds,
+    });
     const payable = await resolvePayableInvoices(context, invoiceIds);
     const proofBytes = Buffer.from(await proof.arrayBuffer());
     const id = randomUUID();
@@ -83,7 +89,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Manual payment submission failed:', error);
     const message = error instanceof Error ? error.message : 'Unable to submit bank transfer proof.';
-    const duplicate = /unique|transaction_reference/i.test(message);
-    return NextResponse.json({ error: duplicate ? 'This transaction/UTR reference has already been submitted.' : message }, { status: duplicate ? 409 : 500 });
+    const duplicate = /unique|transaction_reference|already under institution verification/i.test(message);
+    return NextResponse.json({ error: duplicate && !/already under institution verification/i.test(message) ? 'This transaction/UTR reference has already been submitted.' : message }, { status: duplicate ? 409 : 500 });
   }
 }
