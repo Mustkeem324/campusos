@@ -1,4 +1,4 @@
-export type ContractHealth = 'ACTIVE' | 'EXPIRING' | 'EXPIRED' | 'SUSPENDED' | 'TRIAL' | 'CANCELLED' | 'UNCONTRACTED';
+export type ContractHealth = 'ACTIVE' | 'PENDING' | 'EXPIRING' | 'EXPIRED' | 'SUSPENDED' | 'TRIAL' | 'CANCELLED' | 'UNCONTRACTED';
 
 export type CompanyAdminContract = {
   id: string;
@@ -64,6 +64,7 @@ export type CompanyAdminMetrics = {
   totalStudents: number;
   totalCampuses: number;
   activeContracts: number;
+  pendingContracts: number;
   expiringContracts: number;
   expiredContracts: number;
   uncontractedInstitutions: number;
