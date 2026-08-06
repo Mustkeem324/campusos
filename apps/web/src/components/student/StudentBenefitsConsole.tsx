@@ -1,445 +1,798 @@
 'use client';
 
-import React, { useState } from 'react';
 import Link from 'next/link';
-import { 
-  Gift, 
-  Search, 
-  CheckCircle2, 
-  ExternalLink, 
-  Copy, 
-  ShieldCheck, 
-  Sparkles, 
-  Code, 
-  Cpu, 
-  Palette, 
-  BookOpen, 
-  Music, 
-  Zap,
-  Award,
-  Layers,
+import React from 'react';
+import {
   ArrowRight,
-  X
+  BadgeCheck,
+  Banknote,
+  BookOpen,
+  BriefcaseBusiness,
+  Building2,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  Code2,
+  ExternalLink,
+  FileBadge2,
+  Filter,
+  GraduationCap,
+  HeartHandshake,
+  Landmark,
+  LayoutGrid,
+  Lightbulb,
+  Palette,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+  type LucideIcon,
 } from 'lucide-react';
+
+import {
+  STUDENT_BENEFITS,
+  STUDENT_BENEFIT_ACCESS_LABELS,
+  STUDENT_BENEFIT_CATEGORIES,
+  STUDENT_BENEFIT_REGION_LABELS,
+  filterStudentBenefits,
+  studentBenefitCategoryCounts,
+  type StudentBenefit,
+  type StudentBenefitAccess,
+  type StudentBenefitCategory,
+  type StudentBenefitRegion,
+  type StudentBenefitSort,
+} from '../../lib/student-benefits';
 import { useAuthStore } from '../../lib/auth-store';
 
-interface StudentPerk {
-  id: string;
-  title: string;
-  provider: string;
-  category: 'developer' | 'ai' | 'design' | 'learning' | 'lifestyle';
-  value: string;
-  badge: string;
-  description: string;
-  howToClaim: string[];
-  claimUrl: string;
-  featured?: boolean;
+type CategoryOption = {
+  id: StudentBenefitCategory | 'all';
+  label: string;
+  icon: LucideIcon;
+};
+
+const CATEGORY_ICONS: Record<StudentBenefitCategory, LucideIcon> = {
+  technology: Code2,
+  design: Palette,
+  productivity: Lightbulb,
+  learning: BookOpen,
+  'financial-support': Banknote,
+  career: BriefcaseBusiness,
+  'academic-services': FileBadge2,
+  wellbeing: HeartHandshake,
+};
+
+const CATEGORY_OPTIONS: CategoryOption[] = [
+  { id: 'all', label: 'All opportunities', icon: LayoutGrid },
+  ...STUDENT_BENEFIT_CATEGORIES.map((category) => ({
+    ...category,
+    icon: CATEGORY_ICONS[category.id],
+  })),
+];
+
+const ACCESS_OPTIONS: Array<{ id: StudentBenefitAccess | 'all'; label: string }> = [
+  { id: 'all', label: 'All access types' },
+  { id: 'free', label: STUDENT_BENEFIT_ACCESS_LABELS.free },
+  { id: 'application', label: STUDENT_BENEFIT_ACCESS_LABELS.application },
+  { id: 'institution', label: STUDENT_BENEFIT_ACCESS_LABELS.institution },
+  { id: 'discount', label: STUDENT_BENEFIT_ACCESS_LABELS.discount },
+];
+
+const REGION_OPTIONS: Array<{ id: StudentBenefitRegion | 'all'; label: string }> = [
+  { id: 'all', label: 'All regions' },
+  { id: 'india', label: STUDENT_BENEFIT_REGION_LABELS.india },
+  { id: 'global', label: STUDENT_BENEFIT_REGION_LABELS.global },
+  { id: 'institution', label: STUDENT_BENEFIT_REGION_LABELS.institution },
+];
+
+const SORT_OPTIONS: Array<{ id: StudentBenefitSort; label: string }> = [
+  { id: 'featured', label: 'Recommended first' },
+  { id: 'recent', label: 'Recently verified' },
+  { id: 'az', label: 'A to Z' },
+];
+
+const categoryCounts = studentBenefitCategoryCounts(STUDENT_BENEFITS);
+const featuredBenefits = STUDENT_BENEFITS.filter((benefit) => benefit.featured).slice(0, 6);
+
+function formatVerifiedDate(value: string) {
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat('en-IN', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(parsed);
 }
 
-const STUDENT_PERKS: StudentPerk[] = [
-  {
-    id: 'github-pack',
-    title: 'GitHub Student Developer Pack',
-    provider: 'GitHub & Partners',
-    category: 'developer',
-    value: '$1,200/yr',
-    badge: 'Popular',
-    featured: true,
-    description: 'Free GitHub Pro, GitHub Copilot, $200 DigitalOcean credits, Namecheap domain, and 80+ developer tools.',
-    howToClaim: [
-      'Click "Claim Benefit" to open GitHub Education.',
-      'Sign in with your verified university email (@cdu.edu.in).',
-      'Upload a screenshot of your CampusOS Digital Student ID Card.',
-      'Approval takes 24-48 hours.'
-    ],
-    claimUrl: 'https://education.github.com/pack'
-  },
-  {
-    id: 'jetbrains-pack',
-    title: 'JetBrains All Products Pack',
-    provider: 'JetBrains',
-    category: 'developer',
-    value: '$649/yr',
-    badge: 'Free License',
-    featured: true,
-    description: 'Free subscription to all JetBrains desktop tools including IntelliJ IDEA Ultimate, PyCharm Pro, and WebStorm.',
-    howToClaim: [
-      'Visit JetBrains Student License page.',
-      'Apply using your university email address.',
-      'Confirm email verification link received in your student inbox.',
-      'Download JetBrains Toolbox and activate license.'
-    ],
-    claimUrl: 'https://www.jetbrains.com/community/education/#students'
-  },
-  {
-    id: 'notion-education',
-    title: 'Notion Plus for Students',
-    provider: 'Notion',
-    category: 'ai',
-    value: '$96/yr',
-    badge: '100% Free',
-    featured: true,
-    description: 'Free Notion Plus workspace with unlimited file uploads, version history, and AI note-taking capabilities.',
-    howToClaim: [
-      'Sign up or log in to Notion.',
-      'Go to Account Settings → Upgrade Plan.',
-      'Click "Get free Education Plan" and verify with university email.'
-    ],
-    claimUrl: 'https://www.notion.so/product/notion-for-education'
-  },
-  {
-    id: 'figma-education',
-    title: 'Figma Professional Plan',
-    provider: 'Figma',
-    category: 'design',
-    value: '$144/yr',
-    badge: 'Design Standard',
-    featured: true,
-    description: 'Free Figma Professional & FigJam team workspace for UI/UX wireframing, prototyping, and team collaboration.',
-    howToClaim: [
-      'Create a free Figma account using your university email.',
-      'Apply for Figma Education Status.',
-      'Select CampusOS Demo University (CDU) as your institution.',
-      'Instant access granted upon email confirmation.'
-    ],
-    claimUrl: 'https://www.figma.com/education/'
-  },
-  {
-    id: 'aws-educate',
-    title: 'AWS Educate & Cloud Credits',
-    provider: 'Amazon Web Services',
-    category: 'developer',
-    value: '$250/yr',
-    badge: 'Cloud Training',
-    description: '$100 in AWS promotional cloud credits, free cloud learning pathways, and hands-on cloud labs.',
-    howToClaim: [
-      'Register on AWS Educate portal.',
-      'Select "Student" and enter university email.',
-      'Complete email verification to claim credits.'
-    ],
-    claimUrl: 'https://aws.amazon.com/education/awseducate/'
-  },
-  {
-    id: 'copilot-student',
-    title: 'GitHub Copilot Free for Students',
-    provider: 'GitHub AI',
-    category: 'ai',
-    value: '$100/yr',
-    badge: 'AI Pair Programmer',
-    description: 'Free access to GitHub Copilot AI autocomplete extension for VS Code, Neovim, and JetBrains IDEs.',
-    howToClaim: [
-      'Ensure GitHub Student Developer Pack is activated.',
-      'Install GitHub Copilot extension in VS Code.',
-      'Sign in with your verified GitHub account.'
-    ],
-    claimUrl: 'https://github.com/features/copilot'
-  },
-  {
-    id: 'canva-pro',
-    title: 'Canva Pro for Education',
-    provider: 'Canva',
-    category: 'design',
-    value: '$120/yr',
-    badge: 'Pro Templates',
-    description: 'Free Canva Pro templates, premium stock photos, font library, brand kit, and background remover.',
-    howToClaim: [
-      'Sign up on Canva Education portal.',
-      'Verify student status with university email or student ID card.'
-    ],
-    claimUrl: 'https://www.canva.com/education/'
-  },
-  {
-    id: 'coursera-campus',
-    title: 'Coursera for Campus Access',
-    provider: 'Coursera',
-    category: 'learning',
-    value: '$399/yr',
-    badge: '5,000+ Courses',
-    description: 'Free access to guided projects and professional certificates from Google, Meta, IBM, and top universities.',
-    howToClaim: [
-      'Log in to Coursera with your university email.',
-      'Join CampusOS University Learning Program.'
-    ],
-    claimUrl: 'https://www.coursera.org/for-university'
-  },
-  {
-    id: 'mongodb-atlas',
-    title: 'MongoDB Atlas Student Credits',
-    provider: 'MongoDB',
-    category: 'developer',
-    value: '$500/yr',
-    badge: 'Database Credits',
-    description: '$500 in cloud database credits and a free MongoDB Associate Developer certification exam voucher.',
-    howToClaim: [
-      'Claim via GitHub Student Developer Pack portal.',
-      'Redeem promo code in MongoDB Atlas account settings.'
-    ],
-    claimUrl: 'https://www.mongodb.com/students'
-  },
-  {
-    id: 'datacamp-edu',
-    title: 'DataCamp 3-Month Access',
-    provider: 'DataCamp',
-    category: 'learning',
-    value: '$150/yr',
-    badge: 'Python & SQL',
-    description: '3 months unlimited access to Data Science, Python, R, Machine Learning, and SQL learning tracks.',
-    howToClaim: [
-      'Ask your faculty lead or register via GitHub Student Pack.',
-      'Activate your 3-month full access voucher.'
-    ],
-    claimUrl: 'https://www.datacamp.com/groups/education'
-  },
-  {
-    id: 'spotify-student',
-    title: 'Spotify Premium Student + Hulu',
-    provider: 'Spotify',
-    category: 'lifestyle',
-    value: '$70/yr',
-    badge: 'Discount Deal',
-    description: 'Spotify Premium Student discount ($5.99/mo instead of $11.99/mo) bundled with free Hulu access.',
-    howToClaim: [
-      'Sign up on Spotify Student Premium page.',
-      'Complete SheerID student verification using university name.'
-    ],
-    claimUrl: 'https://www.spotify.com/student/'
-  },
-  {
-    id: 'prime-student',
-    title: 'Amazon Prime Student',
-    provider: 'Amazon',
-    category: 'lifestyle',
-    value: '$70/yr',
-    badge: '6 Months Free',
-    description: '6-month free trial of Amazon Prime delivery, Prime Video, and Prime Music, followed by 50% discount.',
-    howToClaim: [
-      'Sign up on Amazon Prime Student page.',
-      'Provide your university email address and graduation year.'
-    ],
-    claimUrl: 'https://www.amazon.com/prime-student'
+function accessTone(access: StudentBenefitAccess) {
+  switch (access) {
+    case 'free':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300';
+    case 'application':
+      return 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-300';
+    case 'institution':
+      return 'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300';
+    default:
+      return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300';
   }
-];
+}
 
 export function StudentBenefitsConsole() {
   const { currentSession } = useAuthStore();
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedPerk, setSelectedPerk] = useState<StudentPerk | null>(null);
-  const [copied, setCopied] = useState<boolean>(false);
+  const [query, setQuery] = React.useState('');
+  const [category, setCategory] = React.useState<StudentBenefitCategory | 'all'>('all');
+  const [access, setAccess] = React.useState<StudentBenefitAccess | 'all'>('all');
+  const [region, setRegion] = React.useState<StudentBenefitRegion | 'all'>('all');
+  const [sort, setSort] = React.useState<StudentBenefitSort>('featured');
+  const [selectedBenefit, setSelectedBenefit] = React.useState<StudentBenefit | null>(null);
+  const [showMobileFilters, setShowMobileFilters] = React.useState(false);
 
-  const studentName = currentSession?.name || 'Aarav Patel';
-  const studentEmail = currentSession?.email || 'student.demo@campusos.local';
+  const filteredBenefits = React.useMemo(
+    () =>
+      filterStudentBenefits(STUDENT_BENEFITS, {
+        query,
+        category,
+        access,
+        region,
+        sort,
+      }),
+    [access, category, query, region, sort],
+  );
 
-  const filteredPerks = STUDENT_PERKS.filter((perk) => {
-    const matchesCategory = activeCategory === 'all' || perk.category === activeCategory;
-    const matchesSearch = 
-      perk.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      perk.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      perk.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const activeFilterCount = [
+    category !== 'all',
+    access !== 'all',
+    region !== 'all',
+    query.trim().length > 0,
+  ].filter(Boolean).length;
 
-  const handleCopyProof = () => {
-    const proofText = `Student Verification Proof:\nName: ${studentName}\nEmail: ${studentEmail}\nInstitution: CampusOS Demo University (CDU)\nStatus: ACTIVE_STUDENT`;
-    navigator.clipboard.writeText(proofText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const resetFilters = React.useCallback(() => {
+    setQuery('');
+    setCategory('all');
+    setAccess('all');
+    setRegion('all');
+    setSort('featured');
+  }, []);
+
+  React.useEffect(() => {
+    if (!selectedBenefit) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedBenefit(null);
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [selectedBenefit]);
 
   return (
-    <div className="space-y-8 pb-12">
-      
-      {/* Header Banner */}
-      <div className="bg-[#101B33] text-white rounded-3xl p-6 md:p-10 border border-[#2A3B5C] shadow-2xl relative overflow-hidden">
-        <div className="max-w-3xl relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1854E8]/20 border border-[#1854E8]/40 text-[#A5D6FF] text-xs font-bold uppercase tracking-wider mb-4">
-            <Gift size={14} className="text-[#1854E8]" /> CampusOS Student Perks Engine
+    <div className="pb-16">
+      <section className="relative overflow-hidden rounded-[32px] border border-[#263B5E] bg-[#101D38] px-5 py-7 text-white shadow-[0_30px_90px_rgba(16,29,56,0.2)] sm:px-8 sm:py-9 lg:px-11 lg:py-11">
+        <div
+          className="pointer-events-none absolute inset-y-0 right-0 hidden w-[38%] border-l border-white/10 lg:block"
+          aria-hidden="true"
+        >
+          <div className="grid h-full grid-cols-3 grid-rows-4 opacity-30">
+            {Array.from({ length: 12 }, (_, index) => (
+              <span key={index} className="border-b border-r border-white/10" />
+            ))}
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white mb-3">
-            Unlock over $3,500/yr in Student Benefits
-          </h1>
-          <p className="text-[#BEC7D7] text-base md:text-lg leading-relaxed mb-6">
-            As a verified student at CampusOS Demo University, you have free access to premium developer software, cloud computing credits, AI copilots, design suites, and learning platforms.
-          </p>
+        </div>
 
-          {/* Student Verification Badge Bar */}
-          <div className="flex flex-wrap items-center gap-4 bg-[#182642] p-4 rounded-2xl border border-[#2A3B5C]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#1854E8] text-white flex items-center justify-center font-bold text-sm">
-                {studentName.charAt(0)}
-              </div>
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
+          <div className="max-w-4xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#49658D] bg-[#172844] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#C9D7EB]">
+              <BadgeCheck className="h-4 w-4 text-[#73A1FF]" aria-hidden="true" />
+              Official-source opportunity directory
+            </div>
+
+            <h1 className="mt-5 max-w-4xl text-3xl font-black tracking-[-0.035em] text-white sm:text-4xl lg:text-5xl">
+              Find student benefits without the hype.
+            </h1>
+            <p className="mt-4 max-w-3xl text-sm leading-7 text-[#C1CCDC] sm:text-base">
+              Search scholarships, developer tools, courses, internships, academic services and wellbeing support. Every entry links to an official provider or government source, with eligibility notes you can review before applying.
+            </p>
+
+            <div className="mt-7 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+              <HeroMetric value={String(STUDENT_BENEFITS.length)} label="Reviewed resources" />
+              <HeroMetric
+                value={String(STUDENT_BENEFITS.filter((benefit) => benefit.regions.includes('india')).length)}
+                label="India relevant"
+              />
+              <HeroMetric
+                value={String(STUDENT_BENEFITS.filter((benefit) => benefit.access === 'free').length)}
+                label="Free resources"
+              />
+              <HeroMetric value="8" label="Useful categories" />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#385477] bg-[#0D1A2E] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#1A3763] text-[#86AEFF]">
+                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+              </span>
               <div>
-                <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                  {studentName} <CheckCircle2 size={16} className="text-[#27C93F]" />
-                </div>
-                <div className="text-xs text-[#BEC7D7]">{studentEmail}</div>
+                <h2 className="text-sm font-extrabold text-white">Eligibility stays with the provider</h2>
+                <p className="mt-2 text-xs leading-5 text-[#B7C4D8]">
+                  CampusOS does not approve scholarships, licences, credits, internships or loans. Confirm current terms on the official website before sharing documents or payment details.
+                </p>
               </div>
             </div>
-
-            <div className="border-l border-white/10 pl-4 hidden sm:block">
-              <div className="text-xs text-[#BEC7D7]">Total Available Value</div>
-              <div className="text-lg font-bold text-[#27C93F]">$3,850+ / Year FREE</div>
+            <div className="mt-4 border-t border-white/10 pt-4 text-[11px] leading-5 text-[#9DAEC5]">
+              Sources reviewed on 6 August 2026. Programmes can change after review.
             </div>
-
-            <button
-              onClick={handleCopyProof}
-              className="ml-auto inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-colors"
-            >
-              {copied ? <CheckCircle2 size={14} className="text-[#27C93F]" /> : <Copy size={14} />}
-              {copied ? 'Proof Copied!' : 'Copy Verification Proof'}
-            </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Category Tabs & Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        
-        {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {[
-            { id: 'all', label: 'All Perks', icon: Layers },
-            { id: 'developer', label: 'Developer & Cloud', icon: Code },
-            { id: 'ai', label: 'AI & Productivity', icon: Cpu },
-            { id: 'design', label: 'Design & Creative', icon: Palette },
-            { id: 'learning', label: 'Learning & Certificates', icon: BookOpen },
-            { id: 'lifestyle', label: 'Lifestyle & Deals', icon: Music },
-          ].map((cat) => {
-            const Icon = cat.icon;
-            const isSelected = activeCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs md:text-sm font-semibold transition-all ${
-                  isSelected
-                    ? 'bg-[#101B33] text-white shadow-md'
-                    : 'bg-white text-[#5F6B7A] hover:bg-[#F5F7FB] border border-[#DEE5EF]'
-                }`}
-              >
-                <Icon size={16} />
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search Input */}
-        <div className="relative w-full md:w-72">
-          <Search size={16} className="absolute left-3.5 top-3 text-[#5F6B7A]" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search perks (e.g. GitHub, AWS)..."
-            className="w-full bg-white border border-[#DEE5EF] rounded-xl pl-10 pr-4 py-2.5 text-sm text-[#101B33] placeholder-[#5F6B7A] focus:outline-none focus:ring-2 focus:ring-[#1854E8]"
-          />
-        </div>
-      </div>
-
-      {/* Perks Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPerks.map((perk) => (
-          <div
-            key={perk.id}
-            className={`bg-white rounded-2xl border transition-all duration-200 flex flex-col justify-between p-6 hover:shadow-lg ${
-              perk.featured ? 'border-[#1854E8] ring-1 ring-[#1854E8]/20' : 'border-[#DEE5EF]'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <span className="bg-[#EEF3FF] text-[#1854E8] text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border border-[#C6D7FE]">
-                  {perk.provider}
-                </span>
-                <span className="bg-[#e6f4ed] text-[#078A57] text-xs font-extrabold px-2.5 py-0.5 rounded-full">
-                  {perk.value}
-                </span>
+      <section className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="rounded-3xl border border-[#D8E2EF] bg-white p-5 shadow-[0_14px_45px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#EAF0FF] text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
+                <GraduationCap className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="text-sm font-extrabold text-[#101D38] dark:text-white">
+                  {currentSession ? `Signed in as ${currentSession.name}` : 'Public student opportunity directory'}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-[#667085] dark:text-slate-400">
+                  {currentSession
+                    ? `Use ${currentSession.email} only where the provider accepts your institution email. CampusOS does not generate external verification proof.`
+                    : 'Sign in to CampusOS to view your own account details, but external providers will still verify eligibility independently.'}
+                </p>
               </div>
+            </div>
+            {!currentSession && (
+              <Link
+                href="/login"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#C8D7EA] px-4 text-xs font-extrabold text-[#1754E8] transition hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-blue-950/40"
+              >
+                Sign in
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+        </div>
 
-              <h3 className="text-lg font-bold text-[#101B33] mb-2">
-                {perk.title}
-              </h3>
-              <p className="text-xs md:text-sm text-[#5F6B7A] leading-relaxed mb-6">
-                {perk.description}
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-900 dark:bg-amber-950/25">
+          <div className="flex items-start gap-3">
+            <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+            <div>
+              <h2 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">Protect your documents</h2>
+              <p className="mt-1 text-xs leading-5 text-amber-900/80 dark:text-amber-200/80">
+                Upload identity, income or enrolment documents only on the official domain shown in each listing. Never pay an intermediary for a free government service.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-8" aria-labelledby="featured-benefits-heading">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#1754E8] dark:text-blue-300">
+              Good starting points
+            </p>
+            <h2 id="featured-benefits-heading" className="mt-2 text-2xl font-black tracking-tight text-[#101D38] dark:text-white">
+              Featured official resources
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setCategory('all');
+              setSort('featured');
+              document.getElementById('benefit-directory')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }}
+            className="hidden min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-extrabold text-[#1754E8] hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:text-blue-300 dark:hover:bg-blue-950/40 sm:inline-flex"
+          >
+            Browse all
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-4 flex snap-x gap-4 overflow-x-auto pb-3 [scrollbar-width:thin]">
+          {featuredBenefits.map((benefit) => (
+            <FeaturedBenefitCard
+              key={benefit.id}
+              benefit={benefit}
+              onOpen={() => setSelectedBenefit(benefit)}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section id="benefit-directory" className="mt-9 scroll-mt-6" aria-labelledby="benefit-directory-heading">
+        <div className="rounded-[28px] border border-[#D8E2EF] bg-white p-4 shadow-[0_18px_60px_rgba(15,23,42,0.07)] dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#728096] dark:text-slate-400">
+                Search and compare
+              </p>
+              <h2 id="benefit-directory-heading" className="mt-2 text-2xl font-black tracking-tight text-[#101D38] dark:text-white">
+                Student opportunity directory
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#667085] dark:text-slate-400">
+                Search by provider, programme, skill or eligibility keyword. Filters work together and never change provider rules.
               </p>
             </div>
 
-            <div className="pt-4 border-t border-[#DEE5EF] flex items-center justify-between">
-              <span className="text-xs text-[#5F6B7A] font-medium flex items-center gap-1">
-                <ShieldCheck size={14} className="text-[#078A57]" /> Verified Access
-              </span>
-
-              <button
-                onClick={() => setSelectedPerk(perk)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1854E8] hover:bg-[#1140B8] text-white text-xs font-bold transition-colors shadow-sm"
-              >
-                Claim Benefit <ArrowRight size={14} />
-              </button>
+            <div className="relative w-full lg:max-w-xl">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#7B8798]" aria-hidden="true" />
+              <label htmlFor="benefit-search" className="sr-only">
+                Search student benefits
+              </label>
+              <input
+                id="benefit-search"
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search scholarships, cloud, internships, certificates…"
+                className="min-h-13 w-full rounded-2xl border border-[#C8D5E5] bg-[#F8FAFD] py-3 pl-12 pr-11 text-sm font-semibold text-[#101D38] outline-none transition placeholder:font-normal placeholder:text-[#8A96A8] focus:border-[#1754E8] focus:ring-4 focus:ring-[#1754E8]/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  className="absolute right-2 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-[#667085] hover:bg-[#EAF0F8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:text-slate-400 dark:hover:bg-slate-800"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* Claim Instructions Modal */}
-      {selectedPerk && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl relative border border-[#DEE5EF]">
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#E4EAF2] pt-4 dark:border-slate-800 lg:hidden">
             <button
-              onClick={() => setSelectedPerk(null)}
-              className="absolute right-5 top-5 p-2 rounded-full hover:bg-[#F5F7FB] text-[#5F6B7A]"
+              type="button"
+              onClick={() => setShowMobileFilters((visible) => !visible)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#C8D5E5] px-4 text-sm font-extrabold text-[#101D38] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:text-white"
+              aria-expanded={showMobileFilters}
+              aria-controls="mobile-benefit-filters"
             >
-              <X size={20} />
+              <Filter className="h-4 w-4" aria-hidden="true" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="rounded-full bg-[#1754E8] px-2 py-0.5 text-[10px] text-white">{activeFilterCount}</span>
+              )}
             </button>
+            <span className="text-xs font-bold text-[#667085] dark:text-slate-400" aria-live="polite">
+              {filteredBenefits.length} results
+            </span>
+          </div>
 
-            <div className="flex items-center gap-2 mb-2">
-              <span className="bg-[#e6f4ed] text-[#078A57] text-xs font-bold px-2.5 py-0.5 rounded-full">
-                {selectedPerk.value} Value
-              </span>
-              <span className="text-xs font-semibold text-[#5F6B7A]">Provider: {selectedPerk.provider}</span>
-            </div>
-
-            <h3 className="text-2xl font-bold text-[#101B33] mb-3">
-              How to Claim {selectedPerk.title}
-            </h3>
-
-            <p className="text-sm text-[#5F6B7A] mb-6">
-              Follow these simple steps using your CampusOS student credentials to activate your free benefit:
-            </p>
-
-            <div className="space-y-3 mb-8">
-              {selectedPerk.howToClaim.map((step, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 bg-[#F5F7FB] rounded-xl border border-[#DEE5EF]">
-                  <span className="w-6 h-6 rounded-full bg-[#1854E8] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                    {idx + 1}
-                  </span>
-                  <p className="text-xs md:text-sm text-[#101B33] font-medium leading-normal">
-                    {step}
-                  </p>
+          <div className="mt-5 grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
+            <aside
+              id="mobile-benefit-filters"
+              className={`${showMobileFilters ? 'block' : 'hidden'} rounded-2xl border border-[#D8E2EF] bg-[#F8FAFD] p-4 dark:border-slate-800 dark:bg-slate-950 lg:block lg:self-start lg:sticky lg:top-5`}
+              aria-label="Student benefit filters"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-extrabold text-[#101D38] dark:text-white">
+                  <SlidersHorizontal className="h-4 w-4 text-[#1754E8]" aria-hidden="true" />
+                  Filters
                 </div>
-              ))}
-            </div>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-[11px] font-extrabold text-[#1754E8] hover:bg-[#EAF0FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:text-blue-300 dark:hover:bg-blue-950/40"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                    Reset
+                  </button>
+                )}
+              </div>
 
-            <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#DEE5EF]">
-              <button
-                onClick={() => setSelectedPerk(null)}
-                className="px-4 py-2.5 rounded-xl border border-[#DEE5EF] text-[#5F6B7A] text-xs font-semibold hover:bg-[#F5F7FB]"
-              >
-                Close
-              </button>
+              <FilterGroup label="Category">
+                <div className="space-y-1.5">
+                  {CATEGORY_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    const count = option.id === 'all' ? STUDENT_BENEFITS.length : categoryCounts[option.id];
+                    const selected = category === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setCategory(option.id)}
+                        className={`flex min-h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 ${
+                          selected
+                            ? 'bg-[#101D38] text-white dark:bg-blue-700'
+                            : 'text-[#526175] hover:bg-white dark:text-slate-300 dark:hover:bg-slate-900'
+                        }`}
+                        aria-pressed={selected}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 flex-1">{option.label}</span>
+                        <span className={`text-[10px] ${selected ? 'text-white/70' : 'text-[#8A96A8]'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterGroup>
 
-              <a
-                href={selectedPerk.claimUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1854E8] hover:bg-[#1140B8] text-white text-xs font-bold transition-colors shadow-md"
-              >
-                Go to Partner Claim Page <ExternalLink size={14} />
-              </a>
+              <FilterGroup label="Access type">
+                <SelectControl
+                  value={access}
+                  onChange={(value) => setAccess(value as StudentBenefitAccess | 'all')}
+                  options={ACCESS_OPTIONS}
+                  label="Filter by access type"
+                />
+              </FilterGroup>
+
+              <FilterGroup label="Availability">
+                <SelectControl
+                  value={region}
+                  onChange={(value) => setRegion(value as StudentBenefitRegion | 'all')}
+                  options={REGION_OPTIONS}
+                  label="Filter by availability"
+                />
+              </FilterGroup>
+
+              <FilterGroup label="Sort">
+                <SelectControl
+                  value={sort}
+                  onChange={(value) => setSort(value as StudentBenefitSort)}
+                  options={SORT_OPTIONS}
+                  label="Sort opportunities"
+                />
+              </FilterGroup>
+            </aside>
+
+            <div>
+              <div className="hidden items-center justify-between gap-3 lg:flex">
+                <p className="text-sm font-extrabold text-[#101D38] dark:text-white" aria-live="polite">
+                  {filteredBenefits.length} {filteredBenefits.length === 1 ? 'opportunity' : 'opportunities'}
+                </p>
+                <p className="text-xs text-[#7B8798] dark:text-slate-500">
+                  Official links open in a new tab
+                </p>
+              </div>
+
+              {filteredBenefits.length > 0 ? (
+                <div className="mt-0 grid gap-4 md:grid-cols-2 xl:grid-cols-3 lg:mt-4">
+                  {filteredBenefits.map((benefit) => (
+                    <BenefitCard
+                      key={benefit.id}
+                      benefit={benefit}
+                      onOpen={() => setSelectedBenefit(benefit)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-[#C8D5E5] bg-[#F8FAFD] px-6 text-center dark:border-slate-700 dark:bg-slate-950">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#1754E8] shadow-sm dark:bg-slate-900 dark:text-blue-300">
+                    <Search className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                  <h3 className="mt-4 text-base font-extrabold text-[#101D38] dark:text-white">No matching opportunities</h3>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-[#667085] dark:text-slate-400">
+                    Try a broader keyword or remove one of the category, access or region filters.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1754E8] px-4 text-xs font-extrabold text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1754E8]/20"
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
+      </section>
 
+      <section className="mt-8 rounded-[28px] border border-[#D8E2EF] bg-[#F8FAFD] p-5 dark:border-slate-800 dark:bg-slate-900 sm:p-7" aria-labelledby="verification-checklist-heading">
+        <div className="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
+          <div>
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#101D38] text-white dark:bg-blue-700">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <h2 id="verification-checklist-heading" className="mt-4 text-xl font-black tracking-tight text-[#101D38] dark:text-white">
+              Apply safely
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#667085] dark:text-slate-400">
+              A professional-looking website is not enough. Check the domain, terms and document request every time.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              'Confirm the browser domain exactly matches the official domain shown here.',
+              'Read eligibility, region, renewal and billing terms before applying.',
+              'Use institution email or documents only when the provider explicitly requests them.',
+              'Never share passwords, OTPs, recovery codes or card PINs with a third party.',
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-3 rounded-2xl border border-[#D8E2EF] bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+                <p className="text-xs font-semibold leading-5 text-[#526175] dark:text-slate-300">{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {selectedBenefit && (
+        <BenefitDetailsDialog benefit={selectedBenefit} onClose={() => setSelectedBenefit(null)} />
+      )}
     </div>
+  );
+}
+
+function HeroMetric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#172844] px-4 py-3">
+      <p className="text-xl font-black text-white">{value}</p>
+      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[#9FB0C8]">{label}</p>
+    </div>
+  );
+}
+
+function FeaturedBenefitCard({ benefit, onOpen }: { benefit: StudentBenefit; onOpen: () => void }) {
+  const Icon = CATEGORY_ICONS[benefit.category];
+  return (
+    <article className="min-w-[285px] snap-start rounded-3xl border border-[#D8E2EF] bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] dark:border-slate-800 dark:bg-slate-900 sm:min-w-[330px]">
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF0FF] text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${accessTone(benefit.access)}`}>
+          {STUDENT_BENEFIT_ACCESS_LABELS[benefit.access]}
+        </span>
+      </div>
+      <p className="mt-4 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#7B8798] dark:text-slate-500">{benefit.provider}</p>
+      <h3 className="mt-2 text-base font-black leading-6 text-[#101D38] dark:text-white">{benefit.title}</h3>
+      <p className="mt-2 line-clamp-3 text-xs leading-5 text-[#667085] dark:text-slate-400">{benefit.summary}</p>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="mt-5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-[#C8D7EA] text-xs font-extrabold text-[#1754E8] transition hover:bg-[#EDF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:text-blue-300 dark:hover:bg-blue-950/40"
+      >
+        Check eligibility
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </article>
+  );
+}
+
+function BenefitCard({ benefit, onOpen }: { benefit: StudentBenefit; onOpen: () => void }) {
+  const Icon = CATEGORY_ICONS[benefit.category];
+  return (
+    <article className="group flex min-h-full flex-col rounded-3xl border border-[#D8E2EF] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.045)] transition duration-200 hover:-translate-y-0.5 hover:border-[#B9CAE0] hover:shadow-[0_18px_45px_rgba(15,23,42,0.09)] motion-reduce:transform-none motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
+      <div className="flex items-start justify-between gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EEF3FA] text-[#526175] transition group-hover:bg-[#E8EFFF] group-hover:text-[#1754E8] dark:bg-slate-950 dark:text-slate-400 dark:group-hover:text-blue-300">
+          <Icon className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${accessTone(benefit.access)}`}>
+          {STUDENT_BENEFIT_ACCESS_LABELS[benefit.access]}
+        </span>
+      </div>
+
+      <div className="mt-4 flex-1">
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#7B8798] dark:text-slate-500">{benefit.provider}</p>
+        <h3 className="mt-2 text-base font-black leading-6 text-[#101D38] dark:text-white">{benefit.title}</h3>
+        <p className="mt-2 text-xs font-extrabold text-[#1754E8] dark:text-blue-300">{benefit.valueLabel}</p>
+        <p className="mt-3 line-clamp-4 text-xs leading-5 text-[#667085] dark:text-slate-400">{benefit.summary}</p>
+
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {benefit.regions.map((item) => (
+            <span key={item} className="rounded-full bg-[#F3F6FA] px-2.5 py-1 text-[10px] font-bold text-[#667085] dark:bg-slate-950 dark:text-slate-400">
+              {STUDENT_BENEFIT_REGION_LABELS[item]}
+            </span>
+          ))}
+          <span className="rounded-full bg-[#F3F6FA] px-2.5 py-1 text-[10px] font-bold text-[#667085] dark:bg-slate-950 dark:text-slate-400">
+            Checked {formatVerifiedDate(benefit.verifiedOn)}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-2 border-t border-[#E4EAF2] pt-4 dark:border-slate-800">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#C8D7EA] px-3 text-xs font-extrabold text-[#334155] transition hover:bg-[#F7F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-950"
+        >
+          Eligibility
+        </button>
+        <a
+          href={benefit.officialUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[#1754E8] px-3 text-xs font-extrabold text-white transition hover:bg-[#1144C8] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1754E8]/20"
+          aria-label={`Open official source for ${benefit.title}`}
+        >
+          Official source
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+        </a>
+      </div>
+    </article>
+  );
+}
+
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-5 border-t border-[#E1E8F1] pt-4 first:mt-4 dark:border-slate-800">
+      <h3 className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#7B8798] dark:text-slate-500">{label}</h3>
+      {children}
+    </div>
+  );
+}
+
+function SelectControl({
+  value,
+  onChange,
+  options,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ id: string; label: string }>;
+  label: string;
+}) {
+  return (
+    <label className="block">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-h-11 w-full rounded-xl border border-[#C8D5E5] bg-white px-3 text-xs font-bold text-[#334155] outline-none focus:border-[#1754E8] focus:ring-4 focus:ring-[#1754E8]/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function BenefitDetailsDialog({ benefit, onClose }: { benefit: StudentBenefit; onClose: () => void }) {
+  const Icon = CATEGORY_ICONS[benefit.category];
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="benefit-dialog-title"
+        className="max-h-[94dvh] w-full overflow-y-auto rounded-t-[28px] border border-[#D8E2EF] bg-white shadow-[0_30px_100px_rgba(15,23,42,0.35)] dark:border-slate-800 dark:bg-slate-950 sm:max-w-3xl sm:rounded-[28px]"
+      >
+        <header className="sticky top-0 z-10 border-b border-[#D8E2EF] bg-white/95 px-5 py-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:px-7">
+          <div className="flex items-start gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#EAF0FF] text-[#1754E8] dark:bg-blue-950 dark:text-blue-300">
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-[#7B8798] dark:text-slate-500">{benefit.provider}</p>
+              <h2 id="benefit-dialog-title" className="mt-1 text-xl font-black leading-7 text-[#101D38] dark:text-white sm:text-2xl">
+                {benefit.title}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[#667085] transition hover:bg-[#F1F4F8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:text-slate-400 dark:hover:bg-slate-900"
+              aria-label="Close benefit details"
+              autoFocus
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+
+        <div className="space-y-6 p-5 sm:p-7">
+          <div className="flex flex-wrap gap-2">
+            <span className={`rounded-full border px-3 py-1.5 text-[11px] font-extrabold ${accessTone(benefit.access)}`}>
+              {STUDENT_BENEFIT_ACCESS_LABELS[benefit.access]}
+            </span>
+            {benefit.regions.map((item) => (
+              <span key={item} className="rounded-full border border-[#D8E2EF] bg-[#F7F9FC] px-3 py-1.5 text-[11px] font-bold text-[#526175] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                {STUDENT_BENEFIT_REGION_LABELS[item]}
+              </span>
+            ))}
+            <span className="rounded-full border border-[#D8E2EF] bg-[#F7F9FC] px-3 py-1.5 text-[11px] font-bold text-[#526175] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+              Reviewed {formatVerifiedDate(benefit.verifiedOn)}
+            </span>
+          </div>
+
+          <div className="rounded-2xl border border-[#D8E2EF] bg-[#F8FAFD] p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-xs font-extrabold uppercase tracking-[0.08em] text-[#1754E8] dark:text-blue-300">What is available</p>
+            <p className="mt-2 text-base font-black text-[#101D38] dark:text-white">{benefit.valueLabel}</p>
+            <p className="mt-2 text-sm leading-6 text-[#667085] dark:text-slate-400">{benefit.summary}</p>
+          </div>
+
+          <DialogSection title="Eligibility" icon={GraduationCap}>
+            <p className="text-sm leading-6 text-[#526175] dark:text-slate-300">{benefit.eligibility}</p>
+          </DialogSection>
+
+          <DialogSection title="Prepare before opening the provider" icon={FileBadge2}>
+            <ul className="space-y-2">
+              {benefit.requirements.map((requirement) => (
+                <li key={requirement} className="flex items-start gap-2.5 text-sm leading-6 text-[#526175] dark:text-slate-300">
+                  <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
+                  {requirement}
+                </li>
+              ))}
+            </ul>
+          </DialogSection>
+
+          <DialogSection title="Suggested steps" icon={ArrowRight}>
+            <ol className="space-y-3">
+              {benefit.steps.map((step, index) => (
+                <li key={step} className="flex items-start gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#101D38] text-[11px] font-extrabold text-white dark:bg-blue-700">
+                    {index + 1}
+                  </span>
+                  <p className="pt-0.5 text-sm leading-6 text-[#526175] dark:text-slate-300">{step}</p>
+                </li>
+              ))}
+            </ol>
+          </DialogSection>
+
+          {benefit.availabilityNote && (
+            <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/25">
+              <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden="true" />
+              <p className="text-xs font-semibold leading-5 text-amber-900 dark:text-amber-200">{benefit.availabilityNote}</p>
+            </div>
+          )}
+
+          <div className="rounded-2xl border border-[#C8D7EA] bg-[#F2F6FC] p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start gap-3">
+              <Landmark className="mt-0.5 h-5 w-5 shrink-0 text-[#1754E8] dark:text-blue-300" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold text-[#101D38] dark:text-white">Official source</p>
+                <p className="mt-1 break-all text-xs text-[#667085] dark:text-slate-400">{benefit.officialDomain}</p>
+                <p className="mt-1 text-[11px] text-[#7B8798] dark:text-slate-500">{benefit.sourceLabel}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer className="sticky bottom-0 flex flex-col gap-2 border-t border-[#D8E2EF] bg-white/95 p-4 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:flex-row sm:justify-end sm:px-7">
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#C8D7EA] px-5 text-sm font-extrabold text-[#334155] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8]/30 dark:border-slate-700 dark:text-slate-200"
+          >
+            Close
+          </button>
+          <a
+            href={benefit.officialUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1754E8] px-5 text-sm font-extrabold text-white transition hover:bg-[#1144C8] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#1754E8]/20"
+          >
+            Continue to official source
+            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          </a>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function DialogSection({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="mb-3 flex items-center gap-2">
+        <Icon className="h-4 w-4 text-[#1754E8] dark:text-blue-300" aria-hidden="true" />
+        <h3 className="text-sm font-extrabold text-[#101D38] dark:text-white">{title}</h3>
+      </div>
+      {children}
+    </section>
   );
 }
