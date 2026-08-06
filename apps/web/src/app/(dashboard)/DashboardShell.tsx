@@ -107,7 +107,7 @@ export default function DashboardShell({
 
         <main
           id="main-content"
-          className="dashboard-main relative min-w-0 max-w-full overflow-x-clip pb-[max(3rem,env(safe-area-inset-bottom))] transition-[margin,width] duration-300"
+          className="dashboard-main relative min-w-0 max-w-full overflow-x-clip pb-[max(3rem,env(safe-area-inset-bottom))] transition-[margin,width] duration-300 max-md:!ml-0 max-md:!w-full"
           style={{
             paddingTop: 'calc(var(--layout-top) + 24px)',
             marginLeft: sidebarWidth,
@@ -121,7 +121,7 @@ export default function DashboardShell({
 
           <div className="relative mx-auto w-full min-w-0 max-w-[var(--content-max-w)] px-4 sm:px-5 lg:px-6 xl:px-8">
             <WorkspaceContextBar />
-            <div className="dashboard-content-stage min-w-0 max-w-full overflow-x-clip">
+            <div className="dashboard-content-stage min-w-0 max-w-full overflow-x-clip [&>*]:min-w-0 [&>*]:max-w-full">
               {children}
             </div>
           </div>
