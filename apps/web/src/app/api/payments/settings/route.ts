@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getPaymentSettings, requireFinancePaymentOperator } from '@/lib/payment-portal';
 import { prisma } from '@/lib/db';
+import { requirePaymentSettingsManager } from '@/lib/payment-permissions';
+import { getPaymentSettings } from '@/lib/payment-portal';
 
 const settingsSchema = z.object({
   razorpayEnabled: z.boolean(),
@@ -27,13 +28,13 @@ const settingsSchema = z.object({
 });
 
 export async function GET() {
-  const context = await requireFinancePaymentOperator().catch(() => null);
+  const context = await requirePaymentSettingsManager().catch(() => null);
   if (!context) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   return NextResponse.json(await getPaymentSettings(context.tenantId));
 }
 
 export async function PATCH(request: Request) {
-  const context = await requireFinancePaymentOperator().catch(() => null);
+  const context = await requirePaymentSettingsManager().catch(() => null);
   if (!context) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
