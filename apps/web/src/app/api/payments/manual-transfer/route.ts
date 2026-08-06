@@ -1,11 +1,8 @@
-import { randomUUID } from 'node:crypto';
-
 import { NextResponse } from 'next/server';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
-import { prisma } from '@/lib/db';
-import { assertNoPendingManualTransfer } from '@/lib/payment-pending-guard';
-import { getPaymentSettings, resolvePayableInvoices } from '@/lib/payment-portal';
+import { PaymentRequestError, createManualPaymentSubmission } from '@/lib/payment-request';
+import { getPaymentSettings } from '@/lib/payment-portal';
 
 const ALLOWED_PROOF_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 const MAX_PROOF_BYTES = 3 * 1024 * 1024;
@@ -57,39 +54,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Payment proof must be 3 MB or smaller.' }, { status: 413 });
     }
 
-    await assertNoPendingManualTransfer({
-      tenantId: context.tenantId,
-      payerUserId: context.userId,
-      invoiceIds,
-    });
-    const payable = await resolvePayableInvoices(context, invoiceIds);
     const proofBytes = Buffer.from(await proof.arrayBuffer());
-    const id = randomUUID();
-
-    await prisma.$executeRaw`
-      INSERT INTO campusos_finance.manual_payment_submissions
-        (id, tenant_id, payer_user_id, invoice_ids, amount_minor, currency,
-         transaction_reference, bank_name, transfer_date, payer_note,
-         proof_file_name, proof_mime_type, proof_bytes, status, created_at, updated_at)
-      VALUES
-        (${id}::uuid, ${context.tenantId}::uuid, ${context.userId}::uuid,
-         CAST(${JSON.stringify(payable.invoices.map((invoice) => invoice.id))} AS jsonb),
-         ${payable.totalMinor}, ${settings.currency}, ${transactionReference},
-         ${bankName || null}, ${new Date(`${transferDate}T00:00:00Z`)}, ${payerNote || null},
-         ${safeFileName(proof.name)}, ${proof.type}, ${proofBytes}, 'PENDING', now(), now())
-    `;
+    const submission = await createManualPaymentSubmission({
+      context,
+      invoiceIds,
+      submission: {
+        transactionReference,
+        bankName: bankName || null,
+        transferDate: new Date(`${transferDate}T00:00:00Z`),
+        payerNote: payerNote || null,
+        proofFileName: safeFileName(proof.name),
+        proofMimeType: proof.type,
+        proofBytes,
+        currency: settings.currency,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      submissionId: id,
+      submissionId: submission.id,
       status: 'PENDING',
-      amount: payable.totalMinor / 100,
+      amount: submission.totalMinor / 100,
       message: 'Transfer proof submitted. The institution finance team must verify it before the invoices are marked paid.',
     }, { status: 201 });
   } catch (error) {
     console.error('Manual payment submission failed:', error);
     const message = error instanceof Error ? error.message : 'Unable to submit bank transfer proof.';
-    const duplicate = /unique|transaction_reference|already under institution verification/i.test(message);
-    return NextResponse.json({ error: duplicate && !/already under institution verification/i.test(message) ? 'This transaction/UTR reference has already been submitted.' : message }, { status: duplicate ? 409 : 500 });
+    if (error instanceof PaymentRequestError) {
+      return NextResponse.json({ error: message }, { status: error.status });
+    }
+    const duplicate = /unique|transaction_reference/i.test(message);
+    return NextResponse.json(
+      { error: duplicate ? 'This transaction/UTR reference is already attached to an active or approved submission.' : message },
+      { status: duplicate ? 409 : 500 },
+    );
   }
 }
