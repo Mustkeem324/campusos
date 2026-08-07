@@ -31,7 +31,6 @@ const requestSchema = z.discriminatedUnion('action', [
     requiredPercentage: z.number().min(0).max(100).optional(),
     timezone: z.string().trim().min(1).max(80).optional(),
     allowOfflineSelfCheckIn: z.boolean().optional(),
-    requireOnlineFace: z.boolean().optional(),
     requireOfflineSelfFace: z.boolean().optional(),
     allowHybridDailyCheckIn: z.boolean().optional(),
     checkinEarlyMinutes: z.number().int().min(0).max(120).optional(),
@@ -76,19 +75,19 @@ export async function POST(request: Request) {
           selfCheckInEnabled: input.selfCheckInEnabled,
         });
         break;
-      case 'settings':
-        result = await updateAttendanceSettings({
-          requiredPercentage: input.requiredPercentage,
-          timezone: input.timezone,
-          allowOfflineSelfCheckIn: input.allowOfflineSelfCheckIn,
-          requireOnlineFace: input.requireOnlineFace,
-          requireOfflineSelfFace: input.requireOfflineSelfFace,
-          allowHybridDailyCheckIn: input.allowHybridDailyCheckIn,
-          checkinEarlyMinutes: input.checkinEarlyMinutes,
-          checkinLateMinutes: input.checkinLateMinutes,
-          checkoutEnabled: input.checkoutEnabled,
-        });
+      case 'settings': {
+        const patch: Parameters<typeof updateAttendanceSettings>[0] = { requireOnlineFace: true };
+        if (input.requiredPercentage !== undefined) patch.requiredPercentage = input.requiredPercentage;
+        if (input.timezone !== undefined) patch.timezone = input.timezone;
+        if (input.allowOfflineSelfCheckIn !== undefined) patch.allowOfflineSelfCheckIn = input.allowOfflineSelfCheckIn;
+        if (input.requireOfflineSelfFace !== undefined) patch.requireOfflineSelfFace = input.requireOfflineSelfFace;
+        if (input.allowHybridDailyCheckIn !== undefined) patch.allowHybridDailyCheckIn = input.allowHybridDailyCheckIn;
+        if (input.checkinEarlyMinutes !== undefined) patch.checkinEarlyMinutes = input.checkinEarlyMinutes;
+        if (input.checkinLateMinutes !== undefined) patch.checkinLateMinutes = input.checkinLateMinutes;
+        if (input.checkoutEnabled !== undefined) patch.checkoutEnabled = input.checkoutEnabled;
+        result = await updateAttendanceSettings(patch);
         break;
+      }
       case 'calendar':
         result = await createAttendanceCalendarDay({
           calendarDate: input.calendarDate,
