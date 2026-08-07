@@ -6,6 +6,7 @@ import {
   DashboardLayoutError,
   revisionMutationSchema,
   updateDashboardLayoutSchema,
+  type DashboardWidgetPlacement,
 } from '@/lib/dashboard-layout-policy';
 import {
   deleteDashboardLayout,
@@ -39,7 +40,18 @@ export async function PATCH(
 ) {
   try {
     const context = await requireActiveUserContext();
-    const input = updateDashboardLayoutSchema.parse(await request.json());
+    const parsed = updateDashboardLayoutSchema.parse(await request.json());
+    const input: {
+      expectedRevision: number;
+      name?: string;
+      widgets?: DashboardWidgetPlacement[];
+      activate?: boolean;
+    } = {
+      expectedRevision: parsed.expectedRevision as number,
+      ...(parsed.name !== undefined ? { name: parsed.name } : {}),
+      ...(parsed.widgets !== undefined ? { widgets: parsed.widgets as DashboardWidgetPlacement[] } : {}),
+      ...(parsed.activate !== undefined ? { activate: parsed.activate } : {}),
+    };
     const response = await updateDashboardLayout(
       context,
       params.layoutId,
@@ -61,7 +73,8 @@ export async function DELETE(
 ) {
   try {
     const context = await requireActiveUserContext();
-    const { expectedRevision } = revisionMutationSchema.parse(await request.json());
+    const parsed = revisionMutationSchema.parse(await request.json());
+    const expectedRevision = parsed.expectedRevision as number;
     const response = await deleteDashboardLayout(
       context,
       params.layoutId,
