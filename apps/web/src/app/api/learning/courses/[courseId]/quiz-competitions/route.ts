@@ -12,6 +12,7 @@ import {
   normalizeQuestion,
   questionEntity,
   type CompetitionConfig,
+  type CompetitionQuestion,
 } from '@/lib/lms/quiz-competition';
 
 export const dynamic = 'force-dynamic';
@@ -47,6 +48,8 @@ const createSchema = z.object({
   questions: z.array(questionSchema).min(1).max(MAX_COMPETITION_QUESTIONS),
 });
 
+type NormalizableQuestion = Omit<CompetitionQuestion, 'id' | 'sequence'> & { id?: string; sequence?: number };
+
 export async function POST(request: Request, { params }: { params: { courseId: string } }) {
   let createdQuizId: string | null = null;
   try {
@@ -65,11 +68,17 @@ export async function POST(request: Request, { params }: { params: { courseId: s
       return NextResponse.json({ error: 'An end time is required when results are released after the competition closes.' }, { status: 400 });
     }
 
-    const questions = input.questions.map((question, index) => normalizeQuestion({
-      ...question,
-      id: question.id ?? crypto.randomUUID(),
-      negativePoints: input.negativeMarking ? question.negativePoints : 0,
-    }, index));
+    const questions = input.questions.map((question, index) => {
+      // Zod has already performed the runtime validation. The explicit output
+      // cast keeps this hand-off stable under the repository's non-strict root
+      // TypeScript config, where Zod object outputs may otherwise appear optional.
+      const validated = question as NormalizableQuestion;
+      return normalizeQuestion({
+        ...validated,
+        id: validated.id ?? crypto.randomUUID(),
+        negativePoints: input.negativeMarking ? validated.negativePoints : 0,
+      }, index);
+    });
     const totalMarks = questions.reduce((sum, question) => sum + question.points, 0);
 
     const quiz = await access.db.quiz.create({
