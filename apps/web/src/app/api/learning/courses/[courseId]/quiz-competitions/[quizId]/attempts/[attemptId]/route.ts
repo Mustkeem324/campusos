@@ -156,6 +156,7 @@ function attemptError(error: unknown, fallback: string) {
     if (error.message === 'QUIZ_NOT_FOUND') return NextResponse.json({ error: 'Quiz competition not found.' }, { status: 404 });
     if (error.message === 'STUDENT_PROFILE') return NextResponse.json({ error: 'Student profile is unavailable.' }, { status: 403 });
     if (error.message === 'ATTEMPT_NOT_FOUND') return NextResponse.json({ error: 'Competition attempt not found.' }, { status: 404 });
+    if (error.message === 'This competition attempt no longer accepts answers.') return NextResponse.json({ error: error.message }, { status: 409 });
     if (error.message.includes('invalid option') || error.message.includes('Only one option')) return NextResponse.json({ error: error.message }, { status: 400 });
   }
   console.error('[QUIZ_COMPETITION_ATTEMPT]', error);
