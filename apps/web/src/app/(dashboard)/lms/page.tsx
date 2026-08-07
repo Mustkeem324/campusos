@@ -1,20 +1,13 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { RoleType } from '@prisma/client';
+
+import { LmsProHome, type LmsCourseCard } from '../../../components/lms/LmsProHome';
 import { requireTenantContext } from '../../../lib/tenant-context';
 import { resolveAuthorisedCourses } from '../../../lib/lms/course-listing';
-import { PageHeader } from '../../../components/layout/PageHeader';
-import { BookOpen, Users } from 'lucide-react';
+import { getCompletedLessonIds } from '../../../lib/lms/progress';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * LMS home — server component (Phase 97).
- *
- * Lists only the courses the authenticated user is authorised to access,
- * resolved server-side with tenant scope via the shared
- * resolveAuthorisedCourses helper (identical contract to GET /api/learning/courses).
- */
 export default async function LMSHomePage() {
   let context;
   try {
@@ -23,57 +16,129 @@ export default async function LMSHomePage() {
     redirect('/login');
   }
 
-  const { session } = context;
-  const courses = await resolveAuthorisedCourses(context);
+  const { db, session } = context;
+  const authorised = await resolveAuthorisedCourses(context);
+  const offeringIds = authorised.map((course) => course.id);
+
+  const offerings = offeringIds.length
+    ? await db.courseOffering.findMany({
+        where: { id: { in: offeringIds } },
+        orderBy: [{ term: { startDate: 'desc' } }, { course: { code: 'asc' } }],
+        select: {
+          id: true,
+          courseId: true,
+          course: { select: { code: true, title: true } },
+          faculty: { select: { user: { select: { name: true } } } },
+          section: { select: { name: true } },
+          term: { select: { name: true } },
+          _count: { select: { enrollments: true } },
+          CourseModule: {
+            orderBy: { sequence: 'asc' },
+            select: {
+              id: true,
+              lessons: {
+                where: { isPublished: true },
+                orderBy: { sequence: 'asc' },
+                select: { id: true, title: true },
+              },
+            },
+          },
+          assignments: {
+            orderBy: { dueDate: 'asc' },
+            select: { id: true, title: true, dueDate: true },
+          },
+          Quiz: {
+            orderBy: { startTime: 'asc' },
+            select: { id: true, title: true, startTime: true, endTime: true },
+          },
+          announcements: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { title: true, createdAt: true },
+          },
+        },
+      })
+    : [];
+
+  const isStudent = session.role === RoleType.STUDENT;
+  const completedLessonIds = isStudent
+    ? await getCompletedLessonIds(db, { tenantId: session.tenantId, userId: session.userId })
+    : new Set<string>();
+
+  let studentId: string | null = null;
+  if (isStudent) {
+    const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true } });
+    studentId = student?.id ?? null;
+  }
+
+  const allAssignmentIds = offerings.flatMap((offering) => offering.assignments.map((assignment) => assignment.id));
+  const submissions = studentId && allAssignmentIds.length
+    ? await db.submission.findMany({
+        where: { tenantId: session.tenantId, studentId, assignmentId: { in: allAssignmentIds } },
+        select: { assignmentId: true, submittedAt: true },
+      })
+    : [];
+  const submittedAssignments = new Map(submissions.map((submission) => [submission.assignmentId, submission.submittedAt]));
+  const now = Date.now();
+
+  const courses: LmsCourseCard[] = offerings.map((offering) => {
+    const lessons = offering.CourseModule.flatMap((module) => module.lessons);
+    const completed = lessons.filter((lesson) => completedLessonIds.has(lesson.id));
+    const openAssignments = offering.assignments.filter((assignment) => !submittedAssignments.has(assignment.id));
+    const overdueAssignments = isStudent ? openAssignments.filter((assignment) => assignment.dueDate.getTime() < now).length : 0;
+    const pendingAssignments = isStudent ? openAssignments.filter((assignment) => assignment.dueDate.getTime() >= now).length : offering.assignments.length;
+    const nextDue = openAssignments.find((assignment) => assignment.dueDate.getTime() >= now) ?? openAssignments[0] ?? null;
+    const upcomingQuizRows = offering.Quiz.filter((quiz) => !quiz.endTime || quiz.endTime.getTime() >= now);
+    const nextQuiz = upcomingQuizRows.find((quiz) => !quiz.startTime || quiz.startTime.getTime() >= now) ?? upcomingQuizRows[0] ?? null;
+    const nextLesson = isStudent ? lessons.find((lesson) => !completedLessonIds.has(lesson.id)) ?? null : lessons[0] ?? null;
+    const progressPercent = isStudent ? (lessons.length ? Math.round((completed.length / lessons.length) * 100) : 0) : null;
+
+    return {
+      id: offering.id,
+      courseId: offering.courseId,
+      code: offering.course.code,
+      title: offering.course.title,
+      instructor: offering.faculty.user.name,
+      term: offering.term.name,
+      section: offering.section?.name ?? null,
+      students: offering._count.enrollments,
+      modules: offering.CourseModule.length,
+      lessons: lessons.length,
+      completedLessons: completed.length,
+      progressPercent,
+      pendingAssignments,
+      overdueAssignments,
+      totalAssignments: offering.assignments.length,
+      upcomingQuizzes: upcomingQuizRows.length,
+      nextDue: nextDue ? { id: nextDue.id, title: nextDue.title, dueDate: nextDue.dueDate.toISOString() } : null,
+      nextQuiz: nextQuiz ? { id: nextQuiz.id, title: nextQuiz.title, startTime: nextQuiz.startTime?.toISOString() ?? null } : null,
+      latestAnnouncement: offering.announcements[0]
+        ? { title: offering.announcements[0].title, createdAt: offering.announcements[0].createdAt.toISOString() }
+        : null,
+      nextLesson: nextLesson ? { id: nextLesson.id, title: nextLesson.title } : null,
+    };
+  });
 
   const heading =
-    session.role === RoleType.STUDENT ? 'My courses' : session.role === RoleType.FACULTY ? 'Courses I teach' : 'All course offerings';
+    session.role === RoleType.STUDENT
+      ? 'Your enrolled courses, progress and upcoming academic work'
+      : session.role === RoleType.FACULTY
+        ? 'Your teaching portfolio, course content and assessment workload'
+        : 'Institution-wide course offerings and learning activity';
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Learning (LMS)" description={heading} />
-
-      {courses.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
-          <BookOpen className="mx-auto h-8 w-8 text-text-muted" aria-hidden="true" />
-          <p className="mt-3 text-sm font-medium text-text-primary">No courses are available for your account yet.</p>
-          <p className="mt-1 text-xs text-text-secondary">
-            {session.role === RoleType.STUDENT
-              ? 'Courses you are enrolled in will appear here once registrations are confirmed.'
-              : session.role === RoleType.FACULTY
-                ? 'Offerings assigned to you will appear here.'
-                : 'No course offerings exist for this institution yet.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {courses.map((course) => (
-            <Link
-              key={course.id}
-              href={`/learning/courses/${encodeURIComponent(course.courseId)}`}
-              className="group flex flex-col rounded-2xl border border-border bg-white p-5 shadow-sm transition-colors hover:border-primary/40 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className="rounded-full bg-primary-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">
-                  {course.course.code}
-                </span>
-                <span className="text-[11px] font-medium text-text-muted">{course.term.name}</span>
-              </div>
-              <h2 className="mt-3 text-base font-bold text-text-primary group-hover:text-primary">{course.course.title}</h2>
-              <p className="mt-1 text-xs text-text-secondary">Instructor: {course.faculty.user.name}</p>
-              <div className="mt-4 flex items-center gap-4 border-t border-border pt-3 text-xs text-text-secondary">
-                <span className="flex items-center gap-1.5">
-                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" /> {course._count.CourseModule} modules
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5" aria-hidden="true" /> {course._count.enrollments} students
-                </span>
-                {course.section && <span className="ml-auto">{course.section.name}</span>}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
+    <LmsProHome
+      role={session.role}
+      heading={heading}
+      courses={courses}
+      totals={{
+        courses: courses.length,
+        lessons: courses.reduce((sum, course) => sum + course.lessons, 0),
+        assignments: courses.reduce((sum, course) => sum + course.totalAssignments, 0),
+        attention: courses.reduce((sum, course) => sum + course.pendingAssignments + course.overdueAssignments, 0),
+        upcomingQuizzes: courses.reduce((sum, course) => sum + course.upcomingQuizzes, 0),
+        students: courses.reduce((sum, course) => sum + course.students, 0),
+      }}
+    />
   );
 }
