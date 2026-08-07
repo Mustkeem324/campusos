@@ -7,6 +7,7 @@ on:
       - 'apps/web/src/app/api/transport/**'
       - 'apps/web/src/components/campus/TransportAdminConsole.tsx'
       - 'apps/web/src/components/campus/TransportTrackerConsole.tsx'
+      - 'apps/web/src/components/campus/TransportPhase2*.tsx'
       - 'apps/web/src/components/layout/Sidebar.tsx'
       - 'apps/web/src/lib/transport-gps*'
       - 'packages/db/prisma/transport-gps.sql'
@@ -16,10 +17,27 @@ on:
 permissions:
   contents: read
 
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos?schema=public
+
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campusos"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +54,15 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
+      - name: Create core database schema
+        run: npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
+
+      - name: Provision transport GPS schema
+        run: npx prisma db execute --file=packages/db/prisma/transport-gps.sql --schema=packages/db/prisma/schema.prisma
+
+      - name: Re-provision transport GPS schema
+        run: npx prisma db execute --file=packages/db/prisma/transport-gps.sql --schema=packages/db/prisma/schema.prisma
+
       - name: Typecheck
         run: npm run typecheck
 
@@ -43,7 +70,7 @@ jobs:
         run: npm run lint -- --max-warnings=0
 
       - name: Transport GPS unit tests
-        run: npx vitest run apps/web/src/lib/transport-gps-sanitize.test.ts
+        run: npx vitest run apps/web/src/lib/transport-gps-sanitize.test.ts apps/web/src/lib/transport-gps-phase2.test.ts
 
       - name: Production build
         env:
