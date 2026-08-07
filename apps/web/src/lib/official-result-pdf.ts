@@ -4,7 +4,7 @@ import type { OfficialResult } from './result-publication';
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
 const MARGIN = 42;
-const COURSE_ROWS_PER_PAGE = 9;
+const COURSE_ROWS_PER_PAGE = 6;
 
 export function buildOfficialResultPdf(result: OfficialResult) {
   if (result.publication.integrity !== 'VERIFIED' || !result.publication.verificationUrl) {
@@ -68,7 +68,7 @@ function renderPage(result: OfficialResult, courses: OfficialResult['courses'], 
     y -= 16;
     drawAcademicSummary(commands, result, y);
     drawAuthorization(commands, result, 152);
-    drawVerification(commands, result, 60);
+    drawVerification(commands, result, 42);
   } else {
     text(commands, MARGIN, 56, 7.5, 'Course table continues on the next page. This page forms part of the same digitally verifiable result document.', false, [0.34, 0.4, 0.49]);
   }
