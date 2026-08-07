@@ -110,16 +110,19 @@ export async function POST(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: 'Review the hostel request fields.' }, { status: 400 });
     const input = parsed.data;
     let result: unknown;
+    // Zod has already validated the discriminated payload. These casts only
+    // restore the required-field shape that this repository's Zod typings
+    // widen to optional properties; service functions still enforce role and tenant scope.
     switch (input.action) {
-      case 'settings': result = await updateHostelSettings(input); break;
-      case 'student': result = await updateHostelStudent(input); break;
-      case 'facility': result = await createHostelFacility(input); break;
-      case 'room': result = await createHostelRoom(input); break;
-      case 'charge': result = await createHostelCharge(input); break;
-      case 'outpass': result = await createHostelOutpass(input); break;
-      case 'outpass-decision': result = await decideHostelOutpass(input); break;
-      case 'incident': result = await createHostelIncident(input); break;
-      case 'provider': result = await createHostelProvider(input); break;
+      case 'settings': result = await updateHostelSettings(input as Parameters<typeof updateHostelSettings>[0]); break;
+      case 'student': result = await updateHostelStudent(input as Parameters<typeof updateHostelStudent>[0]); break;
+      case 'facility': result = await createHostelFacility(input as Parameters<typeof createHostelFacility>[0]); break;
+      case 'room': result = await createHostelRoom(input as Parameters<typeof createHostelRoom>[0]); break;
+      case 'charge': result = await createHostelCharge(input as Parameters<typeof createHostelCharge>[0]); break;
+      case 'outpass': result = await createHostelOutpass(input as Parameters<typeof createHostelOutpass>[0]); break;
+      case 'outpass-decision': result = await decideHostelOutpass(input as Parameters<typeof decideHostelOutpass>[0]); break;
+      case 'incident': result = await createHostelIncident(input as Parameters<typeof createHostelIncident>[0]); break;
+      case 'provider': result = await createHostelProvider(input as Parameters<typeof createHostelProvider>[0]); break;
     }
     return NextResponse.json({ success: true, result }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
