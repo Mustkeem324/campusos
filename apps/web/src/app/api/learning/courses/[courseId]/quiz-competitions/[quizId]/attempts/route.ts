@@ -7,6 +7,8 @@ import { attemptDeadline, loadCompetitionConfig, quizWindowState } from '@/lib/l
 
 export const dynamic = 'force-dynamic';
 
+type AttemptStart = { id: string; startedAt: Date; completedAt: Date | null; resumed: boolean };
+
 export async function POST(_request: Request, { params }: { params: { courseId: string; quizId: string } }) {
   try {
     const access = await requireCourseAccess(params.courseId);
@@ -18,11 +20,11 @@ export async function POST(_request: Request, { params }: { params: { courseId: 
     const student = await access.db.student.findUnique({ where: { userId: access.session.userId }, select: { id: true } });
     if (!student) return NextResponse.json({ error: 'Student profile is unavailable.' }, { status: 403 });
 
-    let attempt: { id: string; startedAt: Date; completedAt: Date | null } | null = null;
+    let attempt: AttemptStart | null = null;
     let lastError: unknown = null;
     for (let retry = 0; retry < 3 && !attempt; retry += 1) {
       try {
-        attempt = await prisma.$transaction(async (tx) => {
+        attempt = await prisma.$transaction(async (tx): Promise<AttemptStart> => {
           const quiz = await tx.quiz.findFirst({
             where: { id: params.quizId, tenantId: access.session.tenantId, courseOfferingId: access.offering.id },
             select: { id: true },
@@ -33,13 +35,14 @@ export async function POST(_request: Request, { params }: { params: { courseId: 
             orderBy: { startedAt: 'desc' },
             select: { id: true, startedAt: true, completedAt: true },
           });
-          if (active) return active;
+          if (active) return { ...active, resumed: true };
           const used = await tx.quizAttempt.count({ where: { quizId: params.quizId, studentId: student.id } });
           if (used >= competition.config.maxAttempts) throw new Error('MAX_ATTEMPTS');
-          return tx.quizAttempt.create({
+          const created = await tx.quizAttempt.create({
             data: { quizId: params.quizId, studentId: student.id },
             select: { id: true, startedAt: true, completedAt: true },
           });
+          return { ...created, resumed: false };
         }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       } catch (error: unknown) {
         lastError = error;
@@ -53,8 +56,8 @@ export async function POST(_request: Request, { params }: { params: { courseId: 
       attemptId: attempt.id,
       startedAt: attempt.startedAt,
       deadline,
-      resumed: false,
-    }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
+      resumed: attempt.resumed,
+    }, { status: attempt.resumed ? 200 : 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error: unknown) {
     if (error instanceof CourseAccessError) return NextResponse.json({ error: error.message }, { status: error.status });
     if (error instanceof Error && error.message === 'MAX_ATTEMPTS') return NextResponse.json({ error: 'You have used all allowed attempts for this competition.' }, { status: 409 });
