@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { CourseAccessError, requireCourseAccess } from '../../../../../../../lib/lms/course-access';
-import { markLessonCompleted } from '../../../../../../../lib/lms/progress';
+import { CourseAccessError, requireCourseAccess } from '../../../../../../../../lib/lms/course-access';
+import { markLessonCompleted } from '../../../../../../../../lib/lms/progress';
 
 export const dynamic = 'force-dynamic';
 
