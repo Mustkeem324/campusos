@@ -6,6 +6,7 @@ type MfaChallengePayload = {
   purpose: 'campusos-mfa';
   userId: string;
   tenantId: string;
+  rememberMe: boolean;
 };
 
 function challengeSecret() {
@@ -19,11 +20,12 @@ function challengeSecret() {
   return secret;
 }
 
-export function createMfaChallenge(userId: string, tenantId: string) {
+export function createMfaChallenge(userId: string, tenantId: string, rememberMe = false) {
   const payload: MfaChallengePayload = {
     purpose: 'campusos-mfa',
     userId,
     tenantId,
+    rememberMe,
   };
   return jwt.sign(payload, challengeSecret(), {
     expiresIn: MFA_CHALLENGE_TTL_SECONDS,
@@ -43,7 +45,8 @@ export function verifyMfaChallenge(token: string): MfaChallengePayload | null {
       typeof decoded === 'string' ||
       decoded.purpose !== 'campusos-mfa' ||
       typeof decoded.userId !== 'string' ||
-      typeof decoded.tenantId !== 'string'
+      typeof decoded.tenantId !== 'string' ||
+      (decoded.rememberMe !== undefined && typeof decoded.rememberMe !== 'boolean')
     ) {
       return null;
     }
@@ -51,6 +54,9 @@ export function verifyMfaChallenge(token: string): MfaChallengePayload | null {
       purpose: 'campusos-mfa',
       userId: decoded.userId,
       tenantId: decoded.tenantId,
+      // Challenges issued immediately before deployment did not include this
+      // claim; defaulting them to a browser-session cookie is fail-safe.
+      rememberMe: decoded.rememberMe === true,
     };
   } catch {
     return null;
