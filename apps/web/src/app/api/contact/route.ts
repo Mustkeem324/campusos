@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { contactInboxAddress, sendContactNotificationMail } from '../../../lib/contact-mail';
+import { contactInboxAddress, sendContactNotificationMail, type ContactMailInput } from '../../../lib/contact-mail';
 import { prisma } from '../../../lib/db';
 import {
   checkPublicRateLimit,
@@ -29,6 +29,11 @@ const contactSchema = z.object({
   consent: z.literal(true),
   website: z.string().trim().max(200).optional().default(''),
 });
+
+type ValidatedContactPayload = ContactMailInput & {
+  consent: true;
+  website: string;
+};
 
 function singleLine(value: string) {
   return value.replace(/[\r\n]+/g, ' ').trim();
@@ -64,7 +69,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const data = parsed.data;
+    // safeParse guarantees these fields at runtime. The explicit payload type
+    // keeps the mail boundary strict even when the repository's non-strict
+    // root TypeScript config widens Zod object output properties to optional.
+    const data = parsed.data as ValidatedContactPayload;
     // Honeypot submissions are silently discarded so bots do not learn which
     // field caused rejection and never enter the company CRM queue.
     if (data.website) return NextResponse.json({ success: true }, { status: 202 });
