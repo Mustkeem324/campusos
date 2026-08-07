@@ -49,6 +49,21 @@ describe('critical authentication and payment regressions', () => {
     expect(activationPage).not.toContain("fetch('/api/auth/activate'");
   });
 
+  it('wires verification resend to the token-rotating API', () => {
+    const verifyPage = source('apps/web/src/app/(auth)/verify-email/page.tsx');
+    const resendRoute = source('apps/web/src/app/api/auth/resend-verification/route.ts');
+    expect(verifyPage).toContain("fetch('/api/auth/resend-verification'");
+    expect(resendRoute).toContain('hashOneTimeToken');
+    expect(resendRoute).toContain('checkPublicRateLimit');
+  });
+
+  it('does not inject tenantId into nested chat models that lack that column', () => {
+    const db = source('apps/web/src/lib/db.ts');
+    const tenantList = db.slice(db.indexOf('const TENANT_MODELS'), db.indexOf('/**\n * Service Layer Authorization'));
+    expect(tenantList).not.toContain("'ChatPollOption'");
+    expect(tenantList).not.toContain("'ChatPollVote'");
+  });
+
   it('hard-caps streamed request bodies even without Content-Length', async () => {
     const request = new Request('http://localhost/api/test', {
       method: 'POST',
