@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 
-export const SITE_NAME = 'CampusOS';
+export const SITE_NAME = 'NAVEMORA';
 export const SITE_DESCRIPTION =
-  'CampusOS is a connected higher-education operating platform for academic, administrative, finance and student-service teams.';
+  'NAVEMORA is a connected higher-education operating platform for academic, administrative, finance and student-service teams.';
 
 function normalizeSiteOrigin(value: string | undefined): string {
-  const fallback = 'https://campusos.example';
+  const fallback = 'https://navemora.example';
   if (!value) return fallback;
 
   const candidate = value.startsWith('http://') || value.startsWith('https://')
