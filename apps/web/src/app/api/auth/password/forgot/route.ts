@@ -3,8 +3,16 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { hashOneTimeToken, randomOneTimeToken } from '@/lib/phase7';
+import {
+  checkPublicRateLimit,
+  InvalidJsonError,
+  PayloadTooLargeError,
+  readJsonWithLimit,
+  requestIp,
+} from '@/lib/public-rate-limit';
 
-const requestSchema = z.object({ email: z.string().trim().email() });
+const requestSchema = z.object({ email: z.string().trim().email().max(254) });
+const RESET_REQUEST_BODY_LIMIT_BYTES = 4 * 1024;
 
 export async function POST(request: Request) {
   const genericResponse = {
@@ -13,7 +21,18 @@ export async function POST(request: Request) {
   };
 
   try {
-    const { email } = requestSchema.parse(await request.json());
+    const ipAddress = requestIp(request);
+    const rateLimit = checkPublicRateLimit({ key: `password-forgot:${ipAddress}`, limit: 10, windowMs: 60 * 60_000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many password reset requests. Please wait and try again.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
+    const { email } = requestSchema.parse(
+      await readJsonWithLimit(request, RESET_REQUEST_BODY_LIMIT_BYTES),
+    );
     const candidates = await prisma.user.findMany({
       where: {
         email: { equals: email.toLowerCase(), mode: 'insensitive' },
@@ -66,6 +85,12 @@ export async function POST(request: Request) {
       ...(exposeToken ? { developmentResetUrl: resetUrl } : {}),
     });
   } catch (error: unknown) {
+    if (error instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request payload is too large.' }, { status: 413 });
+    }
+    if (error instanceof InvalidJsonError) {
+      return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
     }
