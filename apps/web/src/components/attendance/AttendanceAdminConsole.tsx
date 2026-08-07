@@ -7,9 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
-  Clock3,
   GraduationCap,
-  RefreshCw,
   Settings2,
   ShieldCheck,
   UsersRound,
@@ -86,7 +84,7 @@ export function AttendanceAdminConsole({ initialData, programs }: { initialData:
         <Field label="Early check-in window"><select value={data.settings.checkinEarlyMinutes} onChange={(event) => void saveSettings({ checkinEarlyMinutes: Number(event.target.value) })} className="min-h-11 w-full rounded-xl border border-[#D5DEEA] px-3 text-sm"><option value={5}>5 minutes</option><option value={10}>10 minutes</option><option value={15}>15 minutes</option><option value={30}>30 minutes</option></select></Field>
         <Field label="Late check-in window"><select value={data.settings.checkinLateMinutes} onChange={(event) => void saveSettings({ checkinLateMinutes: Number(event.target.value) })} className="min-h-11 w-full rounded-xl border border-[#D5DEEA] px-3 text-sm"><option value={10}>10 minutes</option><option value={15}>15 minutes</option><option value={20}>20 minutes</option><option value={30}>30 minutes</option></select></Field>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Toggle label="Offline self attendance" detail="Allow one Face ID daily check-in; faculty manual attendance still remains available." checked={data.settings.allowOfflineSelfCheckIn} onChange={(allowOfflineSelfCheckIn) => void saveSettings({ allowOfflineSelfCheckIn })} /><Toggle label="Hybrid daily check-in" detail="When enabled, Hybrid students use the one-time daily attendance flow." checked={data.settings.allowHybridDailyCheckIn} onChange={(allowHybridDailyCheckIn) => void saveSettings({ allowHybridDailyCheckIn })} /><Toggle label="Checkout tracking" detail="Record when a student completes their class/day attendance." checked={data.settings.checkoutEnabled} onChange={(checkoutEnabled) => void saveSettings({ checkoutEnabled })} /><Toggle label="Online Face ID" detail="Online timetable attendance requires biometric verification for every class." checked={data.settings.requireOnlineFace} onChange={(requireOnlineFace) => void saveSettings({ requireOnlineFace })} /></div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4"><Toggle label="Offline self attendance" detail="Allow one Face ID daily check-in; faculty manual attendance still remains available." checked={data.settings.allowOfflineSelfCheckIn} onChange={(allowOfflineSelfCheckIn) => void saveSettings({ allowOfflineSelfCheckIn })} /><Toggle label="Hybrid daily check-in" detail="When enabled, Hybrid students use the one-time daily attendance flow." checked={data.settings.allowHybridDailyCheckIn} onChange={(allowHybridDailyCheckIn) => void saveSettings({ allowHybridDailyCheckIn })} /><Toggle label="Checkout tracking" detail="Record when a student completes their class/day attendance." checked={data.settings.checkoutEnabled} onChange={(checkoutEnabled) => void saveSettings({ checkoutEnabled })} /><div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-extrabold text-emerald-900">Online Face ID</p><span className="rounded-full bg-emerald-600 px-2 py-1 text-[9px] font-extrabold uppercase text-white">Enforced</span></div><p className="mt-2 text-[11px] leading-5 text-emerald-800">Online students must biometrically verify every timetable class. Institution users cannot disable this requirement.</p></div></div>
     </section>
 
     <section className="rounded-2xl border border-[#D9E3F0] bg-white p-5">
