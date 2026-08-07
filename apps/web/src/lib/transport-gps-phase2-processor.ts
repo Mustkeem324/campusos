@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { prisma } from './db';
-import { processTransportPhase2Telemetry } from './transport-gps-phase2';
+import { processTransportPhase2Telemetry } from './transport-gps-phase2-core';
 
 export async function processTransportPhase2ForVehicle(input: {
   vehicleId: string;
