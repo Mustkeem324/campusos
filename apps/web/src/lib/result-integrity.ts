@@ -3,6 +3,8 @@ import crypto from 'crypto';
 export type ResultSnapshotCourse = {
   courseOfferingId: string;
   totalMarks: number;
+  marksObtained?: number;
+  maxMarks?: number | null;
   grade: string;
   gradePoints: number;
   credits: number;
@@ -22,7 +24,9 @@ export type ResultSnapshot = {
   courses: ResultSnapshotCourse[];
 };
 
-const RESULT_TOKEN_PREFIX = 'campusos-result-v1';
+const RESULT_TOKEN_PREFIX = 'campusos-result-v2';
+const SNAPSHOT_FINGERPRINT_LENGTH = 10;
+const TOKEN_SIGNATURE_LENGTH = 16;
 
 export function canonicalResultSnapshot(snapshot: ResultSnapshot) {
   const normalized = {
@@ -40,6 +44,8 @@ export function canonicalResultSnapshot(snapshot: ResultSnapshot) {
       .map((course) => ({
         courseOfferingId: course.courseOfferingId,
         totalMarks: stableNumber(course.totalMarks),
+        marksObtained: stableNumber(course.marksObtained ?? course.totalMarks),
+        maxMarks: course.maxMarks == null ? null : stableNumber(course.maxMarks),
         grade: course.grade,
         gradePoints: stableNumber(course.gradePoints),
         credits: course.credits,
@@ -59,25 +65,46 @@ export function resultDocumentNumber(institutionCode: string, examinationYear: n
   return `${code}/COE/${examinationYear}/RSLT/${serial}`;
 }
 
-export function createResultVerificationToken(resultId: string, secret = resultVerificationSecret()) {
+export function resultSnapshotFingerprint(snapshotHash: string) {
+  if (!/^[0-9a-f]{64}$/i.test(snapshotHash)) throw new Error('Result snapshot hash is invalid.');
+  return snapshotHash.slice(0, SNAPSHOT_FINGERPRINT_LENGTH).toLowerCase();
+}
+
+export function createResultVerificationToken(
+  resultId: string,
+  snapshotHash: string,
+  secret = resultVerificationSecret(),
+) {
+  const compactResultId = resultId.replace(/-/g, '').toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(compactResultId)) throw new Error('Result identifier is invalid.');
+  const fingerprint = resultSnapshotFingerprint(snapshotHash);
   const signature = crypto
     .createHmac('sha256', secret)
-    .update(`${RESULT_TOKEN_PREFIX}:${resultId}`)
+    .update(`${RESULT_TOKEN_PREFIX}:${compactResultId}:${fingerprint}`)
     .digest('base64url')
-    .slice(0, 27);
-  return `${resultId}.${signature}`;
+    .slice(0, TOKEN_SIGNATURE_LENGTH);
+  return `${compactResultId}.${fingerprint}.${signature}`;
 }
 
 export function verifyResultVerificationToken(token: string, secret = resultVerificationSecret()) {
-  const match = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([A-Za-z0-9_-]{20,40})$/i.exec(token);
+  const match = /^([0-9a-f]{32})\.([0-9a-f]{10})\.([A-Za-z0-9_-]{16})$/i.exec(token);
   if (!match) return null;
-  const resultId = match[1];
-  const supplied = match[2];
-  const expected = createResultVerificationToken(resultId, secret).split('.')[1];
+
+  const compactResultId = match[1].toLowerCase();
+  const snapshotFingerprint = match[2].toLowerCase();
+  const supplied = match[3];
+  const resultId = expandUuid(compactResultId);
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(`${RESULT_TOKEN_PREFIX}:${compactResultId}:${snapshotFingerprint}`)
+    .digest('base64url')
+    .slice(0, TOKEN_SIGNATURE_LENGTH);
+
   const suppliedBuffer = Buffer.from(supplied);
   const expectedBuffer = Buffer.from(expected);
   if (suppliedBuffer.length !== expectedBuffer.length) return null;
-  return crypto.timingSafeEqual(suppliedBuffer, expectedBuffer) ? resultId : null;
+  if (!crypto.timingSafeEqual(suppliedBuffer, expectedBuffer)) return null;
+  return { resultId, snapshotFingerprint };
 }
 
 export function resultVerificationSecret() {
@@ -117,4 +144,8 @@ export function resultPublicOrigin() {
 
 function stableNumber(value: number) {
   return Number.isFinite(value) ? Number(value.toFixed(4)) : 0;
+}
+
+function expandUuid(compact: string) {
+  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20)}`;
 }
