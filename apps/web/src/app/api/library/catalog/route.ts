@@ -17,6 +17,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 const MAX_EBOOK_BYTES = 25 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 30 * 1024 * 1024;
 const acceptedEbookTypes = new Set(['application/pdf', 'application/epub+zip']);
 
 const catalogSchema = z.object({
@@ -71,6 +72,11 @@ export async function POST(request: Request) {
     const context = await requireActiveUserContext();
     if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
 
+    const declaredLength = Number(request.headers.get('content-length') || 0);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+      return NextResponse.json({ error: 'Catalogue upload request is too large.' }, { status: 413 });
+    }
+
     const form = await request.formData();
     const raw = Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === 'string'));
     const input = catalogSchema.parse(raw);
@@ -95,10 +101,15 @@ export async function POST(request: Request) {
     const state = await getLibraryState(context.tenantId);
     const existingMeta = input.itemId ? state.catalogMap.get(catalogEntity(input.itemId)) : undefined;
     const ebook = form.get('ebook');
+    const hasNewEbook = ebook instanceof File && ebook.size > 0;
+    const hasDigitalSource = hasNewEbook || Boolean(input.externalUrl) || Boolean(existingMeta?.digital?.fileId) || Boolean(existingMeta?.digital?.externalUrl);
+    if (input.resourceType !== 'PHYSICAL' && !hasDigitalSource) {
+      return NextResponse.json({ error: 'Provide a licensed PDF/EPUB file or approved HTTPS e-book URL.' }, { status: 422 });
+    }
+
     let fileId = existingMeta?.digital?.fileId;
     let mimeType = existingMeta?.digital?.mimeType;
-
-    if (ebook instanceof File && ebook.size > 0) {
+    if (hasNewEbook && ebook instanceof File) {
       const fileUrl = await toPrivateFile(ebook);
       const stored = await prisma.file.create({
         data: { tenantId: context.tenantId, fileName: ebook.name, fileUrl, mimeType: ebook.type },
@@ -140,10 +151,6 @@ export async function POST(request: Request) {
       },
       tags: input.tags ? input.tags.split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 20) : existingMeta?.tags ?? [],
     };
-
-    if (resourceType !== 'PHYSICAL' && !meta.digital?.fileId && !meta.digital?.externalUrl) {
-      return NextResponse.json({ error: 'Provide a licensed PDF/EPUB file or approved HTTPS e-book URL.' }, { status: 422 });
-    }
 
     await prisma.auditLog.create({
       data: {
