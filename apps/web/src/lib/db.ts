@@ -14,32 +14,70 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Define models that have a direct tenantId column according to schema.prisma.
+// Define every Prisma model that owns a direct tenantId column. This list is
+// guarded by tenant-model-coverage.test.ts, which parses schema.prisma so new
+// tenant-owned models cannot silently bypass the generic isolation extension.
 // Nested models without tenantId (for example ChatPollOption/ChatPollVote) must
-// be scoped through their tenant-owned parent relation instead of receiving an
-// invalid tenantId filter from this generic extension.
+// be scoped through their tenant-owned parent relation instead.
 const TENANT_MODELS = [
+  // Core institution / identity / academics
   'Campus', 'Department', 'Program', 'Batch', 'Section', 'AcademicYear', 'Term',
   'User', 'Role', 'Student', 'Staff', 'Guardian', 'Course', 'CourseOffering',
-  'Enrollment', 'Attendance', 'Assignment', 'Submission', 'Exam', 'Result',
-  'FeeStructure', 'Invoice', 'Payment', 'Hostel', 'Room', 'Bed', 'HostelAllocation',
-  'TransportRoute', 'Vehicle', 'Stop', 'TransportAllocation', 'Book', 'BookCopy',
-  'Borrowing', 'Notice', 'Event', 'AuditLog', 'Notification', 'Webhook', 'ApiKey',
-  'Gradebook', 'Certificate', 'Placement', 'Application', 'Alumni',
-  'CourseAnnouncement',
+  'Enrollment', 'Curriculum', 'TimetableSlot',
+
+  // Attendance and smart attendance
+  'Attendance', 'AttendanceSession', 'AttendanceRecord', 'AttendanceCheckIn',
+  'AttendanceOverride', 'SmartDevice', 'BiometricConsent', 'BiometricEnrollment',
+
+  // LMS / learning / examinations / results
+  'Assignment', 'Submission', 'Exam', 'Examinations', 'Result', 'Gradebook',
+  'GradeScale', 'Quiz', 'LearningSession', 'MarksEntryBatch', 'StudentMarks',
+  'StudentCourseResult', 'StudentSemesterResult', 'CourseAnnouncement',
+  'Announcement', 'ForumThread',
+
+  // Finance
+  'FeeStructure', 'Invoice', 'Payment', 'RefundPolicy', 'RefundRequest',
+  'Scholarship', 'MessBill',
+
+  // Campus operations
+  'Hostel', 'Room', 'Bed', 'HostelAllocation', 'TransportRoute', 'Vehicle', 'Stop',
+  'TransportAllocation', 'Book', 'BookCopy', 'Borrowing', 'LibraryItem',
+
+  // Files, communication and workflows
+  'Document', 'File', 'Notice', 'Event', 'Notification', 'NotificationPreference',
+  'EmailQueue', 'Webhook', 'ApiKey', 'Ticket', 'SupportCase', 'GrievanceCase',
+  'FeedbackForm',
+
+  // Compliance / security / legal / integrations
+  'AuditLog', 'SecurityControl', 'ConsentDefinition', 'ConsentRecord',
+  'CookiePreference', 'DataProcessingActivity', 'DataSubjectRequest',
+  'LegalAcceptance', 'LegalDocument', 'Subprocessor', 'IntegrationConnection',
+  'ImplementationProject',
+
+  // Analytics / planning / student success
+  'AnalyticsMetric', 'PlanningScenario', 'StudentSuccessCase',
+
+  // AI platform
+  'AiTenantPolicy', 'AiConversation', 'AiMessage', 'AiKnowledgeDocument',
+  'AiKnowledgeChunk', 'AiActionProposal', 'AiAuditLog',
+
+  // Careers / placement / alumni
+  'Certificate', 'Placement', 'Application', 'Alumni',
+
   // Community Chat System models with a direct tenantId column
   'ChatCommunity', 'ChatCommunityMember', 'ChatMessage', 'ChatAttachment',
   'ChatReaction', 'ChatBookmark', 'ChatPinnedMessage', 'ChatReport',
   'ChatModerationCase', 'ChatModerationAction', 'ChatUserRestriction',
   'ChatAuditEvent', 'ChatNotificationPref', 'ChatLinkPreview', 'ChatPoll',
   'ChatReadReceipt',
+
   // Community Hub models
   'CommunityPost', 'CommunityReply', 'CommunityReaction', 'CommunityVote',
-  'CommunityPoll', 'CommunityBookmark',
-  'CommunityReport', 'CommunityModerationAction', 'CommunityAcknowledgement',
-  'CommunityFollow',
+  'CommunityPoll', 'CommunityBookmark', 'CommunityReport',
+  'CommunityModerationAction', 'CommunityAcknowledgement', 'CommunityFollow',
+
   // Demo Scenario models
-  'DemoScenarioInstance', 'DemoScenarioEvent'
+  'DemoScenarioInstance', 'DemoScenarioEvent',
 ];
 
 /**
