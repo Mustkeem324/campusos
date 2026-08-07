@@ -48,13 +48,22 @@ export function GradeCardMarksheet({ result }: { result: OfficialResult | null }
             <button type="button" onClick={() => window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 text-xs font-black text-white hover:bg-white/10">
               <Printer className="h-4 w-4" /> Print
             </button>
-            <Link
-              href={isVerified ? `/api/results/${result.id}/pdf` : '#'}
-              aria-disabled={!isVerified}
-              className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-black ${isVerified ? 'bg-white text-[#0B1F3A] hover:bg-[#EEF4FB]' : 'pointer-events-none bg-white/10 text-white/45'}`}
-            >
-              <Download className="h-4 w-4" /> Download official PDF
-            </Link>
+            {isVerified ? (
+              <Link
+                href={`/api/results/${result.id}/pdf`}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-xs font-black text-[#0B1F3A] hover:bg-[#EEF4FB]"
+              >
+                <Download className="h-4 w-4" /> Download official PDF
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/10 px-4 text-xs font-black text-white/45 disabled:cursor-not-allowed"
+              >
+                <Download className="h-4 w-4" /> Download official PDF
+              </button>
+            )}
           </div>
         </div>
       </section>
