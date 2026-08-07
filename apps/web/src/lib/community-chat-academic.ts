@@ -446,7 +446,7 @@ export async function loadSecureAttachment(session: ChatSession, attachmentId: s
   const attachment = await prisma.chatAttachment.findFirst({ where: { id: attachmentId, tenantId: session.tenantId, isSafe: true }, include: { message: { select: { communityId: true, moderationStatus: true, isDeleted: true } } } });
   if (!attachment || attachment.message.isDeleted || !['ALLOWED', 'ALLOWED_WITH_WARNING', 'RESTORED'].includes(attachment.message.moderationStatus)) throw new Error('CHAT_ATTACHMENT_NOT_FOUND');
   await assertStrictAcademicAccess(session, attachment.message.communityId);
-  const encoded = /^data:([^;]+);base64,(.+)$/s.exec(attachment.fileUrl);
+  const encoded = /^data:([^;]+);base64,(.+)$/.exec(attachment.fileUrl);
   if (!encoded) throw new Error('CHAT_ATTACHMENT_NOT_FOUND');
   return { fileName: attachment.fileName, mimeType: attachment.mimeType, bytes: Buffer.from(encoded[2], 'base64') };
 }
