@@ -30,39 +30,55 @@ export async function GET(request: Request, { params }: { params: { communityId:
           closed = true;
           try { controller.close(); } catch { /* stream already closed */ }
         };
+        const send = (chunk: string) => {
+          if (closed || request.signal.aborted) return false;
+          try {
+            controller.enqueue(encoder.encode(chunk));
+            return true;
+          } catch {
+            closed = true;
+            return false;
+          }
+        };
         request.signal.addEventListener('abort', close, { once: true });
-        controller.enqueue(encoder.encode('event: ready\ndata: {}\n\n'));
+        if (!send('event: ready\ndata: {}\n\n')) return;
 
         const deadline = Date.now() + 25_000;
         while (!closed && !request.signal.aborted && Date.now() < deadline) {
-          const [latest, realtime] = await Promise.all([
-            prisma.chatMessage.findMany({
-              where: {
-                tenantId: chatSession.tenantId,
-                communityId: params.communityId,
-                createdAt: { gt: cursor },
-                isDeleted: false,
-                moderationStatus: { in: ['ALLOWED', 'ALLOWED_WITH_WARNING', 'RESTORED'] },
-              },
-              orderBy: { createdAt: 'asc' },
-              select: { id: true, createdAt: true },
-              take: 25,
-            }),
-            readPresenceState(chatSession, params.communityId),
-          ]);
+          try {
+            const [latest, realtime] = await Promise.all([
+              prisma.chatMessage.findMany({
+                where: {
+                  tenantId: chatSession.tenantId,
+                  communityId: params.communityId,
+                  createdAt: { gt: cursor },
+                  isDeleted: false,
+                  moderationStatus: { in: ['ALLOWED', 'ALLOWED_WITH_WARNING', 'RESTORED'] },
+                },
+                orderBy: { createdAt: 'asc' },
+                select: { id: true, createdAt: true },
+                take: 25,
+              }),
+              readPresenceState(chatSession, params.communityId),
+            ]);
 
-          if (latest.length) {
-            cursor = latest[latest.length - 1].createdAt;
-            controller.enqueue(encoder.encode(`event: messages\ndata: ${JSON.stringify({ ids: latest.map((item) => item.id), at: cursor.toISOString() })}\n\n`));
-          }
+            if (latest.length) {
+              cursor = latest[latest.length - 1].createdAt;
+              if (!send(`event: messages\ndata: ${JSON.stringify({ ids: latest.map((item) => item.id), at: cursor.toISOString() })}\n\n`)) break;
+            }
 
-          const presencePayload = JSON.stringify(realtime);
-          if (presencePayload !== lastPresencePayload) {
-            lastPresencePayload = presencePayload;
-            controller.enqueue(encoder.encode(`event: presence\ndata: ${presencePayload}\n\n`));
+            const presencePayload = JSON.stringify(realtime);
+            if (presencePayload !== lastPresencePayload) {
+              lastPresencePayload = presencePayload;
+              if (!send(`event: presence\ndata: ${presencePayload}\n\n`)) break;
+            }
+            if (!send(': keepalive\n\n')) break;
+            await new Promise((resolve) => setTimeout(resolve, 1800));
+          } catch (streamError) {
+            console.error('[CHAT_REALTIME_STREAM]', streamError);
+            close();
+            break;
           }
-          controller.enqueue(encoder.encode(': keepalive\n\n'));
-          await new Promise((resolve) => setTimeout(resolve, 1800));
         }
         close();
       },
