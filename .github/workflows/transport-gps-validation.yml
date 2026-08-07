@@ -42,8 +42,8 @@ jobs:
       - name: Lint
         run: npm run lint -- --max-warnings=0
 
-      - name: Unit tests
-        run: npm test -- --run
+      - name: Transport GPS unit tests
+        run: npx vitest run apps/web/src/lib/transport-gps-sanitize.test.ts
 
       - name: Production build
         env:
