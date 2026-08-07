@@ -89,7 +89,8 @@ export function resultVerificationSecret() {
 }
 
 export function resultPublicOrigin() {
-  const raw = process.env.APP_PUBLIC_URL?.trim() || 'http://localhost:3000';
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || process.env.VERCEL_URL?.trim();
+  const raw = process.env.APP_PUBLIC_URL?.trim() || (vercelHost ? `https://${vercelHost.replace(/^https?:\/\//, '')}` : 'http://localhost:3000');
   try {
     const url = new URL(raw);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('unsupported protocol');
