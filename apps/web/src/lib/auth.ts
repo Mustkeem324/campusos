@@ -5,8 +5,21 @@ import { RoleType } from '@prisma/client';
 import { prisma } from './db';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_campusos_key_for_development';
+const DEVELOPMENT_JWT_SECRET = 'super_secret_campusos_key_for_development';
 const BLOCKED_INSTITUTION_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
+
+function jwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+
+  // Authentication must fail closed in production. A public, built-in fallback
+  // would let a misconfigured deployment accept attacker-forged session JWTs.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be configured in production.');
+  }
+
+  return DEVELOPMENT_JWT_SECRET;
+}
 
 export interface TokenPayload {
   sessionId: string;
@@ -16,13 +29,13 @@ export interface TokenPayload {
 }
 
 export function signToken(payload: TokenPayload, expiresIn = 3600): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, jwtSecret(), { expiresIn });
 }
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
-  } catch (error) {
+    return jwt.verify(token, jwtSecret()) as TokenPayload;
+  } catch {
     return null;
   }
 }
@@ -43,7 +56,7 @@ export async function getSessionFromCookies(): Promise<TokenPayload | null> {
   const cookieStore = cookies();
   const token = cookieStore.get('campusos_session')?.value;
   if (!token) return null;
-  
+
   const payload = verifyToken(token);
   if (!payload) return null;
 
