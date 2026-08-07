@@ -96,7 +96,7 @@ export type AttendanceWorkspace = {
   role: string;
   settings: AttendanceSettings;
   student: AttendanceStudentView | null;
-  wards: AttendanceStudentView[];
+  wards?: AttendanceStudentView[];
   facultySessions: AttendanceFacultySession[];
   institutionMetrics: {
     enrolledStudents: number;
