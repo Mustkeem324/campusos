@@ -9,7 +9,7 @@ import {
   PayloadTooLargeError,
   readJsonWithLimit,
 } from '@/lib/public-rate-limit';
-import { answerStudentHelp, StudentHelpError } from '@/lib/student-help';
+import { answerStudentHelp, StudentHelpError, type StudentHelpHistoryMessage } from '@/lib/student-help';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,10 +48,14 @@ export async function POST(request: Request) {
     }
 
     const input = requestSchema.parse(await readJsonWithLimit(request, BODY_LIMIT_BYTES));
+    const history: StudentHelpHistoryMessage[] = input.history.map((item) => ({
+      role: item.role!,
+      content: item.content!,
+    }));
     const result = await answerStudentHelp(context, {
       message: input.message,
       requestedMode: input.mode,
-      history: input.history,
+      history,
     });
 
     return NextResponse.json(
