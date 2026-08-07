@@ -32,6 +32,15 @@ describe('critical authentication and payment regressions', () => {
     expect(auth).toContain("throw new Error('JWT_SECRET must be configured in production.')");
   });
 
+  it('preserves remember-me policy across the signed MFA challenge', () => {
+    const login = source('apps/web/src/app/api/auth/login/route.ts');
+    const challenge = source('apps/web/src/lib/mfa-challenge.ts');
+    const verify = source('apps/web/src/app/api/auth/mfa-verify/route.ts');
+    expect(login).toContain('createMfaChallenge(user.id, user.tenantId, rememberMe)');
+    expect(challenge).toContain('rememberMe: boolean');
+    expect(verify).toContain('...(challenge.rememberMe ? { maxAge: SESSION_TTL_SECONDS } : {})');
+  });
+
   it('retires the generic payment webhook instead of mutating the ledger', () => {
     const legacyWebhook = source('apps/web/src/app/api/payments/webhook/route.ts');
     expect(legacyWebhook).toContain('{ status: 410 }');
