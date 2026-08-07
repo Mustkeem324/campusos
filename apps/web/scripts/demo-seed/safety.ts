@@ -8,7 +8,7 @@ export function assertSeedSafety(config: DemoSeedConfig): void {
   // inserted into a real deployment database, even when an override flag is
   // supplied accidentally or inherited from another environment.
   if (nodeEnv === 'production') {
-    throw new Error('Demo data generation is blocked for production environments.');
+    throw new Error('Demo data generation is blocked for this environment. (Reason: NODE_ENV=production)');
   }
 
   // Development/test/demo runs can still require an explicit seed opt-in.
