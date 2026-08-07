@@ -24,7 +24,6 @@ function renderPage(result: OfficialResult, courses: OfficialResult['courses'], 
   const commands: string[] = [];
   const isLastPage = pageIndex === pageCount - 1;
 
-  // Page border and institutional masthead.
   stroke(commands, 0.16, 0.24, 0.38);
   lineWidth(commands, 1.2);
   rect(commands, 28, 28, PAGE_WIDTH - 56, PAGE_HEIGHT - 56, false, true);
@@ -39,7 +38,6 @@ function renderPage(result: OfficialResult, courses: OfficialResult['courses'], 
   text(commands, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 80, 8, 'AUTHORIZED & PUBLISHED', true, [0.55, 0.93, 0.69], 'right');
   text(commands, PAGE_WIDTH - MARGIN, PAGE_HEIGHT - 99, 7.3, result.publication.documentNumber, false, [0.82, 0.88, 0.95], 'right');
 
-  // Student and examination identity.
   let y = PAGE_HEIGHT - 151;
   sectionLabel(commands, MARGIN, y, 'STUDENT ACADEMIC RECORD');
   y -= 18;
@@ -203,14 +201,14 @@ function drawVerification(commands: string[], result: OfficialResult, y: number)
   const qrY = y + 7;
   if (matrix) {
     const quiet = 4;
-    const module = qrSize / (matrix.length + quiet * 2);
+    const cellSize = qrSize / (matrix.length + quiet * 2);
     fill(commands, 1, 1, 1);
     rect(commands, qrX, qrY, qrSize, qrSize, true, false);
     fill(commands, 0.05, 0.07, 0.1);
     for (let row = 0; row < matrix.length; row += 1) {
       for (let column = 0; column < matrix.length; column += 1) {
         if (!matrix[row][column]) continue;
-        rect(commands, qrX + (column + quiet) * module, qrY + qrSize - (row + quiet + 1) * module, module + 0.03, module + 0.03, true, false);
+        rect(commands, qrX + (column + quiet) * cellSize, qrY + qrSize - (row + quiet + 1) * cellSize, cellSize + 0.03, cellSize + 0.03, true, false);
       }
     }
   }
