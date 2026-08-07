@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { CheckCircle2, FileCheck2, GraduationCap, ShieldCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, FileCheck2, ShieldCheck, XCircle } from 'lucide-react';
 
 import { loadVerifiedPublicResult } from '@/lib/result-publication';
 
@@ -36,7 +36,7 @@ export default async function VerifyResultPage({ params }: { params: { token: st
   const dean = result.approvals.find((approval) => approval.stage === 'DEAN');
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+    <div className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
       <section className="overflow-hidden rounded-[30px] border border-[#D9E3EF] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
         <div className="bg-[#0E223E] px-6 py-7 text-white sm:px-9 sm:py-9">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -45,7 +45,7 @@ export default async function VerifyResultPage({ params }: { params: { token: st
                 <ShieldCheck className="h-4 w-4" /> Official result verification
               </div>
               <h1 className="mt-4 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Verified institution academic record</h1>
-              <p className="mt-2 text-sm leading-6 text-[#BFD0E4]">The signed verification token, publication audit event and current academic snapshot all agree.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#BFD0E4]">The signed verification token, publication audit event and current academic snapshot agree. Public verification intentionally reveals only the minimum information needed to match the document.</p>
             </div>
             <div className="rounded-2xl border border-[#4B7B64] bg-[#153D2B] px-4 py-3">
               <p className="flex items-center gap-2 text-sm font-black text-[#C9F4DA]"><CheckCircle2 className="h-5 w-5" /> VERIFIED</p>
@@ -68,31 +68,21 @@ export default async function VerifyResultPage({ params }: { params: { token: st
             </section>
 
             <section className="grid gap-3 sm:grid-cols-2">
-              <Info label="Student" value={result.student.name} />
-              <Info label="Roll / Registration number" value={result.student.rollNumber} mono />
-              <Info label="Programme" value={`${result.student.programme} (${result.student.programmeCode})`} />
-              <Info label="Department" value={result.student.department} />
+              <Info label="Student" value={maskName(result.student.name)} />
+              <Info label="Roll / Registration number" value={maskIdentifier(result.student.rollNumber)} mono />
+              <Info label="Programme" value={result.student.programme} />
               <Info label="Examination" value={result.examination.name} />
-              <Info label="Academic session" value={`${result.examination.academicYear} · ${result.examination.term}`} />
-            </section>
-
-            <section className="rounded-2xl border border-[#DDE5EE] bg-white p-5">
-              <div className="flex items-center gap-2"><GraduationCap className="h-5 w-5 text-[#2459A9]" /><h2 className="text-sm font-black text-[#24344A]">Academic index</h2></div>
-              <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Metric label="SGPA" value={result.academicIndex.sgpa.toFixed(2)} />
-                <Metric label="CGPA" value={result.academicIndex.cgpa.toFixed(2)} />
-                <Metric label="Credits" value={`${result.academicIndex.earnedCredits}/${result.academicIndex.totalCredits}`} />
-                <Metric label="Result" value={result.academicIndex.resultStatus} />
-              </div>
+              <Info label="Academic session" value={result.examination.academicYear} />
+              <Info label="Term / Semester" value={result.examination.term} />
             </section>
 
             <section className="rounded-2xl border border-[#DDE5EE] bg-[#FAFBFD] p-5">
               <div className="flex items-center gap-2"><FileCheck2 className="h-5 w-5 text-[#2459A9]" /><h2 className="text-sm font-black text-[#24344A]">Academic authorization chain</h2></div>
               <div className="mt-4 space-y-3 text-xs">
-                <Trail label="Course faculty certification" value={`${faculty.filter((item) => item.approved).length} of ${faculty.length} course certification(s) recorded`} />
-                <Trail label="Head(s) of Department" value={`${hod.filter((item) => item.approved).length} of ${hod.length} department approval(s) recorded`} />
-                <Trail label="Academic Dean" value={dean?.approved ? `${dean.approverName ?? 'Dean'} · ${formatDate(dean.approvedAt)}` : 'Not recorded'} />
-                <Trail label="Result publication" value={`${result.publication.publisherName ?? 'Authorized examination office'} · ${formatDate(result.publication.publishedAt)}`} />
+                <Trail label="Course faculty certification" value={`${faculty.filter((item) => item.approved).length} of ${faculty.length} required certification(s) recorded`} />
+                <Trail label="Head(s) of Department" value={`${hod.filter((item) => item.approved).length} of ${hod.length} required department approval(s) recorded`} />
+                <Trail label="Academic Dean" value={dean?.approved ? `Approval recorded · ${formatDate(dean.approvedAt)}` : 'Not recorded'} />
+                <Trail label="Result publication" value={`Authorized publication recorded · ${formatDate(result.publication.publishedAt)}`} />
               </div>
             </section>
           </div>
@@ -104,7 +94,7 @@ export default async function VerifyResultPage({ params }: { params: { token: st
             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#73849A]">Published</p>
             <p className="mt-2 text-sm font-bold text-[#34465D]">{formatDate(result.publication.publishedAt)}</p>
             <div className="my-5 h-px bg-[#D8E1EB]" />
-            <p className="text-xs leading-5 text-[#65748A]">Verification confirms the official publication event and that the core academic result has not changed since publication.</p>
+            <p className="text-xs leading-5 text-[#65748A]">Verification confirms the document number, issuing institution, masked student identifiers and authorization state. Detailed grades remain private to the authenticated student/guardian portal and the issued document.</p>
           </aside>
         </div>
       </section>
@@ -116,12 +106,22 @@ function Info({ label, value, mono = false }: { label: string; value: string; mo
   return <div className="rounded-xl border border-[#E0E6ED] bg-[#FAFBFD] px-4 py-3"><p className="text-[9px] font-black uppercase tracking-[0.11em] text-[#8290A2]">{label}</p><p className={`mt-1 text-sm font-bold text-[#26364D] ${mono ? 'font-mono' : ''}`}>{value}</p></div>;
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-[#F4F7FB] px-3 py-3"><p className="text-[9px] font-black uppercase tracking-[0.1em] text-[#7B899A]">{label}</p><p className="mt-1 text-lg font-black text-[#173A70]">{value}</p></div>;
-}
-
 function Trail({ label, value }: { label: string; value: string }) {
   return <div className="flex items-start gap-3"><span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#E6F5EC] text-[#247A48]"><CheckCircle2 className="h-3.5 w-3.5" /></span><div><p className="font-black text-[#34465D]">{label}</p><p className="mt-0.5 leading-5 text-[#738197]">{value}</p></div></div>;
+}
+
+function maskName(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.length <= 1 ? part : `${part[0]}${'•'.repeat(Math.min(5, part.length - 1))}`)
+    .join(' ');
+}
+
+function maskIdentifier(value: string) {
+  const visible = value.slice(-4);
+  const hiddenLength = Math.max(4, Math.min(12, value.length - visible.length));
+  return `${'•'.repeat(hiddenLength)}${visible}`;
 }
 
 function formatDate(value: string | null) {
