@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const context = await requireActiveUserContext();
     const dashboardKey = dashboardKeySchema.parse(
       new URL(request.url).searchParams.get('dashboardKey') ?? 'main',
-    );
+    ) as string;
     const response = await loadDashboardLayouts(context, dashboardKey);
 
     return NextResponse.json(response, {
@@ -54,7 +54,14 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const context = await requireActiveUserContext();
-    const input = createDashboardLayoutSchema.parse(await request.json());
+    const parsed = createDashboardLayoutSchema.parse(await request.json());
+    const input = {
+      expectedRevision: parsed.expectedRevision as number,
+      name: parsed.name as string,
+      dashboardKey: (parsed.dashboardKey ?? 'main') as string,
+      ...(parsed.copyFromLayoutId !== undefined ? { copyFromLayoutId: parsed.copyFromLayoutId } : {}),
+      activate: parsed.activate ?? true,
+    };
     const response = await createDashboardLayout(
       context,
       input,
