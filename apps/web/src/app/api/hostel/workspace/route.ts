@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 
 import { getHostelWorkspaceData, HostelError } from '@/lib/hostel-operations';
+import { clientSafeHostelWorkspace } from '@/lib/hostel-sanitize';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await getHostelWorkspaceData();
+    const data = clientSafeHostelWorkspace(await getHostelWorkspaceData());
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof HostelError) return NextResponse.json({ error: error.message }, { status: error.status });
