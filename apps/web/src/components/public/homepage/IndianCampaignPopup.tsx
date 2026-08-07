@@ -19,9 +19,9 @@ import {
 
 import { useDialogFocusTrap } from '@/components/ui/useDialogFocusTrap';
 
-const DISMISS_KEY = 'campusos-india-institution-popup-v4-dismissed';
+const DISMISS_KEY = 'campusos-india-institution-popup-v5-dismissed';
 const OPEN_DELAY_MS = 900;
-const CAMPUS_IMAGE = 'https://images.pexels.com/photos/4622108/pexels-photo-4622108.jpeg?auto=compress&cs=tinysrgb&w=1200';
+const CAMPUS_IMAGE = '/images/campusos-india-campus.svg';
 
 const capabilities = [
   { label: 'Admissions', icon: UsersRound, tone: 'text-[#C75B13]' },
@@ -72,7 +72,7 @@ export function IndianCampaignPopup() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#071225]/72 p-0 backdrop-blur-[4px] sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dismissPopup(); }}>
+    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#071225]/72 p-0 sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dismissPopup(); }}>
       <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="campaign-popup-title" aria-describedby="campaign-popup-description" className="relative w-full max-w-[1180px] overflow-hidden rounded-t-[20px] border border-[#D7DFE9] bg-[#FFFDF9] shadow-[0_32px_96px_rgba(0,0,0,0.36)] outline-none sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[18px]">
         <button ref={closeButtonRef} type="button" onClick={dismissPopup} className="absolute right-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-[10px] border border-[#D7DFEA] bg-white text-[#0F1F3A] shadow-[0_6px_18px_rgba(15,31,58,0.12)] transition hover:bg-[#F7F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] sm:right-5 sm:top-5" aria-label="Close institutional information"><X className="h-5 w-5" aria-hidden="true" /></button>
 
@@ -100,18 +100,18 @@ export function IndianCampaignPopup() {
           </div>
 
           <aside className="relative min-h-[500px] overflow-hidden bg-[#102F70] lg:min-h-full">
-            <img src={CAMPUS_IMAGE} alt="Indian university students studying together with a laptop" className="absolute inset-0 h-full w-full object-cover object-center opacity-80" loading="eager" />
-            <div className="pointer-events-none absolute inset-0 bg-[#102F70]/52" aria-hidden="true" />
+            <img src={CAMPUS_IMAGE} alt="Illustration of Indian university students collaborating with a laptop on campus" className="absolute inset-0 h-full w-full object-cover object-center" loading="eager" />
+            <div className="pointer-events-none absolute inset-0 bg-[#102F70]/18" aria-hidden="true" />
             <div className="pointer-events-none absolute left-0 top-0 h-2 w-1/3 bg-[#D97706]" aria-hidden="true" />
             <div className="pointer-events-none absolute left-1/3 top-0 h-2 w-1/3 bg-white" aria-hidden="true" />
             <div className="pointer-events-none absolute right-0 top-0 h-2 w-1/3 bg-[#15803D]" aria-hidden="true" />
 
-            <div className="absolute left-6 top-8 z-20 max-w-[310px] text-white sm:left-8 sm:top-10">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D9E5F7]">Institution operating model</p>
-              <p className="mt-2 text-2xl font-extrabold tracking-[-0.035em]">Built around responsibility, not decoration.</p>
+            <div className="absolute left-6 top-8 z-20 max-w-[310px] rounded-[10px] border border-white/80 bg-white/94 p-4 text-[#101D38] shadow-[0_10px_26px_rgba(16,29,56,0.12)] sm:left-8 sm:top-10">
+              <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#667085]">Institution operating model</p>
+              <p className="mt-2 text-xl font-extrabold tracking-[-0.035em]">Built around responsibility, not decoration.</p>
             </div>
 
-            <div className="absolute inset-x-5 bottom-5 z-20 rounded-[12px] border border-white/70 bg-white/95 p-4 text-[#101D38] shadow-[0_16px_38px_rgba(0,0,0,0.24)] sm:inset-x-7 sm:p-5">
+            <div className="absolute inset-x-5 bottom-5 z-20 rounded-[12px] border border-white/80 bg-white/96 p-4 text-[#101D38] shadow-[0_16px_38px_rgba(0,0,0,0.2)] sm:inset-x-7 sm:p-5">
               <p className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-[#667085]">Operating principles</p>
               <div className="mt-3 space-y-2">
                 {operatingPrinciples.map(({ title, description, icon: Icon }) => <div key={title} className="flex items-start gap-3 rounded-[9px] border border-[#E6EAF0] bg-[#F8FAFC] p-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[#EDF3FF] text-[#123E91]"><Icon className="h-4 w-4" aria-hidden="true" /></span><div><p className="text-xs font-extrabold">{title}</p><p className="mt-1 text-[10px] leading-4 text-[#667085]">{description}</p></div></div>)}
