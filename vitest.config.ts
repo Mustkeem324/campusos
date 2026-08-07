@@ -26,6 +26,11 @@ loadEnvFile(path.resolve(__dirname, '.env'));
 loadEnvFile(path.resolve(__dirname, 'apps/web/.env'));
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'apps/web/src'),
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
