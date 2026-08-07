@@ -7,6 +7,7 @@ import {
   secureMessageAttachmentUrls,
   sendStrictAcademicMessage,
 } from '@/lib/community-chat-academic';
+import { markCommunityMessagesRead } from '@/lib/community-chat-pro';
 import { CommunityChatService } from '@/lib/community-chat-service';
 import { prisma } from '@/lib/db';
 
@@ -17,10 +18,7 @@ function sessionInput(session: NonNullable<Awaited<ReturnType<typeof getSessionF
   return { userId: session.userId, tenantId: session.tenantId, role: session.role };
 }
 
-export async function GET(
-  request: Request,
-  { params }: { params: { communityId: string } },
-) {
+export async function GET(request: Request, { params }: { params: { communityId: string } }) {
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -34,8 +32,14 @@ export async function GET(
 
     const service = new CommunityChatService(prisma);
     const result = await service.getMessages(chatSession, params.communityId, { cursor, limit });
+    const secured = result.messages.map((message) => secureMessageAttachmentUrls(message));
+    const read = await markCommunityMessagesRead(chatSession, params.communityId, secured.map((message) => message.id));
     return NextResponse.json(
-      { ...result, messages: result.messages.map((message) => secureMessageAttachmentUrls(message)) },
+      {
+        ...result,
+        currentUserId: session.userId,
+        messages: secured.map((message) => ({ ...message, readCount: read.readCounts[message.id] ?? 0 })),
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error: unknown) {
@@ -44,10 +48,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: { communityId: string } },
-) {
+export async function POST(request: Request, { params }: { params: { communityId: string } }) {
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -66,9 +67,7 @@ export async function POST(
       files = form.getAll('files').filter((value): value is File => value instanceof File);
     } else {
       const payload: unknown = await request.json();
-      if (!payload || typeof payload !== 'object') {
-        return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
-      }
+      if (!payload || typeof payload !== 'object') return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
       const record = payload as Record<string, unknown>;
       body = typeof record.body === 'string' ? record.body : '';
       replyToId = typeof record.replyToId === 'string' ? record.replyToId : undefined;
