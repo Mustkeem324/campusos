@@ -60,3 +60,61 @@ CREATE INDEX IF NOT EXISTS platform_admin_events_created_at_idx
   ON campusos_control.platform_admin_events (created_at DESC);
 CREATE INDEX IF NOT EXISTS platform_admin_events_institution_idx
   ON campusos_control.platform_admin_events (institution_id, created_at DESC);
+
+-- Public contact submissions are company-owned CRM data, not institution-owned
+-- tenant records. They stay in the control schema and are visible only through
+-- the SUPER_ADMIN company control plane.
+CREATE TABLE IF NOT EXISTS campusos_control.platform_contact_inquiries (
+  id uuid PRIMARY KEY,
+  reference text NOT NULL UNIQUE,
+  name text NOT NULL,
+  email text NOT NULL,
+  phone text,
+  institution text NOT NULL,
+  role text,
+  country text,
+  inquiry_type text NOT NULL,
+  subject text NOT NULL,
+  status text NOT NULL DEFAULT 'NEW',
+  priority text NOT NULL DEFAULT 'NORMAL',
+  assigned_to uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  consent boolean NOT NULL DEFAULT false,
+  source text NOT NULL DEFAULT 'PUBLIC_CONTACT',
+  first_response_at timestamptz,
+  resolved_at timestamptz,
+  last_message_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT platform_contact_inquiries_status CHECK (status IN ('NEW', 'OPEN', 'WAITING_CUSTOMER', 'RESOLVED', 'SPAM')),
+  CONSTRAINT platform_contact_inquiries_priority CHECK (priority IN ('LOW', 'NORMAL', 'HIGH', 'URGENT'))
+);
+
+CREATE INDEX IF NOT EXISTS platform_contact_inquiries_status_idx
+  ON campusos_control.platform_contact_inquiries (status, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS platform_contact_inquiries_priority_idx
+  ON campusos_control.platform_contact_inquiries (priority, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS platform_contact_inquiries_email_idx
+  ON campusos_control.platform_contact_inquiries (lower(email));
+CREATE INDEX IF NOT EXISTS platform_contact_inquiries_created_at_idx
+  ON campusos_control.platform_contact_inquiries (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS campusos_control.platform_contact_messages (
+  id uuid PRIMARY KEY,
+  inquiry_id uuid NOT NULL REFERENCES campusos_control.platform_contact_inquiries(id) ON DELETE CASCADE,
+  direction text NOT NULL,
+  author_user_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  sender_email text NOT NULL,
+  recipient_email text NOT NULL,
+  subject text NOT NULL,
+  body_text text NOT NULL,
+  delivery_status text NOT NULL,
+  provider_message_id text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT platform_contact_messages_direction CHECK (direction IN ('INBOUND', 'OUTBOUND')),
+  CONSTRAINT platform_contact_messages_delivery CHECK (delivery_status IN ('RECEIVED', 'QUEUED', 'SENT', 'FAILED'))
+);
+
+CREATE INDEX IF NOT EXISTS platform_contact_messages_inquiry_idx
+  ON campusos_control.platform_contact_messages (inquiry_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS platform_contact_messages_delivery_idx
+  ON campusos_control.platform_contact_messages (delivery_status, created_at DESC);
