@@ -39,7 +39,7 @@ export default async function QuizCompetitionsHubPage() {
     return config ? [{ ...quiz, config, state: quizWindowState(quiz) }] : [];
   });
 
-  let attemptMap = new Map<string, { used: number; completed: number; activeId: string | null; bestScore: number | null }>();
+  const attemptMap = new Map<string, { used: number; completed: number; activeId: string | null; bestScore: number | null }>();
   if (session.role === RoleType.STUDENT && competitions.length) {
     const student = await db.student.findUnique({ where: { userId: session.userId }, select: { id: true } });
     if (student) {
@@ -50,11 +50,12 @@ export default async function QuizCompetitionsHubPage() {
       for (const competition of competitions) {
         const rows = attempts.filter((attempt) => attempt.quizId === competition.id);
         const completed = rows.filter((attempt) => attempt.completedAt);
+        const scored = completed.map((attempt) => attempt.score).filter((score): score is number => typeof score === 'number' && Number.isFinite(score));
         attemptMap.set(competition.id, {
           used: rows.length,
           completed: completed.length,
           activeId: rows.find((attempt) => !attempt.completedAt)?.id ?? null,
-          bestScore: completed.length ? Math.max(...completed.map((attempt) => attempt.score ?? Number.NEGATIVE_INFINITY)) : null,
+          bestScore: scored.length ? Math.max(...scored) : null,
         });
       }
     }
@@ -69,7 +70,7 @@ export default async function QuizCompetitionsHubPage() {
   return <div className="space-y-6 pb-10">
     <section className="overflow-hidden rounded-[28px] border border-[#173456] bg-[#0B1F3A] px-6 py-7 text-white shadow-[0_24px_60px_rgba(11,31,58,0.18)] sm:px-8 sm:py-9">
       <Link href="/lms" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#AFC7E7] hover:text-white"><ArrowLeft className="h-4 w-4" /> Learning hub</Link>
-      <div className="mt-5 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between"><div className="max-w-3xl"><p className="text-xs font-black uppercase tracking-[0.15em] text-[#9FC0EE]">CampusOS competitive learning</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Quiz Competitions</h1><p className="mt-3 text-sm leading-6 text-[#C7D7EA]">Timed course competitions, large question banks, autosaved attempts and server-scored leaderboards across the courses you are authorised to access.</p></div><div className="grid grid-cols-4 gap-2"><HeroStat label="Open" value={active} /><HeroStat label="Upcoming" value={upcoming} /><HeroStat label="Closed" value={closed} /><HeroStat label="Questions" value={questionTotal} /></div></div>
+      <div className="mt-5 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between"><div className="max-w-3xl"><p className="text-xs font-black uppercase tracking-[0.15em] text-[#9FC0EE]">CampusOS competitive learning</p><h1 className="mt-2 text-3xl font-black tracking-[-0.04em] sm:text-4xl">Quiz Competitions</h1><p className="mt-3 text-sm leading-6 text-[#C7D7EA]">Timed course competitions, large question banks, autosaved attempts and server-scored leaderboards across the courses you are authorised to access.</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4"><HeroStat label="Open" value={active} /><HeroStat label="Upcoming" value={upcoming} /><HeroStat label="Closed" value={closed} /><HeroStat label="Questions" value={questionTotal} /></div></div>
     </section>
 
     {canCreate && authorised.length > 0 && <section className="rounded-2xl border border-[#DCE3EC] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] sm:p-6"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#66758A]">Faculty tools</p><h2 className="mt-1 text-lg font-black text-[#17223B]">Create a competition</h2></div><Plus className="h-5 w-5 text-[#2459A9]" /></div><div className="mt-4 flex flex-wrap gap-2">{authorised.map((course) => <Link key={course.id} href={`/learning/courses/${course.courseId}/quiz-competitions/new`} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#D7E0EB] bg-[#F8FAFC] px-3 text-xs font-black text-[#36506F] transition hover:border-[#AFC5E3] hover:bg-white"><Plus className="h-3.5 w-3.5" /> {course.course.code}{course.section ? ` · ${course.section.name}` : ''}</Link>)}</div></section>}
