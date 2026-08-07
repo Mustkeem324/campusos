@@ -8,6 +8,7 @@ import {
   readJsonWithLimit,
 } from '@/lib/public-rate-limit';
 import { recordGpsTelemetry, TransportError } from '@/lib/transport-gps';
+import { processTransportPhase2ForVehicle } from '@/lib/transport-gps-phase2-processor';
 
 const GPS_BODY_LIMIT_BYTES = 4 * 1024;
 const GPS_RATE_LIMIT = 120;
@@ -80,7 +81,21 @@ export async function POST(request: Request) {
       recordedAt,
     });
 
-    return NextResponse.json(result, {
+    // Phase 1 telemetry capture remains authoritative. ETA/geofence processing
+    // is intentionally best-effort so a notification-side issue can never make
+    // a valid GPS fix disappear from the tracking history.
+    const phase2 = await processTransportPhase2ForVehicle({
+      vehicleId: result.vehicleId,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      speedKph: data.speedKph,
+      recordedAt,
+    }).catch((error) => {
+      console.error('Transport Phase 2 telemetry processing failed:', error);
+      return null;
+    });
+
+    return NextResponse.json({ ...result, phase2 }, {
       status: 202,
       headers: { 'Cache-Control': 'no-store' },
     });
