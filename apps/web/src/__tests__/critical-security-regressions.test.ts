@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { RoleType } from '@prisma/client';
 import { describe, expect, it } from 'vitest';
 
 import { PayloadTooLargeError, readTextWithLimit } from '../lib/public-rate-limit';
 import { hasPermission } from '../lib/rbac';
+import { ROLE_PERMISSIONS as GRANULAR_ROLE_PERMISSIONS } from '../lib/types';
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -77,6 +79,13 @@ describe('critical authentication and payment regressions', () => {
     expect(hasPermission('INSTITUTION_ADMIN', 'view_finance')).toBe(true);
     expect(hasPermission('INSTITUTION_ADMIN', 'view_hostel')).toBe(true);
     expect(hasPermission('INSTITUTION_ADMIN', 'view_library')).toBe(true);
+  });
+
+  it('assigns granular permissions to every supported Prisma role', () => {
+    for (const role of Object.values(RoleType)) {
+      expect(GRANULAR_ROLE_PERMISSIONS[role], `${role} must have a permission entry`).toBeDefined();
+      expect(GRANULAR_ROLE_PERMISSIONS[role].length, `${role} must not silently have zero permissions`).toBeGreaterThan(0);
+    }
   });
 
   it('hard-caps streamed request bodies even without Content-Length', async () => {
