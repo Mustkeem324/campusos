@@ -1,6 +1,6 @@
 import { getSessionFromCookies } from '@/lib/auth';
 import { assertStrictAcademicAccess, chatHttpError } from '@/lib/community-chat-academic';
-import { getCommunityRealtimeState } from '@/lib/community-chat-pro';
+import { readPresenceState } from '@/lib/community-chat-presence-internal';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +48,7 @@ export async function GET(request: Request, { params }: { params: { communityId:
               select: { id: true, createdAt: true },
               take: 25,
             }),
-            getCommunityRealtimeState(chatSession, params.communityId),
+            readPresenceState(chatSession, params.communityId),
           ]);
 
           if (latest.length) {
