@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     }
 
     if (user.mfaEnabled) {
-      const challenge = createMfaChallenge(user.id, user.tenantId);
+      const challenge = createMfaChallenge(user.id, user.tenantId, rememberMe);
       return NextResponse.json({ mfaRequired: true, userId: challenge });
     }
 
