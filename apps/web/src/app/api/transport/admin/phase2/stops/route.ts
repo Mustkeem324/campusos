@@ -13,11 +13,21 @@ const stopSchema = z.object({
   plannedOffsetMinutes: z.number().int().min(0).max(1440).default(0),
 });
 
+type ValidatedStopPayload = {
+  routeId: string;
+  name: string;
+  sequenceNo: number;
+  latitude: number;
+  longitude: number;
+  geofenceRadiusM: number;
+  plannedOffsetMinutes: number;
+};
+
 export async function POST(request: Request) {
   try {
     const parsed = stopSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the route stop details.', fields: parsed.error.flatten().fieldErrors }, { status: 400 });
-    const stop = await createTransportRouteStop(parsed.data);
+    const stop = await createTransportRouteStop(parsed.data as ValidatedStopPayload);
     return NextResponse.json({ success: true, stop }, { status: 201 });
   } catch (error) {
     if (error instanceof TransportPhase2Error) return NextResponse.json({ error: error.message }, { status: error.status });
