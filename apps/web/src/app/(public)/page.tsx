@@ -4,6 +4,7 @@ import React from 'react';
 import { AlertTriangle, ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
 
 import { CustomerProofSection } from '@/components/public/homepage/CustomerProofSection';
+import { EnterpriseHomepageSuite } from '@/components/public/homepage/EnterpriseHomepageSuite';
 import { EnterprisePublicOverview } from '@/components/public/homepage/EnterprisePublicOverview';
 import { EnterpriseWorkspaceHomePremium } from '@/components/public/homepage/EnterpriseWorkspaceHomePremium';
 import { FinalCta } from '@/components/public/homepage/FinalCta';
@@ -44,14 +45,15 @@ export default async function Homepage() {
   const workspaceFailed = hasSessionCookie && (!context || !workspaceData);
 
   return (
-    <div className="flex w-full flex-col bg-white">
+    <div className="flex w-full flex-col overflow-x-clip bg-white text-[#101828]">
       {!hasSessionCookie && <IndianCampaignPopup />}
       {workspaceData && <EnterpriseWorkspaceHomePremium data={workspaceData} />}
       {workspaceFailed && <WorkspaceLoadError />}
 
-      <div id="platform-overview">
+      <div id="platform-overview" className="w-full">
         <HeroSection />
         <EnterprisePublicOverview />
+        <EnterpriseHomepageSuite />
         <OperatingStorySection />
         <InstitutionTypeSection />
         <PlatformSystemsSection />
