@@ -7,7 +7,10 @@ import { dashboardRouteForRole } from './dashboard/registry';
 export type ActiveUserContext = {
   userId: string;
   tenantId: string;
+  /** Persisted, server-verified role for the active session. */
   activeRole: RoleType;
+  /** Backward-compatible alias of activeRole; never sourced from browser state. */
+  role: RoleType;
   roleAssignmentId: string;
   departmentId?: string;
   staffProfileId?: string;
@@ -43,6 +46,7 @@ export async function requireActiveUserContext(): Promise<ActiveUserContext> {
     userId: user.id,
     tenantId: user.tenantId,
     activeRole: user.role,
+    role: user.role,
     roleAssignmentId: normalizedAssignment?.id ?? user.id,
     permissions: ROLE_PERMISSIONS[user.role] ?? [],
   };
@@ -55,7 +59,7 @@ export async function requireActiveUserContext(): Promise<ActiveUserContext> {
   }
   if (user.role === 'STUDENT') {
     const student = await prisma.student.findFirst({ where: { userId: user.id, tenantId: user.tenantId }, select: { id: true } });
-    if (!student) throw new Error('Profile unresolved: Your student profile could not be resolved.');
+    if (!student) throw new Error('Profile unresolved: Your student profile or teaching assignments could not be resolved.');
     context.studentProfileId = student.id;
   }
   if (user.role === 'PARENT') {
