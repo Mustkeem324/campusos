@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { estimateEtaMinutes, haversineDistanceMeters } from './transport-gps-phase2';
+import { estimateEtaMinutes, haversineDistanceMeters } from './transport-gps-phase2-math';
 
 describe('Transport GPS Phase 2 ETA engine', () => {
   it('computes realistic great-circle distance', () => {
