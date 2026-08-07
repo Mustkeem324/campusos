@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { getSessionFromCookies } from '@/lib/auth';
-import { CommunityChatService } from '@/lib/community-chat-service';
 import { z } from 'zod';
+
+import { getSessionFromCookies } from '@/lib/auth';
+import { assertStrictAcademicAccess } from '@/lib/community-chat-academic';
+import { mapCommunityRouteError } from '@/lib/community-chat-route-error';
+import { CommunityChatService } from '@/lib/community-chat-service';
+import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,39 +15,29 @@ const pollSchema = z.object({
   isMultipleChoice: z.boolean().default(false),
   isAnonymous: z.boolean().default(false),
   showResultsBeforeVoting: z.boolean().default(false),
-  closesAt: z.string().optional(),
+  closesAt: z.string().datetime().optional(),
 });
 
-export async function POST(
-  request: Request,
-  { params }: { params: { communityId: string } }
-) {
+export async function POST(request: Request, { params }: { params: { communityId: string } }) {
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    const body = await request.json();
-    const validated = pollSchema.parse(body);
-
-    const service = new CommunityChatService(prisma);
-    const result = await service.createPoll(
-      { userId: session.userId, tenantId: session.tenantId, role: session.role },
-      params.communityId,
-      {
-        question: validated.question ?? '', options: validated.options ?? [],
-        isMultipleChoice: validated.isMultipleChoice, isAnonymous: validated.isAnonymous,
-        showResultsBeforeVoting: validated.showResultsBeforeVoting,
-        closesAt: validated.closesAt ? new Date(validated.closesAt) : undefined,
-      }
-    );
-
-    if (!result.success) return NextResponse.json({ error: result.error }, { status: 400 });
+    const validated = pollSchema.parse(await request.json());
+    const chatSession = { userId: session.userId, tenantId: session.tenantId, role: session.role };
+    await assertStrictAcademicAccess(chatSession, params.communityId);
+    const result = await new CommunityChatService(prisma).createPoll(chatSession, params.communityId, {
+      question: validated.question,
+      options: validated.options,
+      isMultipleChoice: validated.isMultipleChoice,
+      isAnonymous: validated.isAnonymous,
+      showResultsBeforeVoting: validated.showResultsBeforeVoting,
+      closesAt: validated.closesAt ? new Date(validated.closesAt) : undefined,
+    });
+    if (!result.success) return NextResponse.json({ error: result.error }, { status: 403 });
     return NextResponse.json({ success: true, messageId: result.messageId }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
-    }
-    console.error('[CHAT_POLL_CREATE]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
+    const failure = mapCommunityRouteError(error, 'POLL_CREATE');
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }

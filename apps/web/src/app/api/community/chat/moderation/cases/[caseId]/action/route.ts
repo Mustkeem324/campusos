@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { getSessionFromCookies } from '@/lib/auth';
-import { CommunityChatService } from '@/lib/community-chat-service';
 import { z } from 'zod';
+
+import { getSessionFromCookies } from '@/lib/auth';
+import { assertStrictAcademicAccess } from '@/lib/community-chat-academic';
+import { mapCommunityRouteError } from '@/lib/community-chat-route-error';
+import { CommunityChatService } from '@/lib/community-chat-service';
+import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,18 +20,26 @@ export async function POST(request: Request, { params }: { params: { caseId: str
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const body = await request.json();
-    const validated = actionSchema.parse(body);
-    const service = new CommunityChatService(prisma);
-    const result = await service.takeModerationAction(
-      { userId: session.userId, tenantId: session.tenantId, role: session.role },
-      params.caseId, { actionType: validated.actionType ?? 'ADD_NOTE', reason: validated.reason ?? '', internalNotes: validated.internalNotes, userMessage: validated.userMessage }
-    );
-    if (!result.success) return NextResponse.json({ error: result.error }, { status: 400 });
+    const validated = actionSchema.parse(await request.json());
+    const modCase = await prisma.chatModerationCase.findFirst({
+      where: { id: params.caseId, tenantId: session.tenantId },
+      select: { communityId: true },
+    });
+    if (!modCase) return NextResponse.json({ error: 'Moderation case not found' }, { status: 404 });
+
+    const chatSession = { userId: session.userId, tenantId: session.tenantId, role: session.role };
+    await assertStrictAcademicAccess(chatSession, modCase.communityId);
+    const result = await new CommunityChatService(prisma).takeModerationAction(chatSession, params.caseId, {
+      actionType: validated.actionType,
+      reason: validated.reason,
+      internalNotes: validated.internalNotes,
+      userMessage: validated.userMessage,
+    });
+    if (!result.success) return NextResponse.json({ error: result.error }, { status: 403 });
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation Error' }, { status: 400 });
-    console.error('[CHAT_MOD_ACTION]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const failure = mapCommunityRouteError(error, 'MODERATION_ACTION');
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
