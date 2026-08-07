@@ -80,11 +80,17 @@ const TENANT_MODELS = [
   'DemoScenarioInstance', 'DemoScenarioEvent',
 ];
 
+const TENANT_READ_OR_MUTATE_OPERATIONS = new Set([
+  'findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany',
+  'update', 'updateMany', 'delete', 'deleteMany', 'count', 'aggregate', 'groupBy',
+]);
+
 /**
  * Service Layer Authorization
  * Returns a tenant-scoped Prisma client using Client Extensions.
- * This guarantees that every query (find, create, update, delete) automatically
- * includes the tenantId for models that own a direct tenantId column.
+ * This guarantees that every supported query includes the active tenant for
+ * models that own a direct tenantId column and prevents mutations from moving a
+ * row into another tenant after the scoped where-clause has matched it.
  */
 export function getTenantDb(tenantId: string) {
   if (!tenantId) throw new Error('Tenant ID is required for tenantDb');
@@ -93,15 +99,12 @@ export function getTenantDb(tenantId: string) {
     query: {
       $allModels: {
         async $allOperations({ args, query, model, operation }) {
-          // Only enforce on tenant-scoped models with a direct tenantId column.
           if (TENANT_MODELS.includes(model)) {
-            // For reads, updates, deletes -> inject into `where`
-            if (['findUnique', 'findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count', 'aggregate', 'groupBy'].includes(operation)) {
+            if (TENANT_READ_OR_MUTATE_OPERATIONS.has(operation)) {
               (args as any).where = { ...(args as any).where, tenantId };
             }
 
-            // For creates -> inject into `data`
-            if (['create', 'createMany'].includes(operation)) {
+            if (['create', 'createMany', 'createManyAndReturn'].includes(operation)) {
               if (Array.isArray((args as any).data)) {
                 (args as any).data = (args as any).data.map((d: any) => ({ ...d, tenantId }));
               } else {
@@ -109,10 +112,16 @@ export function getTenantDb(tenantId: string) {
               }
             }
 
-            // For upserts
+            // A caller must not be able to tenant-hop an existing row by placing
+            // a different tenantId in update data after a tenant-scoped match.
+            if (['update', 'updateMany'].includes(operation)) {
+              (args as any).data = { ...(args as any).data, tenantId };
+            }
+
             if (operation === 'upsert') {
               (args as any).where = { ...(args as any).where, tenantId };
               (args as any).create = { ...(args as any).create, tenantId };
+              (args as any).update = { ...(args as any).update, tenantId };
             }
           }
 
