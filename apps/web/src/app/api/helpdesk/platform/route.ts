@@ -14,7 +14,13 @@ export async function POST(request: Request) {
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the CampusOS support request.' }, { status: 400 });
-    const ticket = await createCompanySupportTicket(parsed.data);
+    const data = parsed.data;
+    const ticket = await createCompanySupportTicket({
+      category: data.category,
+      subject: data.subject,
+      description: data.description,
+      priority: data.priority ?? 'NORMAL',
+    });
     return NextResponse.json({ success: true, ticket }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof HelpdeskError) return NextResponse.json({ error: error.message }, { status: error.status });
