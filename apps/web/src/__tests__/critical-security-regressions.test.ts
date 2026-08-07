@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { PayloadTooLargeError, readTextWithLimit } from '../lib/public-rate-limit';
+import { hasPermission } from '../lib/rbac';
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
@@ -62,6 +63,20 @@ describe('critical authentication and payment regressions', () => {
     const tenantList = db.slice(db.indexOf('const TENANT_MODELS'), db.indexOf('/**\n * Service Layer Authorization'));
     expect(tenantList).not.toContain("'ChatPollOption'");
     expect(tenantList).not.toContain("'ChatPollVote'");
+  });
+
+  it('keeps the RBAC matrix free of placeholder permissions and preserves admin read access', () => {
+    const rbac = source('apps/web/src/lib/rbac.ts');
+    expect(rbac).not.toContain('manage_academic_records');
+    expect(rbac).not.toContain(' as any');
+    expect(hasPermission('EXAMINATION_CONTROLLER', 'view_academic_records')).toBe(true);
+    expect(hasPermission('EXAMINATION_CONTROLLER', 'edit_academic_records')).toBe(true);
+    expect(hasPermission('SUPER_ADMIN', 'view_finance')).toBe(true);
+    expect(hasPermission('SUPER_ADMIN', 'view_hostel')).toBe(true);
+    expect(hasPermission('SUPER_ADMIN', 'view_library')).toBe(true);
+    expect(hasPermission('INSTITUTION_ADMIN', 'view_finance')).toBe(true);
+    expect(hasPermission('INSTITUTION_ADMIN', 'view_hostel')).toBe(true);
+    expect(hasPermission('INSTITUTION_ADMIN', 'view_library')).toBe(true);
   });
 
   it('hard-caps streamed request bodies even without Content-Length', async () => {
