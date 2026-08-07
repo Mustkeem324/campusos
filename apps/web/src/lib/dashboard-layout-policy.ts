@@ -522,7 +522,7 @@ export function createDefaultDashboardLayout(
   dashboardKey = 'main',
   now = new Date(0),
 ): SavedDashboardLayout {
-  const safeKey = dashboardKeySchema.parse(dashboardKey);
+  const safeKey = dashboardKeySchema.parse(dashboardKey) as string;
   return {
     id: `default-${role.toLowerCase()}-${safeKey}`,
     name: 'Recommended layout',
@@ -557,7 +557,9 @@ export function validateWidgetPlacements(
     );
   }
 
-  const parsed = placements.map((placement) => dashboardWidgetPlacementSchema.parse(placement));
+  const parsed = placements.map(
+    (placement) => dashboardWidgetPlacementSchema.parse(placement) as DashboardWidgetPlacement,
+  );
   const instanceIds = new Set<string>();
 
   for (const placement of parsed) {
@@ -642,7 +644,7 @@ export function createSavedDashboardLayout(input: {
   id?: string;
 }): SavedDashboardLayout {
   const now = input.now ?? new Date();
-  const dashboardKey = dashboardKeySchema.parse(input.dashboardKey);
+  const dashboardKey = dashboardKeySchema.parse(input.dashboardKey) as string;
   const widgets = validateWidgetPlacements(
     input.role,
     input.widgets ?? buildDefaultWidgetPlacements(input.role),
@@ -695,7 +697,7 @@ export function parseDashboardLayoutState(
   for (const rawLayout of rawLayouts.slice(0, MAX_DASHBOARD_LAYOUTS)) {
     if (!isSavedLayout(rawLayout)) continue;
     try {
-      const dashboardKey = dashboardKeySchema.parse(rawLayout.dashboardKey);
+      const dashboardKey = dashboardKeySchema.parse(rawLayout.dashboardKey) as string;
       layouts.push({
         id: z.string().trim().min(3).max(100).parse(rawLayout.id),
         name: z.string().trim().min(2).max(60).parse(rawLayout.name),
@@ -762,7 +764,7 @@ export function publicDashboardLayoutResponse(
   state: DashboardLayoutState,
   dashboardKey = 'main',
 ) {
-  const safeDashboardKey = dashboardKeySchema.parse(dashboardKey);
+  const safeDashboardKey = dashboardKeySchema.parse(dashboardKey) as string;
   const layouts = state.layouts.filter((layout) => layout.dashboardKey === safeDashboardKey);
   const activeLayoutId = state.activeLayoutByDashboard[safeDashboardKey] ?? layouts[0]?.id ?? null;
 
