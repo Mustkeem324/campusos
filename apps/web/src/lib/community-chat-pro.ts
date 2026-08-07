@@ -1,6 +1,7 @@
 import type { ChatMemberRole, RoleType } from '@prisma/client';
 
 import { assertStrictAcademicAccess, secureMessageAttachmentUrls } from './community-chat-academic';
+import { readPresenceState, writePresenceEvent } from './community-chat-presence-internal';
 import {
   canCreatePoll,
   canModerateCommunity,
@@ -10,91 +11,21 @@ import {
 } from './community-chat-service';
 import { prisma } from './db';
 
-const PRESENCE_TTL_MS = 75_000;
-const TYPING_TTL_MS = 7_000;
 const MAX_WORKSPACE_MEDIA = 60;
 const MAX_MODERATION_CASES = 25;
+const VISIBLE_MESSAGE_STATUSES = ['ALLOWED', 'ALLOWED_WITH_WARNING', 'RESTORED'] as const;
 
 export type PresenceAction = 'heartbeat' | 'typing_start' | 'typing_stop';
 
 export async function recordCommunityPresence(session: ChatSession, communityId: string, action: PresenceAction) {
   await assertStrictAcademicAccess(session, communityId);
-  const eventTypes = action === 'heartbeat'
-    ? ['community.presence.heartbeat']
-    : ['community.typing.start', 'community.typing.stop'];
-  const eventType = action === 'heartbeat'
-    ? 'community.presence.heartbeat'
-    : action === 'typing_start' ? 'community.typing.start' : 'community.typing.stop';
-
-  await prisma.$transaction(async (tx) => {
-    await tx.chatAuditEvent.deleteMany({
-      where: {
-        tenantId: session.tenantId,
-        communityId,
-        actorId: session.userId,
-        eventType: { in: eventTypes },
-      },
-    });
-    await tx.chatAuditEvent.create({
-      data: {
-        tenantId: session.tenantId,
-        communityId,
-        actorId: session.userId,
-        eventType,
-        entityType: 'User',
-        entityId: session.userId,
-      },
-    });
-  });
-
-  return getCommunityRealtimeState(session, communityId);
+  await writePresenceEvent(session, communityId, action);
+  return readPresenceState(session, communityId);
 }
 
 export async function getCommunityRealtimeState(session: ChatSession, communityId: string) {
   await assertStrictAcademicAccess(session, communityId);
-  const sincePresence = new Date(Date.now() - PRESENCE_TTL_MS);
-  const sinceTyping = new Date(Date.now() - TYPING_TTL_MS);
-  const events = await prisma.chatAuditEvent.findMany({
-    where: {
-      tenantId: session.tenantId,
-      communityId,
-      actorId: { not: null },
-      OR: [
-        { eventType: 'community.presence.heartbeat', createdAt: { gte: sincePresence } },
-        { eventType: { in: ['community.typing.start', 'community.typing.stop'] }, createdAt: { gte: sinceTyping } },
-      ],
-    },
-    orderBy: { createdAt: 'desc' },
-    select: { actorId: true, eventType: true, createdAt: true },
-    take: 500,
-  });
-
-  const online = new Map<string, string>();
-  const latestTyping = new Map<string, { eventType: string; createdAt: string }>();
-  for (const event of events) {
-    if (!event.actorId) continue;
-    if (event.eventType === 'community.presence.heartbeat' && !online.has(event.actorId)) {
-      online.set(event.actorId, event.createdAt.toISOString());
-    }
-    if ((event.eventType === 'community.typing.start' || event.eventType === 'community.typing.stop') && !latestTyping.has(event.actorId)) {
-      latestTyping.set(event.actorId, { eventType: event.eventType, createdAt: event.createdAt.toISOString() });
-    }
-  }
-
-  const typingIds = [...latestTyping.entries()]
-    .filter(([, value]) => value.eventType === 'community.typing.start')
-    .map(([userId]) => userId)
-    .filter((userId) => userId !== session.userId);
-  const userIds = [...new Set([...online.keys(), ...typingIds])];
-  const users = userIds.length
-    ? await prisma.user.findMany({ where: { tenantId: session.tenantId, id: { in: userIds }, isActive: true }, select: { id: true, name: true, avatarUrl: true, role: true } })
-    : [];
-  const userMap = new Map(users.map((user) => [user.id, user]));
-
-  return {
-    online: [...online.entries()].map(([userId, lastSeenAt]) => ({ userId, lastSeenAt, user: userMap.get(userId) ?? null })),
-    typing: typingIds.map((userId) => ({ userId, user: userMap.get(userId) ?? null })).filter((item) => item.user),
-  };
+  return readPresenceState(session, communityId);
 }
 
 export async function markCommunityMessagesRead(session: ChatSession, communityId: string, messageIds: string[]) {
@@ -121,11 +52,15 @@ export async function markCommunityMessagesRead(session: ChatSession, communityI
     });
   });
 
-  return { readCounts: await getMessageReadCounts(session, communityId, ids) };
+  return { readCounts: await getMessageReadCountsInternal(session, communityId, ids) };
 }
 
 export async function getMessageReadCounts(session: ChatSession, communityId: string, messageIds: string[]) {
   await assertStrictAcademicAccess(session, communityId);
+  return getMessageReadCountsInternal(session, communityId, messageIds);
+}
+
+async function getMessageReadCountsInternal(session: ChatSession, communityId: string, messageIds: string[]) {
   const ids = [...new Set(messageIds)].slice(0, 100);
   if (!ids.length) return {} as Record<string, number>;
   const rows = await prisma.chatReadReceipt.groupBy({
@@ -139,6 +74,21 @@ export async function getMessageReadCounts(session: ChatSession, communityId: st
 export async function getCommunityWorkspace(session: ChatSession, communityId: string) {
   const access = await assertStrictAcademicAccess(session, communityId);
   const service = new CommunityChatService(prisma);
+
+  const allowedPollMessages = await prisma.chatMessage.findMany({
+    where: {
+      tenantId: session.tenantId,
+      communityId,
+      messageType: 'POLL',
+      isDeleted: false,
+      moderationStatus: { in: [...VISIBLE_MESSAGE_STATUSES] },
+    },
+    select: { id: true },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+  const allowedPollMessageIds = allowedPollMessages.map((message) => message.id);
+
   const [memberRows, pinnedRaw, bookmarkRaw, notificationPref, media, polls, realtime, moderationCases] = await Promise.all([
     prisma.chatCommunityMember.findMany({
       where: { tenantId: session.tenantId, communityId, role: { not: 'SUSPENDED' } },
@@ -148,12 +98,15 @@ export async function getCommunityWorkspace(session: ChatSession, communityId: s
     }),
     service.getPinnedMessages(session, communityId),
     service.getBookmarks(session, communityId),
-    prisma.chatNotificationPref.findUnique({ where: { communityId_userId: { communityId, userId: session.userId } }, select: { level: true } }),
+    prisma.chatNotificationPref.findUnique({
+      where: { communityId_userId: { communityId, userId: session.userId } },
+      select: { level: true },
+    }),
     prisma.chatAttachment.findMany({
       where: {
         tenantId: session.tenantId,
         isSafe: true,
-        message: { communityId, isDeleted: false, moderationStatus: { in: ['ALLOWED', 'ALLOWED_WITH_WARNING', 'RESTORED'] } },
+        message: { communityId, isDeleted: false, moderationStatus: { in: [...VISIBLE_MESSAGE_STATUSES] } },
       },
       select: {
         id: true,
@@ -169,7 +122,11 @@ export async function getCommunityWorkspace(session: ChatSession, communityId: s
       take: MAX_WORKSPACE_MEDIA,
     }),
     prisma.chatPoll.findMany({
-      where: { tenantId: session.tenantId, communityId },
+      where: {
+        tenantId: session.tenantId,
+        communityId,
+        messageId: { in: allowedPollMessageIds },
+      },
       select: {
         id: true,
         messageId: true,
@@ -190,7 +147,7 @@ export async function getCommunityWorkspace(session: ChatSession, communityId: s
       orderBy: { createdAt: 'desc' },
       take: 30,
     }),
-    getCommunityRealtimeState(session, communityId),
+    readPresenceState(session, communityId),
     canModerateCommunity(session.role, access.membership.role)
       ? prisma.chatModerationCase.findMany({
           where: { tenantId: session.tenantId, communityId, status: { in: ['OPEN', 'UNDER_REVIEW'] } },
@@ -211,7 +168,10 @@ export async function getCommunityWorkspace(session: ChatSession, communityId: s
 
   const memberUserIds = memberRows.map((member) => member.userId);
   const users = memberUserIds.length
-    ? await prisma.user.findMany({ where: { tenantId: session.tenantId, id: { in: memberUserIds }, isActive: true }, select: { id: true, name: true, avatarUrl: true, role: true } })
+    ? await prisma.user.findMany({
+        where: { tenantId: session.tenantId, id: { in: memberUserIds }, isActive: true },
+        select: { id: true, name: true, avatarUrl: true, role: true },
+      })
     : [];
   const userMap = new Map(users.map((user) => [user.id, user]));
   const onlineMap = new Map(realtime.online.map((item) => [item.userId, item.lastSeenAt]));
@@ -233,7 +193,9 @@ export async function getCommunityWorkspace(session: ChatSession, communityId: s
       canPin: canPinMessages(session.role, access.membership.role),
       canPoll: canCreatePoll(session.role, access.membership.role),
       canModerate: canModerateCommunity(session.role, access.membership.role),
-      canEditCommunity: ['OWNER', 'ADMIN'].includes(access.membership.role) || session.role === 'SUPER_ADMIN' || session.role === 'INSTITUTION_ADMIN',
+      canEditCommunity: ['OWNER', 'ADMIN'].includes(access.membership.role)
+        || session.role === 'SUPER_ADMIN'
+        || session.role === 'INSTITUTION_ADMIN',
     },
     notificationLevel: notificationPref?.level ?? 'ALL',
     members: memberRows.map((member) => ({
@@ -268,20 +230,34 @@ export async function getCommunityWorkspace(session: ChatSession, communityId: s
       isAnonymous: poll.isAnonymous,
       showResultsBeforeVoting: poll.showResultsBeforeVoting,
       closesAt: poll.closesAt?.toISOString() ?? null,
-      options: poll.options.map((option) => ({ id: option.id, text: option.text, voteCount: option.voteCount, selectedByMe: option.votes.length > 0 })),
+      options: poll.options.map((option) => ({
+        id: option.id,
+        text: option.text,
+        voteCount: option.voteCount,
+        selectedByMe: option.votes.length > 0,
+      })),
     })),
     moderationCases,
   };
 }
 
-export async function secureSearchCommunity(session: ChatSession, communityId: string, query: string, filters: { messageType?: string; hasAttachment?: boolean; hasLink?: boolean }) {
+export async function secureSearchCommunity(
+  session: ChatSession,
+  communityId: string,
+  query: string,
+  filters: { messageType?: string; hasAttachment?: boolean; hasLink?: boolean },
+) {
   await assertStrictAcademicAccess(session, communityId);
   const service = new CommunityChatService(prisma);
   const results = await service.search(session, query, { communityId, ...filters, limit: 75 });
   return results.map((message) => secureMessageAttachmentUrls(message));
 }
 
-export async function updateCommunityNotificationLevel(session: ChatSession, communityId: string, level: 'ALL' | 'MENTIONS_ONLY' | 'IMPORTANT_ONLY' | 'MUTED') {
+export async function updateCommunityNotificationLevel(
+  session: ChatSession,
+  communityId: string,
+  level: 'ALL' | 'MENTIONS_ONLY' | 'IMPORTANT_ONLY' | 'MUTED',
+) {
   await assertStrictAcademicAccess(session, communityId);
   const service = new CommunityChatService(prisma);
   await service.updateNotificationPref(session, communityId, level);
