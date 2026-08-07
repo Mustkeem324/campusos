@@ -1,0 +1,140 @@
+{
+  "warning": "SYNTHETIC / DEMO ACCOUNTS ONLY. Never use these credentials in production.",
+  "source": "scripts/seed-synthetic-campus.mjs",
+  "institution": {
+    "name": "Nexus Institute of Technology",
+    "code": "NITX",
+    "subdomain": "nexus-institute"
+  },
+  "loginPath": "/login",
+  "sharedDemoPassword": "Campus@2026!",
+  "dashboardAccounts": [
+    {
+      "role": "SUPER_ADMIN",
+      "name": "Platform Owner",
+      "email": "superadmin@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "INSTITUTION_ADMIN",
+      "name": "Kavya Menon",
+      "email": "admin@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "REGISTRAR",
+      "name": "Arjun Deshmukh",
+      "email": "registrar@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "DEAN",
+      "name": "Dr. Meera Iyer",
+      "email": "dean@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "HOD",
+      "name": "Dr. Raghav Sinha",
+      "email": "hod@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "FACULTY",
+      "name": "Dr. Priya Sharma",
+      "email": "faculty@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "STUDENT",
+      "name": "Rohan Verma",
+      "email": "student@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "PARENT",
+      "name": "Anita Verma",
+      "email": "parent@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "FINANCE_OFFICER",
+      "name": "Nikhil Bansal",
+      "email": "finance@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "ACCOUNTANT",
+      "name": "Sonal Gupta",
+      "email": "accountant@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "HR_ADMIN",
+      "name": "Aditi Kulkarni",
+      "email": "hr@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "WARDEN",
+      "name": "Mohit Tiwari",
+      "email": "warden@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "LIBRARIAN",
+      "name": "Neha Joshi",
+      "email": "librarian@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "TRANSPORT_MANAGER",
+      "name": "Vikram Singh",
+      "email": "transport@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "PLACEMENT_OFFICER",
+      "name": "Ishita Kapoor",
+      "email": "placement@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "ADMISSIONS_COUNSELLOR",
+      "name": "Rahul Nair",
+      "email": "admissions@nexus-campus.local",
+      "password": "Campus@2026!"
+    },
+    {
+      "role": "EXAMINATION_CONTROLLER",
+      "name": "Dr. Sameer Rao",
+      "email": "exams@nexus-campus.local",
+      "password": "Campus@2026!"
+    }
+  ],
+  "additionalSyntheticAccountPatterns": {
+    "faculty": {
+      "role": "FACULTY",
+      "emails": "faculty02@nexus-campus.local through faculty20@nexus-campus.local",
+      "password": "Campus@2026!",
+      "note": "faculty@nexus-campus.local is the primary faculty dashboard account."
+    },
+    "students": {
+      "role": "STUDENT",
+      "emails": "student002@nexus-campus.local through student100@nexus-campus.local",
+      "password": "Campus@2026!",
+      "note": "student@nexus-campus.local is the primary student dashboard account."
+    },
+    "guardians": {
+      "role": "PARENT",
+      "emails": "guardian002@nexus-campus.local through guardian080@nexus-campus.local",
+      "password": "Campus@2026!",
+      "note": "parent@nexus-campus.local is the primary parent dashboard account."
+    }
+  },
+  "seedCommands": {
+    "seed": "npm run db:seed-synthetic",
+    "resetAndSeed": "npm run db:seed-synthetic:reset",
+    "verify": "npm run db:verify-synthetic"
+  }
+}
