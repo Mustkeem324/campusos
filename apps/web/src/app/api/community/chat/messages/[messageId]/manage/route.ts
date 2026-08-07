@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getSessionFromCookies } from '@/lib/auth';
-import { assertStrictAcademicAccess, chatHttpError } from '@/lib/community-chat-academic';
+import { assertStrictAcademicAccess } from '@/lib/community-chat-academic';
+import { mapCommunityRouteError } from '@/lib/community-chat-route-error';
 import { CommunityChatService } from '@/lib/community-chat-service';
 import { prisma } from '@/lib/db';
 
@@ -35,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: { messageId:
     return NextResponse.json({ success: true, communityId: message.communityId });
   } catch (error: unknown) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation Error' }, { status: 400 });
-    const failure = chatHttpError(error);
+    const failure = mapCommunityRouteError(error, 'MESSAGE_EDIT');
     return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
@@ -51,7 +52,7 @@ export async function DELETE(_request: Request, { params }: { params: { messageI
     if (!result.success) return NextResponse.json({ error: result.error }, { status: 403 });
     return NextResponse.json({ success: true, communityId: message.communityId });
   } catch (error: unknown) {
-    const failure = chatHttpError(error);
+    const failure = mapCommunityRouteError(error, 'MESSAGE_DELETE');
     return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
