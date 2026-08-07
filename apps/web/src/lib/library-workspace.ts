@@ -44,12 +44,7 @@ export type LibraryCatalogMeta = {
   resourceType: LibraryResourceType;
   physicalCopies: LibraryCopyMeta[];
   digital?: LibraryDigitalMeta;
-  acquisition?: {
-    vendor?: string;
-    purchasedAt?: string;
-    unitCost?: number;
-    currency?: string;
-  };
+  acquisition?: { vendor?: string; purchasedAt?: string; unitCost?: number; currency?: string };
   tags: string[];
 };
 
@@ -106,21 +101,8 @@ export type LibraryWorkspaceItem = {
   language: string;
   description?: string;
   resourceType: LibraryResourceType;
-  physical: {
-    total: number;
-    available: number;
-    onLoan: number;
-    reserved: number;
-    shelfLocations: string[];
-  };
-  digital: {
-    enabled: boolean;
-    seats: number;
-    availableSeats: number;
-    activeLoans: number;
-    loanDays: number;
-    canReadOnline: boolean;
-  };
+  physical: { total: number; available: number; onLoan: number; reserved: number; shelfLocations: string[] };
+  digital: { enabled: boolean; seats: number; availableSeats: number; activeLoans: number; loanDays: number; canReadOnline: boolean };
   tags: string[];
 };
 
@@ -139,36 +121,16 @@ const DEFAULT_POLICY: LibraryPolicy = {
 
 function safeJson<T>(value: string | null | undefined): T | null {
   if (!value) return null;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(value) as T; } catch { return null; }
 }
 
-function catalogEntity(itemId: string) {
-  return `library-item:${itemId}`;
-}
+export function catalogEntity(itemId: string) { return `library-item:${itemId}`; }
+function loanEntity(loanId: string) { return `library-loan:${loanId}`; }
+function reservationEntity(reservationId: string) { return `library-reservation:${reservationId}`; }
+function policyEntity(tenantId: string) { return `library-policy:${tenantId}`; }
 
-function loanEntity(loanId: string) {
-  return `library-loan:${loanId}`;
-}
-
-function reservationEntity(reservationId: string) {
-  return `library-reservation:${reservationId}`;
-}
-
-function policyEntity(tenantId: string) {
-  return `library-policy:${tenantId}`;
-}
-
-export function isLibraryManager(role: RoleType) {
-  return LIBRARY_MANAGER_ROLES.has(role);
-}
-
-export function isLibraryBorrower(role: RoleType) {
-  return LIBRARY_BORROWER_ROLES.has(role);
-}
+export function isLibraryManager(role: RoleType) { return LIBRARY_MANAGER_ROLES.has(role); }
+export function isLibraryBorrower(role: RoleType) { return LIBRARY_BORROWER_ROLES.has(role); }
 
 function legacyCatalogMeta(title: string): LibraryCatalogMeta {
   return {
@@ -176,7 +138,7 @@ function legacyCatalogMeta(title: string): LibraryCatalogMeta {
     author: 'Author metadata pending',
     category: 'General',
     language: 'English',
-    description: `${title} is available in the institutional catalogue. A librarian can enrich this record with author, copy, shelf and digital-access metadata.`,
+    description: `${title} is a legacy catalogue record. A librarian can enrich it with copy, shelf, author and licensed digital-access metadata.`,
     resourceType: 'PHYSICAL',
     physicalCopies: [],
     tags: [],
@@ -208,15 +170,9 @@ export async function getLibraryPolicy(tenantId: string): Promise<LibraryPolicy>
 }
 
 export async function setLibraryPolicy(context: ActiveUserContext, policy: LibraryPolicy) {
-  if (!isLibraryManager(context.role)) throw new Error('LIBRARY_FORBIDDEN');
+  if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
   await prisma.auditLog.create({
-    data: {
-      tenantId: context.tenantId,
-      userId: context.userId,
-      action: LIBRARY_POLICY_ACTION,
-      entity: policyEntity(context.tenantId),
-      diffJson: JSON.stringify(policy),
-    },
+    data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(context.tenantId), diffJson: JSON.stringify(policy) },
   });
 }
 
@@ -228,22 +184,18 @@ export async function getLibraryState(tenantId: string) {
     latestAuditByEntity<LibraryReservationMeta>(tenantId, LIBRARY_RESERVATION_ACTION, 'library-reservation:'),
     getLibraryPolicy(tenantId),
   ]);
-
   const loans = [...loanMap.values()];
-  const reservations = [...reservationMap.values()].map((reservation) => {
-    if (reservation.status === 'ACTIVE' && reservation.expiresAt && new Date(reservation.expiresAt).getTime() < Date.now()) {
-      return { ...reservation, status: 'EXPIRED' as const };
-    }
-    return reservation;
-  });
+  const reservations = [...reservationMap.values()].map((reservation) => reservation.status === 'ACTIVE' && reservation.expiresAt && new Date(reservation.expiresAt).getTime() < Date.now()
+    ? { ...reservation, status: 'EXPIRED' as const }
+    : reservation);
 
   const workspaceItems: LibraryWorkspaceItem[] = items.map((item) => {
     const meta = catalogMap.get(catalogEntity(item.id)) ?? legacyCatalogMeta(item.title);
     const activePhysical = loans.filter((loan) => loan.itemId === item.id && loan.mode === 'PHYSICAL' && !loan.returnedAt);
     const activeDigital = loans.filter((loan) => loan.itemId === item.id && loan.mode === 'DIGITAL' && !loan.returnedAt && new Date(loan.dueAt).getTime() > Date.now());
     const activeReservations = reservations.filter((reservation) => reservation.itemId === item.id && reservation.status === 'ACTIVE');
-    const physicalCopies = meta.physicalCopies ?? [];
-    const digitalSeats = Math.max(0, meta.digital?.seats ?? 0);
+    const copies = meta.physicalCopies ?? [];
+    const seats = Math.max(0, meta.digital?.seats ?? 0);
     return {
       id: item.id,
       title: item.title,
@@ -256,16 +208,16 @@ export async function getLibraryState(tenantId: string) {
       description: meta.description,
       resourceType: meta.resourceType,
       physical: {
-        total: physicalCopies.length,
-        available: Math.max(0, physicalCopies.length - activePhysical.length),
+        total: copies.length,
+        available: Math.max(0, copies.length - activePhysical.length),
         onLoan: activePhysical.length,
         reserved: activeReservations.length,
-        shelfLocations: [...new Set(physicalCopies.map((copy) => copy.shelfLocation).filter((value): value is string => Boolean(value)))],
+        shelfLocations: [...new Set(copies.map((copy) => copy.shelfLocation).filter((value): value is string => Boolean(value)))],
       },
       digital: {
         enabled: Boolean(meta.digital?.fileId || meta.digital?.externalUrl),
-        seats: digitalSeats,
-        availableSeats: Math.max(0, digitalSeats - activeDigital.length),
+        seats,
+        availableSeats: Math.max(0, seats - activeDigital.length),
         activeLoans: activeDigital.length,
         loanDays: meta.digital?.loanDays ?? policy.defaultDigitalLoanDays,
         canReadOnline: Boolean(meta.digital?.fileId || meta.digital?.externalUrl),
@@ -273,36 +225,37 @@ export async function getLibraryState(tenantId: string) {
       tags: meta.tags ?? [],
     };
   });
-
   return { items: workspaceItems, loans, reservations, policy, catalogMap };
+}
+
+function loanIsCurrent(loan: LibraryLoanMeta) {
+  if (loan.returnedAt) return false;
+  return loan.mode === 'PHYSICAL' || new Date(loan.dueAt).getTime() > Date.now();
 }
 
 export async function getLibraryWorkspace(context: ActiveUserContext) {
   const state = await getLibraryState(context.tenantId);
-  const activeLoans = state.loans.filter((loan) => !loan.returnedAt);
-  const overdueLoans = activeLoans.filter((loan) => new Date(loan.dueAt).getTime() < Date.now());
+  const manager = isLibraryManager(context.activeRole);
+  const activeLoans = state.loans.filter(loanIsCurrent);
+  const overdueLoans = activeLoans.filter((loan) => loan.mode === 'PHYSICAL' && new Date(loan.dueAt).getTime() < Date.now());
   const activeReservations = state.reservations.filter((reservation) => reservation.status === 'ACTIVE');
-  const uniqueBorrowers = new Set(activeLoans.map((loan) => loan.borrowerUserId));
   const physicalCopies = state.items.reduce((sum, item) => sum + item.physical.total, 0);
-  const availablePhysical = state.items.reduce((sum, item) => sum + item.physical.available, 0);
-  const digitalTitles = state.items.filter((item) => item.digital.enabled).length;
-
   return {
-    role: context.role,
-    canManage: isLibraryManager(context.role),
-    canBorrow: isLibraryBorrower(context.role),
+    role: context.activeRole,
+    canManage: manager,
+    canBorrow: isLibraryBorrower(context.activeRole),
     currentUserId: context.userId,
     items: state.items,
-    loans: isLibraryManager(context.role) ? state.loans : state.loans.filter((loan) => loan.borrowerUserId === context.userId),
-    reservations: isLibraryManager(context.role) ? state.reservations : state.reservations.filter((reservation) => reservation.userId === context.userId),
+    loans: manager ? state.loans : state.loans.filter((loan) => loan.borrowerUserId === context.userId),
+    reservations: manager ? state.reservations : state.reservations.filter((reservation) => reservation.userId === context.userId),
     policy: state.policy,
     metrics: {
       titles: state.items.length,
       physicalCopies,
-      availablePhysical,
-      digitalTitles,
+      availablePhysical: state.items.reduce((sum, item) => sum + item.physical.available, 0),
+      digitalTitles: state.items.filter((item) => item.digital.enabled).length,
       activeLoans: activeLoans.length,
-      activeBorrowers: uniqueBorrowers.size,
+      activeBorrowers: new Set(activeLoans.map((loan) => loan.borrowerUserId)).size,
       overdueLoans: overdueLoans.length,
       activeReservations: activeReservations.length,
       digitalLoans: activeLoans.filter((loan) => loan.mode === 'DIGITAL').length,
@@ -311,52 +264,36 @@ export async function getLibraryWorkspace(context: ActiveUserContext) {
 }
 
 function dueDateFor(role: RoleType, mode: LibraryLoanMode, policy: LibraryPolicy, digitalLoanDays?: number) {
-  const days = mode === 'DIGITAL'
-    ? digitalLoanDays ?? policy.defaultDigitalLoanDays
-    : role === 'FACULTY' ? policy.facultyLoanDays : policy.studentLoanDays;
+  const days = mode === 'DIGITAL' ? digitalLoanDays ?? policy.defaultDigitalLoanDays : role === 'FACULTY' ? policy.facultyLoanDays : policy.studentLoanDays;
   const due = new Date();
   due.setDate(due.getDate() + Math.max(1, days));
   return due;
 }
 
-function fineFor(dueAt: string, returnedAt: Date, policy: LibraryPolicy) {
+export function calculateLibraryFineAmount(dueAt: string, returnedAt: Date, policy: Pick<LibraryPolicy, 'finePerDay'>) {
   if (policy.finePerDay <= 0) return 0;
   const due = new Date(dueAt);
   if (returnedAt <= due) return 0;
-  const days = Math.ceil((returnedAt.getTime() - due.getTime()) / 86_400_000);
-  return Number((days * policy.finePerDay).toFixed(2));
+  return Number((Math.ceil((returnedAt.getTime() - due.getTime()) / 86_400_000) * policy.finePerDay).toFixed(2));
 }
 
 async function saveLoan(context: ActiveUserContext, loan: LibraryLoanMeta) {
-  await prisma.auditLog.create({
-    data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_LOAN_ACTION, entity: loanEntity(loan.loanId), diffJson: JSON.stringify(loan) },
-  });
+  await prisma.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_LOAN_ACTION, entity: loanEntity(loan.loanId), diffJson: JSON.stringify(loan) } });
 }
-
 async function saveReservation(context: ActiveUserContext, reservation: LibraryReservationMeta) {
-  await prisma.auditLog.create({
-    data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_RESERVATION_ACTION, entity: reservationEntity(reservation.reservationId), diffJson: JSON.stringify(reservation) },
-  });
+  await prisma.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_RESERVATION_ACTION, entity: reservationEntity(reservation.reservationId), diffJson: JSON.stringify(reservation) } });
 }
 
 export async function reserveLibraryItem(context: ActiveUserContext, itemId: string) {
-  if (!isLibraryBorrower(context.role)) throw new Error('LIBRARY_BORROWING_FORBIDDEN');
+  if (!isLibraryBorrower(context.activeRole)) throw new Error('LIBRARY_BORROWING_FORBIDDEN');
   const state = await getLibraryState(context.tenantId);
   const item = state.items.find((entry) => entry.id === itemId);
   if (!item || item.resourceType === 'EBOOK') throw new Error('LIBRARY_ITEM_NOT_RESERVABLE');
   if (state.reservations.some((reservation) => reservation.itemId === itemId && reservation.userId === context.userId && reservation.status === 'ACTIVE')) throw new Error('LIBRARY_ALREADY_RESERVED');
   const user = await prisma.user.findFirst({ where: { id: context.userId, tenantId: context.tenantId }, select: { name: true, email: true } });
   if (!user) throw new Error('LIBRARY_USER_NOT_FOUND');
-  const reservation: LibraryReservationMeta = {
-    version: 2,
-    reservationId: randomUUID(),
-    itemId,
-    userId: context.userId,
-    userName: user.name,
-    userEmail: user.email,
-    createdAt: new Date().toISOString(),
-    status: 'ACTIVE',
-  };
+  const expiresAt = new Date(Date.now() + state.policy.reservationHoldHours * 3_600_000).toISOString();
+  const reservation: LibraryReservationMeta = { version: 2, reservationId: randomUUID(), itemId, userId: context.userId, userName: user.name, userEmail: user.email, createdAt: new Date().toISOString(), expiresAt, status: 'ACTIVE' };
   await saveReservation(context, reservation);
   return reservation;
 }
@@ -365,66 +302,40 @@ export async function cancelLibraryReservation(context: ActiveUserContext, reser
   const state = await getLibraryState(context.tenantId);
   const reservation = state.reservations.find((entry) => entry.reservationId === reservationId);
   if (!reservation) throw new Error('LIBRARY_RESERVATION_NOT_FOUND');
-  if (!isLibraryManager(context.role) && reservation.userId !== context.userId) throw new Error('LIBRARY_FORBIDDEN');
+  if (!isLibraryManager(context.activeRole) && reservation.userId !== context.userId) throw new Error('LIBRARY_FORBIDDEN');
   await saveReservation(context, { ...reservation, status: 'CANCELLED' });
 }
 
 export async function borrowDigitalItem(context: ActiveUserContext, itemId: string) {
-  if (!isLibraryBorrower(context.role)) throw new Error('LIBRARY_BORROWING_FORBIDDEN');
+  if (!isLibraryBorrower(context.activeRole)) throw new Error('LIBRARY_BORROWING_FORBIDDEN');
   const state = await getLibraryState(context.tenantId);
   const item = state.items.find((entry) => entry.id === itemId);
   const catalog = state.catalogMap.get(catalogEntity(itemId));
   if (!item || !item.digital.enabled || !catalog?.digital) throw new Error('LIBRARY_DIGITAL_UNAVAILABLE');
-  if (state.loans.some((loan) => loan.borrowerUserId === context.userId && loan.itemId === itemId && loan.mode === 'DIGITAL' && !loan.returnedAt && new Date(loan.dueAt).getTime() > Date.now())) throw new Error('LIBRARY_ALREADY_BORROWED');
-  const activeByUser = state.loans.filter((loan) => loan.borrowerUserId === context.userId && !loan.returnedAt && new Date(loan.dueAt).getTime() > Date.now()).length;
-  if (activeByUser >= state.policy.maxActiveLoans) throw new Error('LIBRARY_LOAN_LIMIT');
+  if (state.loans.some((loan) => loan.borrowerUserId === context.userId && loan.itemId === itemId && loan.mode === 'DIGITAL' && loanIsCurrent(loan))) throw new Error('LIBRARY_ALREADY_BORROWED');
+  if (state.loans.filter((loan) => loan.borrowerUserId === context.userId && loanIsCurrent(loan)).length >= state.policy.maxActiveLoans) throw new Error('LIBRARY_LOAN_LIMIT');
   if (item.digital.availableSeats <= 0) throw new Error('LIBRARY_NO_DIGITAL_SEATS');
   const user = await prisma.user.findFirst({ where: { id: context.userId, tenantId: context.tenantId }, select: { name: true, email: true, role: true } });
   if (!user) throw new Error('LIBRARY_USER_NOT_FOUND');
   const loanRecord = await prisma.loan.create({ data: { libraryItemId: itemId }, select: { id: true, borrowedAt: true } });
-  const loan: LibraryLoanMeta = {
-    version: 2,
-    loanId: loanRecord.id,
-    itemId,
-    borrowerUserId: context.userId,
-    borrowerName: user.name,
-    borrowerEmail: user.email,
-    borrowerRole: user.role,
-    mode: 'DIGITAL',
-    borrowedAt: loanRecord.borrowedAt.toISOString(),
-    dueAt: dueDateFor(user.role, 'DIGITAL', state.policy, catalog.digital.loanDays).toISOString(),
-    renewedCount: 0,
-  };
+  const loan: LibraryLoanMeta = { version: 2, loanId: loanRecord.id, itemId, borrowerUserId: context.userId, borrowerName: user.name, borrowerEmail: user.email, borrowerRole: user.role, mode: 'DIGITAL', borrowedAt: loanRecord.borrowedAt.toISOString(), dueAt: dueDateFor(user.role, 'DIGITAL', state.policy, catalog.digital.loanDays).toISOString(), renewedCount: 0 };
   await saveLoan(context, loan);
   return loan;
 }
 
 export async function checkoutPhysicalItem(context: ActiveUserContext, borrowerEmail: string, barcode: string) {
-  if (!isLibraryManager(context.role)) throw new Error('LIBRARY_FORBIDDEN');
+  if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
   const state = await getLibraryState(context.tenantId);
-  const itemEntry = [...state.catalogMap.entries()].find(([, meta]) => meta.physicalCopies.some((copy) => copy.barcode === barcode || copy.rfidTag === barcode));
+  const normalizedBarcode = barcode.trim();
+  const itemEntry = [...state.catalogMap.entries()].find(([, meta]) => meta.physicalCopies.some((copy) => copy.barcode === normalizedBarcode || copy.rfidTag === normalizedBarcode));
   if (!itemEntry) throw new Error('LIBRARY_COPY_NOT_FOUND');
   const itemId = itemEntry[0].replace('library-item:', '');
-  if (state.loans.some((loan) => loan.copyBarcode === barcode && !loan.returnedAt)) throw new Error('LIBRARY_COPY_ALREADY_LOANED');
+  if (state.loans.some((loan) => loan.copyBarcode === normalizedBarcode && !loan.returnedAt)) throw new Error('LIBRARY_COPY_ALREADY_LOANED');
   const borrower = await prisma.user.findFirst({ where: { tenantId: context.tenantId, email: borrowerEmail.trim().toLowerCase(), isActive: true }, select: { id: true, name: true, email: true, role: true } });
   if (!borrower || !isLibraryBorrower(borrower.role)) throw new Error('LIBRARY_BORROWER_NOT_FOUND');
-  const activeByUser = state.loans.filter((loan) => loan.borrowerUserId === borrower.id && !loan.returnedAt).length;
-  if (activeByUser >= state.policy.maxActiveLoans) throw new Error('LIBRARY_LOAN_LIMIT');
+  if (state.loans.filter((loan) => loan.borrowerUserId === borrower.id && loanIsCurrent(loan)).length >= state.policy.maxActiveLoans) throw new Error('LIBRARY_LOAN_LIMIT');
   const loanRecord = await prisma.loan.create({ data: { libraryItemId: itemId }, select: { id: true, borrowedAt: true } });
-  const loan: LibraryLoanMeta = {
-    version: 2,
-    loanId: loanRecord.id,
-    itemId,
-    borrowerUserId: borrower.id,
-    borrowerName: borrower.name,
-    borrowerEmail: borrower.email,
-    borrowerRole: borrower.role,
-    mode: 'PHYSICAL',
-    copyBarcode: barcode,
-    borrowedAt: loanRecord.borrowedAt.toISOString(),
-    dueAt: dueDateFor(borrower.role, 'PHYSICAL', state.policy).toISOString(),
-    renewedCount: 0,
-  };
+  const loan: LibraryLoanMeta = { version: 2, loanId: loanRecord.id, itemId, borrowerUserId: borrower.id, borrowerName: borrower.name, borrowerEmail: borrower.email, borrowerRole: borrower.role, mode: 'PHYSICAL', copyBarcode: normalizedBarcode, borrowedAt: loanRecord.borrowedAt.toISOString(), dueAt: dueDateFor(borrower.role, 'PHYSICAL', state.policy).toISOString(), renewedCount: 0 };
   await saveLoan(context, loan);
   const reservation = state.reservations.find((entry) => entry.itemId === itemId && entry.userId === borrower.id && entry.status === 'ACTIVE');
   if (reservation) await saveReservation(context, { ...reservation, status: 'FULFILLED' });
@@ -432,12 +343,12 @@ export async function checkoutPhysicalItem(context: ActiveUserContext, borrowerE
 }
 
 export async function returnLibraryLoan(context: ActiveUserContext, loanId: string) {
-  if (!isLibraryManager(context.role)) throw new Error('LIBRARY_FORBIDDEN');
+  if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
   const state = await getLibraryState(context.tenantId);
   const loan = state.loans.find((entry) => entry.loanId === loanId);
   if (!loan || loan.returnedAt) throw new Error('LIBRARY_LOAN_NOT_ACTIVE');
   const returnedAt = new Date();
-  const updated = { ...loan, returnedAt: returnedAt.toISOString(), finalFineAmount: fineFor(loan.dueAt, returnedAt, state.policy) };
+  const updated = { ...loan, returnedAt: returnedAt.toISOString(), finalFineAmount: calculateLibraryFineAmount(loan.dueAt, returnedAt, state.policy) };
   await saveLoan(context, updated);
   return updated;
 }
@@ -446,10 +357,9 @@ export async function renewLibraryLoan(context: ActiveUserContext, loanId: strin
   const state = await getLibraryState(context.tenantId);
   const loan = state.loans.find((entry) => entry.loanId === loanId);
   if (!loan || loan.returnedAt || new Date(loan.dueAt).getTime() <= Date.now()) throw new Error('LIBRARY_LOAN_NOT_RENEWABLE');
-  if (!isLibraryManager(context.role) && loan.borrowerUserId !== context.userId) throw new Error('LIBRARY_FORBIDDEN');
+  if (!isLibraryManager(context.activeRole) && loan.borrowerUserId !== context.userId) throw new Error('LIBRARY_FORBIDDEN');
   if (loan.renewedCount >= state.policy.maxRenewals) throw new Error('LIBRARY_RENEWAL_LIMIT');
-  const waiting = state.reservations.some((reservation) => reservation.itemId === loan.itemId && reservation.userId !== loan.borrowerUserId && reservation.status === 'ACTIVE');
-  if (waiting && loan.mode === 'PHYSICAL') throw new Error('LIBRARY_WAITLIST_BLOCKS_RENEWAL');
+  if (loan.mode === 'PHYSICAL' && state.reservations.some((reservation) => reservation.itemId === loan.itemId && reservation.userId !== loan.borrowerUserId && reservation.status === 'ACTIVE')) throw new Error('LIBRARY_WAITLIST_BLOCKS_RENEWAL');
   const nextDue = new Date(loan.dueAt);
   nextDue.setDate(nextDue.getDate() + state.policy.renewalDays);
   const updated = { ...loan, dueAt: nextDue.toISOString(), renewedCount: loan.renewedCount + 1 };
@@ -461,10 +371,7 @@ export async function getDigitalAccess(context: ActiveUserContext, itemId: strin
   const state = await getLibraryState(context.tenantId);
   const catalog = state.catalogMap.get(catalogEntity(itemId));
   if (!catalog?.digital) throw new Error('LIBRARY_DIGITAL_UNAVAILABLE');
-  if (!isLibraryManager(context.role)) {
-    const loan = state.loans.find((entry) => entry.itemId === itemId && entry.borrowerUserId === context.userId && entry.mode === 'DIGITAL' && !entry.returnedAt && new Date(entry.dueAt).getTime() > Date.now());
-    if (!loan) throw new Error('LIBRARY_DIGITAL_ACCESS_REQUIRED');
-  }
+  if (!isLibraryManager(context.activeRole) && !state.loans.some((loan) => loan.itemId === itemId && loan.borrowerUserId === context.userId && loan.mode === 'DIGITAL' && loanIsCurrent(loan))) throw new Error('LIBRARY_DIGITAL_ACCESS_REQUIRED');
   return catalog.digital;
 }
 
@@ -492,5 +399,3 @@ export function libraryError(error: unknown) {
   };
   return messages[code] ?? { status: 500, error: 'The library service could not complete that request.' };
 }
-
-export { catalogEntity };
