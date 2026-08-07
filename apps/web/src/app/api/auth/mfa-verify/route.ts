@@ -5,6 +5,13 @@ import { createSession, signToken } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { verifyMfaChallenge } from '@/lib/mfa-challenge';
 import { unsealMfaSecret, verifyTotp } from '@/lib/phase7';
+import {
+  checkPublicRateLimit,
+  InvalidJsonError,
+  PayloadTooLargeError,
+  readJsonWithLimit,
+  requestIp,
+} from '@/lib/public-rate-limit';
 
 const verifySchema = z.object({
   // The existing MFA page sends this field name. Its value is now a signed,
@@ -16,10 +23,23 @@ const verifySchema = z.object({
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
+const MFA_BODY_LIMIT_BYTES = 8 * 1024;
+const BLOCKED_INSTITUTION_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
 
 export async function POST(request: Request) {
   try {
-    const { userId: challengeToken, code } = verifySchema.parse(await request.json());
+    const ipAddress = requestIp(request);
+    const rateLimit = checkPublicRateLimit({ key: `mfa:${ipAddress}`, limit: 30, windowMs: 10 * 60_000 });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait and sign in again.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
+    const { userId: challengeToken, code } = verifySchema.parse(
+      await readJsonWithLimit(request, MFA_BODY_LIMIT_BYTES),
+    );
     const challenge = verifyMfaChallenge(challengeToken);
     if (!challenge) {
       return NextResponse.json(
@@ -40,6 +60,12 @@ export async function POST(request: Request) {
     if (!user || !user.mfaEnabled || !user.mfaSecret) {
       return NextResponse.json({ error: 'Multi-factor verification is unavailable.' }, { status: 401 });
     }
+    if (
+      user.role !== 'SUPER_ADMIN' &&
+      BLOCKED_INSTITUTION_STATUSES.has(user.institution.status.toUpperCase())
+    ) {
+      return NextResponse.json({ error: 'Multi-factor verification is unavailable.' }, { status: 401 });
+    }
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       return NextResponse.json({ error: 'Account is temporarily locked. Try again later.' }, { status: 429 });
     }
@@ -56,21 +82,21 @@ export async function POST(request: Request) {
     }
 
     if (!verifyTotp(secret, code)) {
-      const attempts = user.loginAttempts + 1;
-      await prisma.user.update({
+      const failed = await prisma.user.update({
         where: { id: user.id },
-        data: {
-          loginAttempts: attempts,
-          lockedUntil: attempts >= MAX_ATTEMPTS
-            ? new Date(Date.now() + LOCK_MINUTES * 60_000)
-            : null,
-        },
+        data: { loginAttempts: { increment: 1 } },
+        select: { loginAttempts: true },
       });
+      if (failed.loginAttempts >= MAX_ATTEMPTS) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) },
+        });
+      }
       return NextResponse.json({ error: 'Invalid or expired authentication code.' }, { status: 401 });
     }
 
     const userAgent = request.headers.get('user-agent') || 'Unknown';
-    const ipAddress = request.headers.get('x-forwarded-for') || 'Unknown IP';
     const sessionRecord = await createSession(user.id, userAgent, ipAddress);
     const token = signToken({
       sessionId: sessionRecord.token,
@@ -111,6 +137,12 @@ export async function POST(request: Request) {
     });
     return response;
   } catch (error: unknown) {
+    if (error instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request payload is too large.' }, { status: 413 });
+    }
+    if (error instanceof InvalidJsonError) {
+      return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Enter a valid 6-digit authentication code.' }, { status: 400 });
     }
