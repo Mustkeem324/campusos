@@ -1,7 +1,9 @@
-import type { PrismaClient } from '@prisma/client';
+import { getTenantDb } from '../db';
 
 export const LMS_LESSON_COMPLETE_ACTION = 'LMS_LESSON_COMPLETED';
 const LMS_LESSON_ENTITY_PREFIX = 'LMS_LESSON:';
+
+type TenantDb = ReturnType<typeof getTenantDb>;
 
 export function lessonProgressEntity(lessonId: string) {
   return `${LMS_LESSON_ENTITY_PREFIX}${lessonId}`;
@@ -12,7 +14,7 @@ export function lessonIdFromProgressEntity(entity: string) {
 }
 
 export async function getCompletedLessonIds(
-  db: PrismaClient,
+  db: TenantDb,
   input: { tenantId: string; userId: string },
 ) {
   const rows = await db.auditLog.findMany({
@@ -33,7 +35,7 @@ export async function getCompletedLessonIds(
 }
 
 export async function markLessonCompleted(
-  db: PrismaClient,
+  db: TenantDb,
   input: {
     tenantId: string;
     userId: string;
