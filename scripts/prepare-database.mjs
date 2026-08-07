@@ -72,6 +72,13 @@ function provisionPaymentPortalStorage() {
   );
 }
 
+function provisionTransportGpsStorage() {
+  executeSqlFile(
+    'packages/db/prisma/transport-gps.sql',
+    'Optional transport GPS module provisioning',
+  );
+}
+
 function runSyntheticCampusSeed() {
   const seedEnv = { CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true' };
 
@@ -111,6 +118,10 @@ function prepareDatabase() {
   console.log('Provisioning CampusOS payment orchestration tables...');
   provisionPaymentPortalStorage();
   console.log('Payment orchestration storage is ready.');
+
+  console.log('Provisioning optional CampusOS transport GPS tables...');
+  provisionTransportGpsStorage();
+  console.log('Transport GPS storage is ready. Institutions remain opted out until an Institution Admin enables the module.');
 
   if (shouldSeedSyntheticCampus()) {
     console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');

@@ -1,0 +1,51 @@
+name: Transport GPS Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/app/(dashboard)/transport/**'
+      - 'apps/web/src/app/api/transport/**'
+      - 'apps/web/src/components/campus/TransportAdminConsole.tsx'
+      - 'apps/web/src/components/campus/TransportTrackerConsole.tsx'
+      - 'apps/web/src/components/layout/Sidebar.tsx'
+      - 'apps/web/src/lib/transport-gps*'
+      - 'packages/db/prisma/transport-gps.sql'
+      - 'scripts/prepare-database.mjs'
+      - '.github/workflows/transport-gps-validation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+
+      - name: Transport GPS unit tests
+        run: npx vitest run apps/web/src/lib/transport-gps-sanitize.test.ts
+
+      - name: Production build
+        env:
+          CAMPUSOS_AUTO_DB_PUSH: 'false'
+        run: npm run build
