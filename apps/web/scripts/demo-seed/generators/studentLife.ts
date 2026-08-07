@@ -1,4 +1,5 @@
 import { PrismaClient, Institution } from '@prisma/client';
+import { resultDocumentNumber, resultSnapshotHash, type ResultSnapshotCourse } from '../../../src/lib/result-integrity';
 import { SeededRandom } from '../random';
 import { AcademicStructure } from './structure';
 import { PeopleDataset } from './people';
@@ -12,6 +13,7 @@ import { AcademicsDataset } from './academics';
  *   - Notices targeted at students
  *   - Examination schedule (legacy Exam + ExamSchedule in the enrolled term)
  *   - Published semester results (StudentSemesterResult + StudentCourseResult)
+ *   - Faculty → HOD → Dean → examination-office result authorization audit trail
  *   - A hostel allocation (Allocation → RoomHostel → Hostel)
  *   - Student service support cases (SupportCase by userId)
  *
@@ -95,7 +97,7 @@ export async function seedStudentLife(
     },
   });
 
-  // 3. Extended Examinations → MarksEntryBatch → StudentMarks (marks for this student)
+  // 3. Extended examination and a realistic multi-course consolidated result.
   const extendedExamId = random.generateStableId(30, 6);
   const extendedExam = await prisma.examinations.upsert({
     where: { id: extendedExamId },
@@ -110,75 +112,318 @@ export async function seedStudentLife(
     },
   });
 
-  // Marks entry batch for the first enrolled course offering of the demo student
-  const enrolledOffering = academics.registrations.find((r) => r.studentId === demoStudent.id)?.courseOfferingId;
-  const offering = academics.courseOfferings.find((o) => o.id === enrolledOffering) || academics.courseOfferings[0];
-  const faculty = people.facultyStaff[0];
+  const registeredOfferingIds = Array.from(new Set(
+    academics.registrations
+      .filter((registration) => registration.studentId === demoStudent.id)
+      .map((registration) => registration.courseOfferingId),
+  )).slice(0, 6);
+  if (registeredOfferingIds.length === 0 && academics.courseOfferings[0]) {
+    registeredOfferingIds.push(academics.courseOfferings[0].id);
+  }
 
-  if (offering && faculty) {
-    const batchId = random.generateStableId(30, 7);
-    const batch = await prisma.marksEntryBatch.upsert({
-      where: { id: batchId },
-      update: { status: 'APPROVED' },
-      create: {
-        id: batchId,
-        tenantId: institution.id,
-        examinationId: extendedExam.id,
-        courseOfferingId: offering.id,
-        facultyId: faculty.id,
-        status: 'APPROVED',
-      },
-    });
+  const offeringRecords = await prisma.courseOffering.findMany({
+    where: { tenantId: institution.id, id: { in: registeredOfferingIds } },
+    include: {
+      course: { include: { department: true } },
+      faculty: { include: { user: true } },
+    },
+  });
+  offeringRecords.sort((left, right) => registeredOfferingIds.indexOf(left.id) - registeredOfferingIds.indexOf(right.id));
 
-    const marksId = random.generateStableId(30, 8);
-    await prisma.studentMarks.upsert({
-      where: { id: marksId },
-      update: { marksObtained: 82.5, maxMarks: 100, isAbsent: false },
-      create: {
-        id: marksId,
-        tenantId: institution.id,
-        marksEntryBatchId: batch.id,
-        studentId: demoStudent.id,
-        marksObtained: 82.5,
-        maxMarks: 100,
-        isAbsent: false,
-      },
-    });
-
-    // 4. Published semester result (only published=true is ever exposed)
+  if (offeringRecords.length > 0) {
     const semesterResultId = random.generateStableId(30, 9);
     const semesterResult = await prisma.studentSemesterResult.upsert({
       where: { id: semesterResultId },
-      update: { sgpa: 8.4, cgpa: 3.8, totalCredits: 24, earnedCredits: 24, status: 'PASS', published: true },
+      update: { examinationId: extendedExam.id, status: 'PASS', published: true },
       create: {
         id: semesterResultId,
         tenantId: institution.id,
         studentId: demoStudent.id,
         examinationId: extendedExam.id,
-        sgpa: 8.4,
-        cgpa: 3.8,
-        totalCredits: 24,
-        earnedCredits: 24,
+        sgpa: 0,
+        cgpa: 0,
+        totalCredits: 0,
+        earnedCredits: 0,
         status: 'PASS',
         published: true,
       },
     });
 
-    const courseResultId = random.generateStableId(30, 10);
-    await prisma.studentCourseResult.upsert({
-      where: { id: courseResultId },
-      update: { totalMarks: 82.5, grade: 'A', gradePoints: 8.5, credits: 4, isPass: true },
-      create: {
-        id: courseResultId,
-        tenantId: institution.id,
-        studentId: demoStudent.id,
+    const demoMarks = [92, 87, 84, 79, 90, 82];
+    const snapshotCourses: ResultSnapshotCourse[] = [];
+    let weightedGradePoints = 0;
+    let totalCredits = 0;
+
+    for (let index = 0; index < offeringRecords.length; index += 1) {
+      const offering = offeringRecords[index];
+      const marksObtained = demoMarks[index % demoMarks.length];
+      const grade = gradeForMarks(marksObtained);
+      const credits = Math.max(1, offering.course.lectureCredits + offering.course.tutorialCredits + offering.course.practicalCredits);
+      totalCredits += credits;
+      weightedGradePoints += grade.points * credits;
+
+      const batchId = index === 0 ? random.generateStableId(30, 7) : random.generateStableId(30, 100 + index);
+      const batch = await prisma.marksEntryBatch.upsert({
+        where: { id: batchId },
+        update: {
+          examinationId: extendedExam.id,
+          courseOfferingId: offering.id,
+          facultyId: offering.facultyId,
+          status: 'APPROVED',
+        },
+        create: {
+          id: batchId,
+          tenantId: institution.id,
+          examinationId: extendedExam.id,
+          courseOfferingId: offering.id,
+          facultyId: offering.facultyId,
+          status: 'APPROVED',
+        },
+      });
+
+      const marksId = index === 0 ? random.generateStableId(30, 8) : random.generateStableId(30, 200 + index);
+      await prisma.studentMarks.upsert({
+        where: { id: marksId },
+        update: { marksEntryBatchId: batch.id, marksObtained, maxMarks: 100, isAbsent: false },
+        create: {
+          id: marksId,
+          tenantId: institution.id,
+          marksEntryBatchId: batch.id,
+          studentId: demoStudent.id,
+          marksObtained,
+          maxMarks: 100,
+          isAbsent: false,
+        },
+      });
+
+      const courseResultId = index === 0 ? random.generateStableId(30, 10) : random.generateStableId(30, 300 + index);
+      await prisma.studentCourseResult.upsert({
+        where: { id: courseResultId },
+        update: {
+          courseOfferingId: offering.id,
+          semesterResultId: semesterResult.id,
+          totalMarks: marksObtained,
+          grade: grade.letter,
+          gradePoints: grade.points,
+          credits,
+          isPass: true,
+        },
+        create: {
+          id: courseResultId,
+          tenantId: institution.id,
+          studentId: demoStudent.id,
+          courseOfferingId: offering.id,
+          semesterResultId: semesterResult.id,
+          totalMarks: marksObtained,
+          grade: grade.letter,
+          gradePoints: grade.points,
+          credits,
+          isPass: true,
+        },
+      });
+
+      snapshotCourses.push({
         courseOfferingId: offering.id,
-        semesterResultId: semesterResult.id,
-        totalMarks: 82.5,
-        grade: 'A',
-        gradePoints: 8.5,
-        credits: 4,
+        totalMarks: marksObtained,
+        grade: grade.letter,
+        gradePoints: grade.points,
+        credits,
         isPass: true,
+      });
+    }
+
+    const sgpa = Number((weightedGradePoints / totalCredits).toFixed(2));
+    const cgpa = 8.72;
+    await prisma.studentSemesterResult.update({
+      where: { id: semesterResult.id },
+      data: { sgpa, cgpa, totalCredits, earnedCredits: totalCredits, status: 'PASS', published: true },
+    });
+    await prisma.student.update({
+      where: { id: demoStudent.id },
+      data: { cgpa, creditsEarned: Math.max(demoStudent.creditsEarned, totalCredits) },
+    });
+
+    // 4. Seed a real synthetic academic authorization chain for the demo result.
+    // Each course is certified by its actually assigned faculty member. Each
+    // distinct course department receives an HOD approval, followed by Dean
+    // authorization and publication by the Controller of Examinations.
+    const approvalEntity = `StudentSemesterResult:${semesterResult.id}`;
+    for (let index = 0; index < offeringRecords.length; index += 1) {
+      const offering = offeringRecords[index];
+      await prisma.auditLog.upsert({
+        where: { id: random.generateStableId(31, 100 + index) },
+        update: {
+          userId: offering.faculty.userId,
+          action: 'RESULT_FACULTY_APPROVED',
+          entity: approvalEntity,
+          diffJson: JSON.stringify({
+            stage: 'FACULTY',
+            scopeKey: offering.id,
+            actorRole: 'FACULTY',
+            actorName: offering.faculty.user.name,
+            comment: `Faculty certification recorded for ${offering.course.code} - ${offering.course.title}.`,
+          }),
+          createdAt: new Date(`2026-06-15T09:${String(index * 5).padStart(2, '0')}:00Z`),
+        },
+        create: {
+          id: random.generateStableId(31, 100 + index),
+          tenantId: institution.id,
+          userId: offering.faculty.userId,
+          action: 'RESULT_FACULTY_APPROVED',
+          entity: approvalEntity,
+          diffJson: JSON.stringify({
+            stage: 'FACULTY',
+            scopeKey: offering.id,
+            actorRole: 'FACULTY',
+            actorName: offering.faculty.user.name,
+            comment: `Faculty certification recorded for ${offering.course.code} - ${offering.course.title}.`,
+          }),
+          createdAt: new Date(`2026-06-15T09:${String(index * 5).padStart(2, '0')}:00Z`),
+        },
+      });
+    }
+
+    const departments = Array.from(new Map(offeringRecords.map((offering) => [offering.course.department.id, offering.course.department])).values());
+    for (let index = 0; index < departments.length; index += 1) {
+      const department = departments[index];
+      const hodUser = await prisma.user.upsert({
+        where: { tenantId_email: { tenantId: institution.id, email: `hod.results.${index + 1}@campusos.demo` } },
+        update: { name: `Dr. Ananya Sharma ${index + 1}`, passwordHash: demoStudentUser.passwordHash, role: 'HOD', isActive: true },
+        create: {
+          id: random.generateStableId(31, 10 + index * 2),
+          tenantId: institution.id,
+          email: `hod.results.${index + 1}@campusos.demo`,
+          name: `Dr. Ananya Sharma ${index + 1}`,
+          passwordHash: demoStudentUser.passwordHash,
+          role: 'HOD',
+          isActive: true,
+        },
+      });
+      await prisma.staff.upsert({
+        where: { userId: hodUser.id },
+        update: { departmentId: department.id, designation: 'Head of Department' },
+        create: {
+          id: random.generateStableId(31, 11 + index * 2),
+          tenantId: institution.id,
+          userId: hodUser.id,
+          employeeId: `DEMO-HOD-${String(index + 1).padStart(2, '0')}`,
+          designation: 'Head of Department',
+          departmentId: department.id,
+        },
+      });
+      await prisma.auditLog.upsert({
+        where: { id: random.generateStableId(31, 200 + index) },
+        update: {
+          userId: hodUser.id,
+          action: 'RESULT_HOD_APPROVED',
+          entity: approvalEntity,
+          diffJson: JSON.stringify({ stage: 'HOD', scopeKey: department.id, actorRole: 'HOD', actorName: hodUser.name, comment: `${department.name} result scope approved by the Head of Department.` }),
+          createdAt: new Date(`2026-06-16T10:${String(index * 7).padStart(2, '0')}:00Z`),
+        },
+        create: {
+          id: random.generateStableId(31, 200 + index),
+          tenantId: institution.id,
+          userId: hodUser.id,
+          action: 'RESULT_HOD_APPROVED',
+          entity: approvalEntity,
+          diffJson: JSON.stringify({ stage: 'HOD', scopeKey: department.id, actorRole: 'HOD', actorName: hodUser.name, comment: `${department.name} result scope approved by the Head of Department.` }),
+          createdAt: new Date(`2026-06-16T10:${String(index * 7).padStart(2, '0')}:00Z`),
+        },
+      });
+    }
+
+    const deanUser = await prisma.user.upsert({
+      where: { tenantId_email: { tenantId: institution.id, email: 'dean.results@campusos.demo' } },
+      update: { name: 'Prof. Arvind Rao', passwordHash: demoStudentUser.passwordHash, role: 'DEAN', isActive: true },
+      create: {
+        id: random.generateStableId(31, 50),
+        tenantId: institution.id,
+        email: 'dean.results@campusos.demo',
+        name: 'Prof. Arvind Rao',
+        passwordHash: demoStudentUser.passwordHash,
+        role: 'DEAN',
+        isActive: true,
+      },
+    });
+    await prisma.auditLog.upsert({
+      where: { id: random.generateStableId(31, 250) },
+      update: {
+        userId: deanUser.id,
+        action: 'RESULT_DEAN_APPROVED',
+        entity: approvalEntity,
+        diffJson: JSON.stringify({ stage: 'DEAN', scopeKey: 'FINAL', actorRole: 'DEAN', actorName: deanUser.name, comment: 'Final academic authorization recorded by the Academic Dean.' }),
+        createdAt: new Date('2026-06-17T11:15:00Z'),
+      },
+      create: {
+        id: random.generateStableId(31, 250),
+        tenantId: institution.id,
+        userId: deanUser.id,
+        action: 'RESULT_DEAN_APPROVED',
+        entity: approvalEntity,
+        diffJson: JSON.stringify({ stage: 'DEAN', scopeKey: 'FINAL', actorRole: 'DEAN', actorName: deanUser.name, comment: 'Final academic authorization recorded by the Academic Dean.' }),
+        createdAt: new Date('2026-06-17T11:15:00Z'),
+      },
+    });
+
+    const controllerUser = await prisma.user.upsert({
+      where: { tenantId_email: { tenantId: institution.id, email: 'controller.results@campusos.demo' } },
+      update: { name: 'Dr. Kavita Menon', passwordHash: demoStudentUser.passwordHash, role: 'EXAMINATION_CONTROLLER', isActive: true },
+      create: {
+        id: random.generateStableId(31, 60),
+        tenantId: institution.id,
+        email: 'controller.results@campusos.demo',
+        name: 'Dr. Kavita Menon',
+        passwordHash: demoStudentUser.passwordHash,
+        role: 'EXAMINATION_CONTROLLER',
+        isActive: true,
+      },
+    });
+
+    const snapshotHash = resultSnapshotHash({
+      resultId: semesterResult.id,
+      tenantId: institution.id,
+      studentId: demoStudent.id,
+      examinationId: extendedExam.id,
+      sgpa,
+      cgpa,
+      totalCredits,
+      earnedCredits: totalCredits,
+      status: 'PASS',
+      courses: snapshotCourses,
+    });
+    await prisma.auditLog.upsert({
+      where: { id: random.generateStableId(31, 300) },
+      update: {
+        userId: controllerUser.id,
+        action: 'RESULT_PUBLISHED',
+        entity: approvalEntity,
+        diffJson: JSON.stringify({
+          scopeKey: 'FINAL',
+          actorRole: 'EXAMINATION_CONTROLLER',
+          actorName: controllerUser.name,
+          documentNumber: resultDocumentNumber(institution.code, 2026, semesterResult.id),
+          snapshotHash,
+          verificationVersion: 1,
+          comment: 'Official result published after faculty, HOD and Dean authorization.',
+        }),
+        createdAt: new Date('2026-06-18T14:30:00Z'),
+      },
+      create: {
+        id: random.generateStableId(31, 300),
+        tenantId: institution.id,
+        userId: controllerUser.id,
+        action: 'RESULT_PUBLISHED',
+        entity: approvalEntity,
+        diffJson: JSON.stringify({
+          scopeKey: 'FINAL',
+          actorRole: 'EXAMINATION_CONTROLLER',
+          actorName: controllerUser.name,
+          documentNumber: resultDocumentNumber(institution.code, 2026, semesterResult.id),
+          snapshotHash,
+          verificationVersion: 1,
+          comment: 'Official result published after faculty, HOD and Dean authorization.',
+        }),
+        createdAt: new Date('2026-06-18T14:30:00Z'),
       },
     });
   }
@@ -267,8 +512,8 @@ export async function seedStudentLife(
     },
     {
       id: random.generateStableId(30, 17),
-      title: 'Result published',
-      body: 'Your end-semester result is now available.',
+      title: 'Official result published',
+      body: 'Your authorized end-semester result and verifiable grade card are now available.',
       type: 'RESULT',
       actionUrl: '/results',
     },
@@ -277,7 +522,7 @@ export async function seedStudentLife(
   for (const notification of notifications) {
     await prisma.notification.upsert({
       where: { id: notification.id },
-      update: { isRead: false },
+      update: { title: notification.title, body: notification.body, isRead: false },
       create: {
         id: notification.id,
         tenantId: institution.id,
@@ -290,4 +535,14 @@ export async function seedStudentLife(
       },
     });
   }
+}
+
+function gradeForMarks(marks: number) {
+  if (marks >= 90) return { letter: 'O', points: 10 };
+  if (marks >= 85) return { letter: 'A+', points: 9 };
+  if (marks >= 75) return { letter: 'A', points: 8 };
+  if (marks >= 65) return { letter: 'B+', points: 7 };
+  if (marks >= 55) return { letter: 'B', points: 6 };
+  if (marks >= 50) return { letter: 'C', points: 5 };
+  return { letter: 'F', points: 0 };
 }
