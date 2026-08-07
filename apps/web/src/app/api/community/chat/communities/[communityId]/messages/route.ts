@@ -1,95 +1,86 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+
 import { getSessionFromCookies } from '@/lib/auth';
+import {
+  assertStrictAcademicAccess,
+  chatHttpError,
+  secureMessageAttachmentUrls,
+  sendStrictAcademicMessage,
+} from '@/lib/community-chat-academic';
 import { CommunityChatService } from '@/lib/community-chat-service';
-import { z } from 'zod';
+import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+function sessionInput(session: NonNullable<Awaited<ReturnType<typeof getSessionFromCookies>>>) {
+  return { userId: session.userId, tenantId: session.tenantId, role: session.role };
+}
 
 export async function GET(
   request: Request,
-  { params }: { params: { communityId: string } }
+  { params }: { params: { communityId: string } },
 ) {
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const chatSession = sessionInput(session);
+    await assertStrictAcademicAccess(chatSession, params.communityId);
 
     const { searchParams } = new URL(request.url);
     const cursor = searchParams.get('cursor') || undefined;
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 50;
+    const parsedLimit = Number.parseInt(searchParams.get('limit') ?? '50', 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 60) : 50;
 
     const service = new CommunityChatService(prisma);
-    const result = await service.getMessages(
-      { userId: session.userId, tenantId: session.tenantId, role: session.role },
-      params.communityId,
-      { cursor, limit }
+    const result = await service.getMessages(chatSession, params.communityId, { cursor, limit });
+    return NextResponse.json(
+      { ...result, messages: result.messages.map((message) => secureMessageAttachmentUrls(message)) },
+      { headers: { 'Cache-Control': 'no-store' } },
     );
-    return NextResponse.json(result);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    if (message.includes('Not a member') || message.includes('Community not found')) {
-      return NextResponse.json({ error: message }, { status: 403 });
-    }
-    console.error('[CHAT_MESSAGES_GET]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const failure = chatHttpError(error);
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
 
-const sendMessageSchema = z.object({
-  body: z.string().min(1).max(5000),
-  messageType: z.enum(['TEXT', 'IMAGE', 'VIDEO', 'GIF', 'DOCUMENT', 'LINK', 'POLL', 'CODE']).default('TEXT'),
-  replyToId: z.string().uuid().optional(),
-  attachments: z.array(z.object({
-    attachmentType: z.enum(['IMAGE', 'VIDEO', 'GIF', 'DOCUMENT']),
-    fileName: z.string(),
-    fileUrl: z.string(),
-    thumbnailUrl: z.string().optional(),
-    mimeType: z.string(),
-    fileSizeBytes: z.number(),
-    altText: z.string().optional(),
-    durationSecs: z.number().optional(),
-    widthPx: z.number().optional(),
-    heightPx: z.number().optional(),
-  })).optional(),
-});
-
 export async function POST(
   request: Request,
-  { params }: { params: { communityId: string } }
+  { params }: { params: { communityId: string } },
 ) {
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const chatSession = sessionInput(session);
+    const contentType = request.headers.get('content-type') ?? '';
 
-    const body = await request.json();
-    const validated = sendMessageSchema.parse(body);
+    let body = '';
+    let replyToId: string | undefined;
+    let files: File[] = [];
 
-    const service = new CommunityChatService(prisma);
-    const result = await service.sendMessage(
-      { userId: session.userId, tenantId: session.tenantId, role: session.role },
-      params.communityId,
-      {
-        body: validated.body ?? '', messageType: validated.messageType, replyToId: validated.replyToId,
-        attachments: validated.attachments?.map((attachment) => ({
-          attachmentType: attachment.attachmentType ?? 'DOCUMENT', fileName: attachment.fileName ?? '',
-          fileUrl: attachment.fileUrl ?? '', thumbnailUrl: attachment.thumbnailUrl,
-          mimeType: attachment.mimeType ?? '', fileSizeBytes: attachment.fileSizeBytes ?? 0,
-          altText: attachment.altText, durationSecs: attachment.durationSecs,
-          widthPx: attachment.widthPx, heightPx: attachment.heightPx,
-        })),
+    if (contentType.includes('multipart/form-data')) {
+      const form = await request.formData();
+      body = String(form.get('body') ?? '');
+      const reply = form.get('replyToId');
+      replyToId = typeof reply === 'string' && reply ? reply : undefined;
+      files = form.getAll('files').filter((value): value is File => value instanceof File);
+    } else {
+      const payload: unknown = await request.json();
+      if (!payload || typeof payload !== 'object') {
+        return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
       }
-    );
-
-    if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 });
+      const record = payload as Record<string, unknown>;
+      body = typeof record.body === 'string' ? record.body : '';
+      replyToId = typeof record.replyToId === 'string' ? record.replyToId : undefined;
+      if (Array.isArray(record.attachments) && record.attachments.length > 0) {
+        return NextResponse.json({ error: 'Attachments must be uploaded as files; external file URLs are not accepted.' }, { status: 400 });
+      }
     }
 
-    return NextResponse.json(result.message, { status: 201 });
+    const message = await sendStrictAcademicMessage(chatSession, params.communityId, { body, replyToId, files });
+    return NextResponse.json(message, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error: unknown) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
-    }
-    console.error('[CHAT_MESSAGES_POST]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const failure = chatHttpError(error);
+    return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }

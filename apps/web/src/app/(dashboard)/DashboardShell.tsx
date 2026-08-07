@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { ImpersonationBanner } from '../../components/auth/ImpersonationBanner';
+import { AcademicCommunityDashboardBanner } from '../../components/community/chat/AcademicCommunityDashboardBanner';
 import { BulkImportModal } from '../../components/users/BulkImportModal';
 import { CommandPalette } from '../../components/layout/CommandPalette';
 import { Header } from '../../components/layout/Header';
@@ -113,6 +114,7 @@ export default function DashboardShell({
 
           <div className="relative mx-auto w-full min-w-0 max-w-[var(--content-max-w)] px-4 sm:px-5 lg:px-6 xl:px-8">
             <WorkspaceContextBar />
+            <AcademicCommunityDashboardBanner />
             <div className="dashboard-content-stage min-w-0 max-w-full overflow-x-clip [&>*]:min-w-0 [&>*]:max-w-full">
               {children}
             </div>
