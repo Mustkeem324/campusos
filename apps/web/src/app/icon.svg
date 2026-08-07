@@ -1,5 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CampusOS">
-  <rect width="64" height="64" rx="14" fill="#0B1731"/>
-  <rect x="10" y="10" width="44" height="44" rx="12" fill="#1754E8"/>
-  <path d="M43.2 23.7c-2.8-3.1-6.2-4.7-10.4-4.7-7.9 0-13.6 5.5-13.6 13s5.7 13 13.6 13c4.3 0 7.8-1.7 10.6-4.9l-5-4.6c-1.5 1.7-3.2 2.5-5.4 2.5-3.9 0-6.5-2.5-6.5-6s2.6-6 6.5-6c2.1 0 3.8.8 5.3 2.4l4.9-4.7Z" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NAVEMORA">
+  <rect width="64" height="64" rx="16" fill="#0B1731"/>
+  <path d="M32 7 54 19.5v25L32 57 10 44.5v-25L32 7Z" fill="#1754E8" fill-opacity="0.14" stroke="#4F83F1" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M19 43V21l26 22V21" fill="none" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="19" cy="21" r="3.2" fill="#8CB2FF"/>
+  <circle cx="45" cy="43" r="3.2" fill="#8CB2FF"/>
 </svg>
