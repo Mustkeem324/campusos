@@ -58,7 +58,8 @@ export async function POST(request: Request) {
 
     const parsed = payloadSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the provider snapshot payload.' }, { status: 400 });
-    const result = await syncThirdPartyHostel({ token, ...parsed.data });
+    const syncInput = { token, ...parsed.data } as Parameters<typeof syncThirdPartyHostel>[0];
+    const result = await syncThirdPartyHostel(syncInput);
     return NextResponse.json({ success: true, ...result }, { status: result.duplicate ? 200 : 202, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof HostelError) return NextResponse.json({ error: error.message }, { status: error.status });
