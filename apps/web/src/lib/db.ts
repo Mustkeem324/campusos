@@ -19,8 +19,6 @@ const TENANT_MODELS = [
   'Campus', 'Department', 'Program', 'Batch', 'Section', 'AcademicYear', 'Term',
   'User', 'Role', 'Student', 'Staff', 'Guardian', 'Course', 'CourseOffering',
   'Enrollment', 'Attendance', 'Assignment', 'Submission', 'Exam', 'Result',
-  'Examinations', 'MarksEntryBatch', 'StudentMarks', 'StudentCourseResult',
-  'StudentSemesterResult', 'GradeScale',
   'FeeStructure', 'Invoice', 'Payment', 'Hostel', 'Room', 'Bed', 'HostelAllocation',
   'TransportRoute', 'Vehicle', 'Stop', 'TransportAllocation', 'Book', 'BookCopy',
   'Borrowing', 'Notice', 'Event', 'AuditLog', 'Notification', 'Webhook', 'ApiKey',
