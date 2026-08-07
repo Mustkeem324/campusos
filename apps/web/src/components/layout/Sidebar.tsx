@@ -57,6 +57,18 @@ const RESULT_PUBLICATION_ROLES = new Set([
   'SUPER_ADMIN',
 ]);
 
+const HOSTEL_WORKSPACE_ROLES = new Set([
+  'STUDENT',
+  'PARENT',
+  'WARDEN',
+  'FINANCE_OFFICER',
+  'ACCOUNTANT',
+  'FACULTY',
+  'HOD',
+  'DEAN',
+  'REGISTRAR',
+]);
+
 function formatRole(role?: string) {
   if (!role) return 'Workspace member';
 
@@ -122,6 +134,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const [transportVisible, setTransportVisible] = React.useState(false);
+  const [hostelVisible, setHostelVisible] = React.useState(false);
 
   React.useEffect(() => {
     const toggleMobileNavigation = () => setIsMobileOpen((open) => !open);
@@ -147,8 +160,6 @@ export function Sidebar() {
       setTransportVisible(false);
       return undefined;
     }
-    // The Institution Admin control plane must remain reachable even while the
-    // optional module itself is disabled, otherwise it could never be enabled.
     if (role === 'INSTITUTION_ADMIN') {
       setTransportVisible(true);
       return undefined;
@@ -169,6 +180,35 @@ export function Sidebar() {
     };
   }, [currentSession?.role, currentSession?.institutionName]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    const role = currentSession?.role;
+    if (!role || role === 'SUPER_ADMIN') {
+      setHostelVisible(false);
+      return undefined;
+    }
+    // Institution Admin must always retain the control route so an opted-out
+    // institution can enable and configure the optional Hostel module.
+    if (role === 'INSTITUTION_ADMIN') {
+      setHostelVisible(true);
+      return undefined;
+    }
+
+    setHostelVisible(false);
+    fetch('/api/hostel/availability', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!cancelled) setHostelVisible(Boolean(payload?.visible));
+      })
+      .catch(() => {
+        if (!cancelled) setHostelVisible(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSession?.role, currentSession?.institutionName]);
+
   const canPublishResults = Boolean(currentSession?.role && RESULT_PUBLICATION_ROLES.has(currentSession.role));
   const baseNavGroups: NavGroup[] = currentSession?.role
     ? dashboardDefinitionForRole(currentSession.role).navigation.map((group) => ({
@@ -176,6 +216,7 @@ export function Sidebar() {
         items: group.items
           .filter((item) => !(canPublishResults && item.href === '/results'))
           .filter((item) => item.href !== '/transport' || transportVisible)
+          .filter((item) => item.href !== '/hostel' || hostelVisible)
           .map((item) => ({
             label: item.label,
             icon: iconForHref(item.href),
@@ -208,7 +249,24 @@ export function Sidebar() {
         }
       : null;
 
-  const navGroups: NavGroup[] = transportGroup ? [...resultAwareGroups, transportGroup] : resultAwareGroups;
+  const groupsWithTransport = transportGroup ? [...resultAwareGroups, transportGroup] : resultAwareGroups;
+  const hasHostelItem = groupsWithTransport.some((group) => group.items.some((item) => item.href === '/hostel'));
+  const hostelGroup: NavGroup | null = currentSession?.role === 'INSTITUTION_ADMIN'
+    ? {
+        label: 'HOSTEL OPERATIONS',
+        items: [
+          { label: 'Hostel Control', icon: Building2, href: '/hostel/admin' },
+          ...(hostelVisible ? [{ label: 'Hostel Operations', icon: Building2, href: '/hostel' }] : []),
+        ],
+      }
+    : hostelVisible && currentSession?.role && HOSTEL_WORKSPACE_ROLES.has(currentSession.role) && !hasHostelItem
+      ? {
+          label: 'HOSTEL OPERATIONS',
+          items: [{ label: currentSession.role === 'FACULTY' || currentSession.role === 'HOD' || currentSession.role === 'DEAN' || currentSession.role === 'REGISTRAR' ? 'Hostel Welfare' : 'Hostel', icon: Building2, href: '/hostel' }],
+        }
+      : null;
+
+  const navGroups: NavGroup[] = hostelGroup ? [...groupsWithTransport, hostelGroup] : groupsWithTransport;
 
   const roleLabel = formatRole(currentSession?.role);
   const institutionName = currentSession?.institutionName ?? 'CampusOS Institution';
