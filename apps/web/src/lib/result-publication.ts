@@ -471,14 +471,19 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
 
   const marksByOffering = new Map(marks.map((mark) => [mark.marksEntryBatch.courseOfferingId, mark]));
   const currentSnapshotHash = resultSnapshotHash(snapshotFor(record));
-  const approvalEvents = parseApprovalEvents(audits);
-  const approvals = buildApprovalRequirements(record, approvalEvents, currentSnapshotHash);
-  const facultyApprovals = approvals.filter((approval) => approval.stage === 'FACULTY');
-  const hodApprovals = approvals.filter((approval) => approval.stage === 'HOD');
-  const deanApproval = approvals.find((approval) => approval.stage === 'DEAN');
   const publicationAudit = [...audits].reverse().find((audit) => audit.action === PUBLICATION_ACTION) ?? null;
   const publicationDetails = publicationAudit ? parseDetails(publicationAudit.diffJson) : null;
   const storedSnapshotHash = publicationDetails?.snapshotHash ?? null;
+  const approvalEvents = parseApprovalEvents(audits);
+  const approvals = buildApprovalRequirements(
+    record,
+    approvalEvents,
+    currentSnapshotHash,
+    Boolean(record.published && storedSnapshotHash === currentSnapshotHash),
+  );
+  const facultyApprovals = approvals.filter((approval) => approval.stage === 'FACULTY');
+  const hodApprovals = approvals.filter((approval) => approval.stage === 'HOD');
+  const deanApproval = approvals.find((approval) => approval.stage === 'DEAN');
 
   let integrity: OfficialResult['publication']['integrity'];
   if (!record.published) integrity = 'DRAFT';
@@ -701,8 +706,8 @@ function buildApprovalRequirements(
   record: NonNullLoadedResult,
   events: ApprovalEvent[],
   currentSnapshotHash: string,
+  allowLegacyWithoutHash: boolean,
 ): OfficialResultApproval[] {
-  const allowLegacyWithoutHash = record.published;
   const faculty = record.courseResults.map((course) => approvalRequirement(
     'FACULTY',
     course.courseOfferingId,
