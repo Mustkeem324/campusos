@@ -17,16 +17,17 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 // Define every Prisma model that owns a direct tenantId column. This list is
 // guarded by tenant-model-coverage.test.ts, which parses schema.prisma so new
 // tenant-owned models cannot silently bypass the generic isolation extension.
-// Nested models without tenantId (for example ChatPollOption/ChatPollVote) must
-// be scoped through their tenant-owned parent relation instead.
+// Models without tenantId must be scoped through their tenant-owned parent
+// relation instead; injecting tenantId into them would produce invalid Prisma
+// queries rather than real isolation.
 const TENANT_MODELS = [
   // Core institution / identity / academics
   'Campus', 'Department', 'Program', 'Batch', 'Section', 'AcademicYear', 'Term',
   'User', 'Role', 'Student', 'Staff', 'Guardian', 'Course', 'CourseOffering',
   'Enrollment', 'Curriculum', 'TimetableSlot',
 
-  // Attendance and smart attendance
-  'Attendance', 'AttendanceSession', 'AttendanceRecord', 'AttendanceCheckIn',
+  // Smart attendance models with a direct tenantId
+  'AttendanceSession', 'AttendanceRecord', 'AttendanceCheckIn',
   'AttendanceOverride', 'SmartDevice', 'BiometricConsent', 'BiometricEnrollment',
 
   // LMS / learning / examinations / results
@@ -39,12 +40,11 @@ const TENANT_MODELS = [
   'FeeStructure', 'Invoice', 'Payment', 'RefundPolicy', 'RefundRequest',
   'Scholarship', 'MessBill',
 
-  // Campus operations
-  'Hostel', 'Room', 'Bed', 'HostelAllocation', 'TransportRoute', 'Vehicle', 'Stop',
-  'TransportAllocation', 'Book', 'BookCopy', 'Borrowing', 'LibraryItem',
+  // Campus operations with a direct tenantId
+  'Hostel', 'Room', 'TransportRoute', 'LibraryItem',
 
   // Files, communication and workflows
-  'Document', 'File', 'Notice', 'Event', 'Notification', 'NotificationPreference',
+  'Document', 'File', 'Notice', 'Notification', 'NotificationPreference',
   'EmailQueue', 'Webhook', 'ApiKey', 'Ticket', 'SupportCase', 'GrievanceCase',
   'FeedbackForm',
 
@@ -61,8 +61,8 @@ const TENANT_MODELS = [
   'AiTenantPolicy', 'AiConversation', 'AiMessage', 'AiKnowledgeDocument',
   'AiKnowledgeChunk', 'AiActionProposal', 'AiAuditLog',
 
-  // Careers / placement / alumni
-  'Certificate', 'Placement', 'Application', 'Alumni',
+  // Careers / placement / alumni with a direct tenantId
+  'Certificate', 'Placement', 'Alumni',
 
   // Community Chat System models with a direct tenantId column
   'ChatCommunity', 'ChatCommunityMember', 'ChatMessage', 'ChatAttachment',
