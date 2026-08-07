@@ -121,6 +121,7 @@ export function Sidebar() {
   const { currentSession, isSidebarCollapsed } = useAuthStore();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+  const [transportVisible, setTransportVisible] = React.useState(false);
 
   React.useEffect(() => {
     const toggleMobileNavigation = () => setIsMobileOpen((open) => !open);
@@ -139,12 +140,42 @@ export function Sidebar() {
     setIsMobileOpen(false);
   }, [pathname]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    const role = currentSession?.role;
+    if (!role || role === 'SUPER_ADMIN') {
+      setTransportVisible(false);
+      return undefined;
+    }
+    // The Institution Admin control plane must remain reachable even while the
+    // optional module itself is disabled, otherwise it could never be enabled.
+    if (role === 'INSTITUTION_ADMIN') {
+      setTransportVisible(true);
+      return undefined;
+    }
+
+    setTransportVisible(false);
+    fetch('/api/transport/availability', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!cancelled) setTransportVisible(Boolean(payload?.visible));
+      })
+      .catch(() => {
+        if (!cancelled) setTransportVisible(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSession?.role, currentSession?.institutionName]);
+
   const canPublishResults = Boolean(currentSession?.role && RESULT_PUBLICATION_ROLES.has(currentSession.role));
   const baseNavGroups: NavGroup[] = currentSession?.role
     ? dashboardDefinitionForRole(currentSession.role).navigation.map((group) => ({
         label: group.label,
         items: group.items
           .filter((item) => !(canPublishResults && item.href === '/results'))
+          .filter((item) => item.href !== '/transport' || transportVisible)
           .map((item) => ({
             label: item.label,
             icon: iconForHref(item.href),
@@ -153,7 +184,7 @@ export function Sidebar() {
       })).filter((group) => group.items.length > 0)
     : [];
 
-  const navGroups: NavGroup[] = canPublishResults
+  const resultAwareGroups: NavGroup[] = canPublishResults
     ? [
         ...baseNavGroups,
         {
@@ -164,6 +195,20 @@ export function Sidebar() {
         },
       ]
     : baseNavGroups;
+
+  const transportGroup: NavGroup | null = currentSession?.role === 'INSTITUTION_ADMIN'
+    ? {
+        label: 'CAMPUS TRANSPORT',
+        items: [{ label: 'Transport GPS Control', icon: Bus, href: '/transport/admin' }],
+      }
+    : transportVisible && (currentSession?.role === 'PARENT' || currentSession?.role === 'TRANSPORT_MANAGER')
+      ? {
+          label: 'CAMPUS TRANSPORT',
+          items: [{ label: 'Live Transport GPS', icon: Bus, href: '/transport' }],
+        }
+      : null;
+
+  const navGroups: NavGroup[] = transportGroup ? [...resultAwareGroups, transportGroup] : resultAwareGroups;
 
   const roleLabel = formatRole(currentSession?.role);
   const institutionName = currentSession?.institutionName ?? 'CampusOS Institution';
