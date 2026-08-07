@@ -4,6 +4,7 @@ import {
   canonicalResultSnapshot,
   createResultVerificationToken,
   resultDocumentNumber,
+  resultSnapshotFingerprint,
   resultSnapshotHash,
   verifyResultVerificationToken,
   type ResultSnapshot,
@@ -26,6 +27,8 @@ function snapshot(): ResultSnapshot {
       {
         courseOfferingId: '62345678-1234-1234-1234-123456789abc',
         totalMarks: 87,
+        marksObtained: 87,
+        maxMarks: 100,
         grade: 'A+',
         gradePoints: 9,
         credits: 4,
@@ -34,6 +37,8 @@ function snapshot(): ResultSnapshot {
       {
         courseOfferingId: '52345678-1234-1234-1234-123456789abc',
         totalMarks: 92,
+        marksObtained: 92,
+        maxMarks: 100,
         grade: 'O',
         gradePoints: 10,
         credits: 4,
@@ -44,16 +49,32 @@ function snapshot(): ResultSnapshot {
 }
 
 describe('official result integrity', () => {
-  it('round-trips a signed public verification token', () => {
-    const resultId = snapshot().resultId;
-    const token = createResultVerificationToken(resultId, SECRET);
-    expect(verifyResultVerificationToken(token, SECRET)).toBe(resultId);
+  it('round-trips a signed public verification token for the exact snapshot version', () => {
+    const current = snapshot();
+    const hash = resultSnapshotHash(current);
+    const token = createResultVerificationToken(current.resultId, hash, SECRET);
+    expect(verifyResultVerificationToken(token, SECRET)).toEqual({
+      resultId: current.resultId,
+      snapshotFingerprint: resultSnapshotFingerprint(hash),
+    });
   });
 
   it('rejects tampered verification tokens', () => {
-    const token = createResultVerificationToken(snapshot().resultId, SECRET);
+    const current = snapshot();
+    const token = createResultVerificationToken(current.resultId, resultSnapshotHash(current), SECRET);
     const tampered = `${token.slice(0, -1)}${token.endsWith('A') ? 'B' : 'A'}`;
     expect(verifyResultVerificationToken(tampered, SECRET)).toBeNull();
+  });
+
+  it('creates a different QR token after an authorised result correction', () => {
+    const original = snapshot();
+    const changed: ResultSnapshot = {
+      ...original,
+      courses: original.courses.map((course, index) => index === 0 ? { ...course, marksObtained: 88, totalMarks: 88 } : course),
+    };
+    const originalToken = createResultVerificationToken(original.resultId, resultSnapshotHash(original), SECRET);
+    const changedToken = createResultVerificationToken(changed.resultId, resultSnapshotHash(changed), SECRET);
+    expect(changedToken).not.toBe(originalToken);
   });
 
   it('produces the same academic hash regardless of course row ordering', () => {
@@ -70,6 +91,20 @@ describe('official result integrity', () => {
       courses: original.courses.map((course, index) => index === 0 ? { ...course, grade: 'A', gradePoints: 8 } : course),
     };
     expect(resultSnapshotHash(changed)).not.toBe(resultSnapshotHash(original));
+  });
+
+  it('detects a change to marks or maximum marks shown on the official grade card', () => {
+    const original = snapshot();
+    const changedMarks: ResultSnapshot = {
+      ...original,
+      courses: original.courses.map((course, index) => index === 0 ? { ...course, marksObtained: 86 } : course),
+    };
+    const changedMaximum: ResultSnapshot = {
+      ...original,
+      courses: original.courses.map((course, index) => index === 0 ? { ...course, maxMarks: 90 } : course),
+    };
+    expect(resultSnapshotHash(changedMarks)).not.toBe(resultSnapshotHash(original));
+    expect(resultSnapshotHash(changedMaximum)).not.toBe(resultSnapshotHash(original));
   });
 
   it('creates a deterministic university-style document number', () => {
