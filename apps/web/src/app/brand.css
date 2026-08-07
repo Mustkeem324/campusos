@@ -1,0 +1,17 @@
+/* NAVEMORA brand compatibility layer.
+   Legacy technical identifiers remain stable, while user-facing shell branding
+   uses the new shared mark everywhere. */
+
+a[aria-label="NAVEMORA dashboard"] > span:first-child {
+  color: transparent !important;
+  background-color: transparent !important;
+  background-image: url('/icon.svg') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: contain !important;
+  box-shadow: none !important;
+}
+
+::selection {
+  background: rgba(23, 84, 232, 0.18);
+}

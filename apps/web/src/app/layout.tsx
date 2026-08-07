@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 import './globals.css';
+import './brand.css';
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: SITE_NAME,
   title: {
-    default: 'CampusOS — Connected Higher-Education Operations',
-    template: '%s | CampusOS',
+    default: 'NAVEMORA — Connected Higher-Education Operations',
+    template: '%s | NAVEMORA',
   },
   description: SITE_DESCRIPTION,
   keywords: [
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     'academic management platform',
     'campus operations software',
   ],
-  authors: [{ name: 'CampusOS Editorial Team', url: SITE_URL }],
+  authors: [{ name: 'NAVEMORA Editorial Team', url: SITE_URL }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
   category: 'Higher Education Technology',
@@ -44,7 +45,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,
-    title: 'CampusOS — Connected Higher-Education Operations',
+    title: 'NAVEMORA — Connected Higher-Education Operations',
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     images: [
@@ -52,13 +53,13 @@ export const metadata: Metadata = {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: 'CampusOS connected higher-education operations platform',
+        alt: 'NAVEMORA connected higher-education operations platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'CampusOS — Connected Higher-Education Operations',
+    title: 'NAVEMORA — Connected Higher-Education Operations',
     description: SITE_DESCRIPTION,
     images: ['/opengraph-image'],
   },

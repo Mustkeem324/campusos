@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'CampusOS',
-    short_name: 'CampusOS',
+    name: 'NAVEMORA',
+    short_name: 'NAVEMORA',
     description:
       'Connected higher-education operations for academic, administrative and student-service teams.',
     start_url: '/',
