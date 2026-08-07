@@ -56,16 +56,58 @@ export function checkPublicRateLimit({ key, limit, windowMs }: RateLimitOptions)
   };
 }
 
-export async function readJsonWithLimit(request: Request, maxBytes: number): Promise<unknown> {
-  const declaredLength = Number(request.headers.get('content-length') || 0);
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    throw new PayloadTooLargeError();
+/**
+ * Read a request body without ever buffering more than maxBytes. Checking only
+ * Content-Length is insufficient because chunked requests can omit it, and
+ * calling request.text() before measuring would already allocate the full body.
+ */
+export async function readTextWithLimit(request: Request, maxBytes: number): Promise<string> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error('maxBytes must be a positive safe integer');
   }
 
-  const text = await request.text();
-  const actualBytes = new TextEncoder().encode(text).byteLength;
-  if (actualBytes > maxBytes) throw new PayloadTooLargeError();
+  const contentLength = request.headers.get('content-length');
+  if (contentLength) {
+    const declaredLength = Number(contentLength);
+    if (!Number.isFinite(declaredLength) || declaredLength < 0 || declaredLength > maxBytes) {
+      throw new PayloadTooLargeError();
+    }
+  }
 
+  if (!request.body) return '';
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel('request body limit exceeded').catch(() => undefined);
+        throw new PayloadTooLargeError();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
+export async function readJsonWithLimit(request: Request, maxBytes: number): Promise<unknown> {
+  const text = await readTextWithLimit(request, maxBytes);
   try {
     return JSON.parse(text);
   } catch {
