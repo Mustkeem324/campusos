@@ -27,6 +27,10 @@ export type ResultSnapshot = {
 const RESULT_TOKEN_PREFIX = 'campusos-result-v2';
 const SNAPSHOT_FINGERPRINT_LENGTH = 10;
 const TOKEN_SIGNATURE_LENGTH = 16;
+// Version 6-L supports 134 byte-mode payload bytes. The compact result token is
+// 60 ASCII bytes and `/r/` is 3 bytes, leaving 71 bytes for the public origin.
+// Keep one byte of margin so official PDFs never silently render without a QR.
+const MAX_RESULT_ORIGIN_BYTES = 70;
 
 export function canonicalResultSnapshot(snapshot: ResultSnapshot) {
   const normalized = {
@@ -132,6 +136,9 @@ export function resultPublicOrigin() {
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('unsupported protocol');
     if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
       throw new Error('production verification origin must use HTTPS');
+    }
+    if (Buffer.byteLength(url.origin, 'utf8') > MAX_RESULT_ORIGIN_BYTES) {
+      throw new Error(`verification origin exceeds ${MAX_RESULT_ORIGIN_BYTES} bytes`);
     }
     return url.origin;
   } catch (error: unknown) {
