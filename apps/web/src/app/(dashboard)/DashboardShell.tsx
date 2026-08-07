@@ -1,5 +1,7 @@
 'use client';
 
+import { Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
 
 import { ImpersonationBanner } from '../../components/auth/ImpersonationBanner';
@@ -26,7 +28,7 @@ export default function DashboardShell({
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
-  const { isSidebarCollapsed } = useAuthStore();
+  const { isSidebarCollapsed, currentSession } = useAuthStore();
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   useEffect(() => {
@@ -120,6 +122,19 @@ export default function DashboardShell({
             </div>
           </div>
         </main>
+
+        {currentSession?.role === 'STUDENT' && (
+          <Link
+            href="/student-help"
+            aria-label="Open AI Student Help"
+            className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-2xl border border-[#31598C] bg-[#0B1F3A] px-4 text-sm font-black text-white shadow-[0_18px_40px_rgba(11,31,58,0.28)] transition hover:-translate-y-0.5 hover:bg-[#102E5D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6EA2F4] sm:right-6"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
+              <Sparkles className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <span className="hidden sm:inline">Student Help</span>
+          </Link>
+        )}
       </div>
     </>
   );
