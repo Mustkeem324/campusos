@@ -55,7 +55,7 @@ export async function requireActiveUserContext(): Promise<ActiveUserContext> {
   }
   if (user.role === 'STUDENT') {
     const student = await prisma.student.findFirst({ where: { userId: user.id, tenantId: user.tenantId }, select: { id: true } });
-    if (!student) throw new Error('Profile unresolved: Your student profile or teaching assignments could not be resolved.');
+    if (!student) throw new Error('Profile unresolved: Your student profile could not be resolved.');
     context.studentProfileId = student.id;
   }
   if (user.role === 'PARENT') {
