@@ -14,7 +14,10 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Define models that are scoped by tenantId according to schema.prisma
+// Define models that have a direct tenantId column according to schema.prisma.
+// Nested models without tenantId (for example ChatPollOption/ChatPollVote) must
+// be scoped through their tenant-owned parent relation instead of receiving an
+// invalid tenantId filter from this generic extension.
 const TENANT_MODELS = [
   'Campus', 'Department', 'Program', 'Batch', 'Section', 'AcademicYear', 'Term',
   'User', 'Role', 'Student', 'Staff', 'Guardian', 'Course', 'CourseOffering',
@@ -24,15 +27,15 @@ const TENANT_MODELS = [
   'Borrowing', 'Notice', 'Event', 'AuditLog', 'Notification', 'Webhook', 'ApiKey',
   'Gradebook', 'Certificate', 'Placement', 'Application', 'Alumni',
   'CourseAnnouncement',
-  // Community Chat System models
+  // Community Chat System models with a direct tenantId column
   'ChatCommunity', 'ChatCommunityMember', 'ChatMessage', 'ChatAttachment',
   'ChatReaction', 'ChatBookmark', 'ChatPinnedMessage', 'ChatReport',
   'ChatModerationCase', 'ChatModerationAction', 'ChatUserRestriction',
   'ChatAuditEvent', 'ChatNotificationPref', 'ChatLinkPreview', 'ChatPoll',
-  'ChatReadReceipt', 'ChatPollOption', 'ChatPollVote',
+  'ChatReadReceipt',
   // Community Hub models
   'CommunityPost', 'CommunityReply', 'CommunityReaction', 'CommunityVote',
-  'CommunityPoll', 'CommunityPollOption', 'CommunityBookmark',
+  'CommunityPoll', 'CommunityBookmark',
   'CommunityReport', 'CommunityModerationAction', 'CommunityAcknowledgement',
   'CommunityFollow',
   // Demo Scenario models
@@ -43,7 +46,7 @@ const TENANT_MODELS = [
  * Service Layer Authorization
  * Returns a tenant-scoped Prisma client using Client Extensions.
  * This guarantees that every query (find, create, update, delete) automatically
- * includes the tenantId, enforcing isolation at the ORM layer.
+ * includes the tenantId for models that own a direct tenantId column.
  */
 export function getTenantDb(tenantId: string) {
   if (!tenantId) throw new Error('Tenant ID is required for tenantDb');
@@ -52,13 +55,13 @@ export function getTenantDb(tenantId: string) {
     query: {
       $allModels: {
         async $allOperations({ args, query, model, operation }) {
-          // Only enforce on tenant-scoped models
+          // Only enforce on tenant-scoped models with a direct tenantId column.
           if (TENANT_MODELS.includes(model)) {
             // For reads, updates, deletes -> inject into `where`
             if (['findUnique', 'findFirst', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'count', 'aggregate', 'groupBy'].includes(operation)) {
               (args as any).where = { ...(args as any).where, tenantId };
             }
-            
+
             // For creates -> inject into `data`
             if (['create', 'createMany'].includes(operation)) {
               if (Array.isArray((args as any).data)) {
@@ -67,14 +70,14 @@ export function getTenantDb(tenantId: string) {
                 (args as any).data = { ...(args as any).data, tenantId };
               }
             }
-            
+
             // For upserts
             if (operation === 'upsert') {
               (args as any).where = { ...(args as any).where, tenantId };
               (args as any).create = { ...(args as any).create, tenantId };
             }
           }
-          
+
           return query(args);
         },
       },
