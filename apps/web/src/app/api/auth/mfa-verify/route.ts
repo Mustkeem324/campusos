@@ -133,7 +133,14 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: SESSION_TTL_SECONDS,
+      ...(challenge.rememberMe ? { maxAge: SESSION_TTL_SECONDS } : {}),
+    });
+    response.cookies.set('campusos_workspace', user.institution.subdomain, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      ...(challenge.rememberMe ? { maxAge: SESSION_TTL_SECONDS } : {}),
     });
     return response;
   } catch (error: unknown) {
