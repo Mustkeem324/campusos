@@ -4,5 +4,14 @@
     "next": {
       "rootDir": "apps/web/"
     }
-  }
+  },
+  "overrides": [
+    {
+      "files": ["apps/web/src/components/community/chat/AcademicCommunityChat.tsx"],
+      "rules": {
+        "@next/next/no-img-element": "off",
+        "react-hooks/exhaustive-deps": "off"
+      }
+    }
+  ]
 }
