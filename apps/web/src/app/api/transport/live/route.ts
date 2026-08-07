@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 
 import { getTransportWorkspaceData, TransportError } from '@/lib/transport-gps';
+import { clientSafeTransportWorkspace } from '@/lib/transport-gps-sanitize';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const data = await getTransportWorkspaceData();
+    const data = clientSafeTransportWorkspace(await getTransportWorkspaceData());
     return NextResponse.json(data, {
       headers: { 'Cache-Control': 'private, no-store, max-age=0' },
     });
