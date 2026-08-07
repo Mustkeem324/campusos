@@ -1,0 +1,40 @@
+.canvas {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 44px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.widget {
+  grid-column: calc(var(--widget-x) + 1) / span var(--widget-width);
+  grid-row: calc(var(--widget-y) + 1) / span var(--widget-height);
+  min-height: 0;
+}
+
+.widgetDragging {
+  opacity: 0.48;
+  transform: scale(0.985);
+}
+
+.dropTarget {
+  outline: 2px solid rgba(23, 84, 232, 0.5);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .canvas {
+    display: block;
+  }
+
+  .widget {
+    min-height: 210px;
+    margin-bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .widgetDragging {
+    transform: none;
+  }
+}
