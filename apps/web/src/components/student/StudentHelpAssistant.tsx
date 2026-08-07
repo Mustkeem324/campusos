@@ -6,7 +6,6 @@ import {
   AlertCircle,
   BookOpen,
   ChevronRight,
-  Clock3,
   GraduationCap,
   HelpCircle,
   Lightbulb,
@@ -91,7 +90,7 @@ export function StudentHelpAssistant() {
     const history = messages
       .filter((item) => item.id !== 'welcome')
       .slice(-10)
-      .map((item) => ({ role: item.role, content: item.content }));
+      .map((item) => ({ role: item.role, content: item.content.slice(0, 3000) }));
 
     setMessages((current) => [...current, userMessage]);
     setDraft('');
