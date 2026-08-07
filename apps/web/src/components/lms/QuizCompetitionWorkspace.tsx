@@ -47,16 +47,6 @@ type PublicQuestion = {
   sequence: number;
 };
 
-type AttemptPayload = {
-  attempt: { id: string; startedAt: string; completedAt: string | null; deadline: string | null };
-  quiz: Overview['quiz'];
-  competition: { instructions: string; questionCount: number; totalMarks: number; negativeMarking: boolean; leaderboardEnabled: boolean };
-  questions: PublicQuestion[];
-  answers: Record<string, string[]>;
-  result: ResultPayload | null;
-  serverNow: string;
-};
-
 type ResultPayload = {
   score: number;
   totalMarks: number;
@@ -67,6 +57,16 @@ type ResultPayload = {
   submittedAt: string;
   released: boolean;
   review?: Array<{ questionId: string; correctOptionIds: string[]; explanation: string | null }> | null;
+};
+
+type AttemptPayload = {
+  attempt: { id: string; startedAt: string; completedAt: string | null; deadline: string | null };
+  quiz: Overview['quiz'];
+  competition: { instructions: string; questionCount: number; totalMarks: number; negativeMarking: boolean; leaderboardEnabled: boolean };
+  questions: PublicQuestion[];
+  answers: Record<string, string[]>;
+  result: ResultPayload | null;
+  serverNow: string;
 };
 
 type LeaderEntry = { rank: number; attemptId: string; name: string; rollNumber: string; score: number; durationSeconds: number | null; completedAt: string | null };
@@ -89,6 +89,7 @@ export function QuizCompetitionWorkspace({ courseId, quizId }: { courseId: strin
   const [leaderboard, setLeaderboard] = React.useState<LeaderboardPayload | null>(null);
   const [leaderBusy, setLeaderBusy] = React.useState(false);
   const [focusMode, setFocusMode] = React.useState(false);
+  const autoSubmitStarted = React.useRef(false);
 
   const loadOverview = React.useCallback(async () => {
     setError('');
@@ -109,9 +110,24 @@ export function QuizCompetitionWorkspace({ courseId, quizId }: { courseId: strin
     setAttempt(data);
     setAnswers(data.answers ?? {});
     setSecondsLeft(calculateSecondsLeft(data.attempt.deadline, data.serverNow));
+    autoSubmitStarted.current = Boolean(data.attempt.completedAt);
     const firstUnanswered = data.questions.findIndex((question) => !(data.answers?.[question.id]?.length));
     setQuestionIndex(firstUnanswered >= 0 ? firstUnanswered : 0);
     return data;
+  }, [courseId, quizId]);
+
+  const loadLeaderboard = React.useCallback(async () => {
+    setLeaderBusy(true);
+    try {
+      const response = await fetch(`/api/learning/courses/${encodeURIComponent(courseId)}/quiz-competitions/${encodeURIComponent(quizId)}/leaderboard`, { cache: 'no-store' });
+      const payload: unknown = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(readError(payload, 'Unable to load leaderboard.'));
+      setLeaderboard(payload as LeaderboardPayload);
+    } catch (cause: unknown) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load leaderboard.');
+    } finally {
+      setLeaderBusy(false);
+    }
   }, [courseId, quizId]);
 
   React.useEffect(() => {
@@ -128,26 +144,12 @@ export function QuizCompetitionWorkspace({ courseId, quizId }: { courseId: strin
   const active = Boolean(attempt && !attempt.attempt.completedAt);
 
   React.useEffect(() => {
-    if (!active || secondsLeft === null) return;
+    if (!active) return;
     const timer = window.setInterval(() => {
       setSecondsLeft((current) => current === null ? null : Math.max(0, current - 1));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [active, secondsLeft === null]);
-
-  async function loadLeaderboard() {
-    setLeaderBusy(true);
-    try {
-      const response = await fetch(`/api/learning/courses/${encodeURIComponent(courseId)}/quiz-competitions/${encodeURIComponent(quizId)}/leaderboard`, { cache: 'no-store' });
-      const payload: unknown = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(readError(payload, 'Unable to load leaderboard.'));
-      setLeaderboard(payload as LeaderboardPayload);
-    } catch (cause: unknown) {
-      setError(cause instanceof Error ? cause.message : 'Unable to load leaderboard.');
-    } finally {
-      setLeaderBusy(false);
-    }
-  }
+  }, [active]);
 
   const submitAttempt = React.useCallback(async (automatic = false) => {
     if (!attempt || attempt.attempt.completedAt || busy || savingQuestionId) return;
@@ -166,16 +168,18 @@ export function QuizCompetitionWorkspace({ courseId, quizId }: { courseId: strin
       const freshOverview = await loadOverview();
       if (freshOverview.competition.leaderboardEnabled) void loadLeaderboard();
     } catch (cause: unknown) {
+      autoSubmitStarted.current = false;
       setError(cause instanceof Error ? cause.message : automatic ? 'Time expired, but automatic submission could not be confirmed. Refresh the page.' : 'Unable to submit competition.');
     } finally {
       setBusy(false);
     }
-  // loadLeaderboard intentionally remains local to keep the callback scoped to this competition.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, busy, savingQuestionId, courseId, quizId, loadAttempt, loadOverview]);
+  }, [attempt, busy, courseId, loadAttempt, loadLeaderboard, loadOverview, quizId, savingQuestionId]);
 
   React.useEffect(() => {
-    if (active && secondsLeft === 0 && !savingQuestionId) void submitAttempt(true);
+    if (active && secondsLeft === 0 && !savingQuestionId && !autoSubmitStarted.current) {
+      autoSubmitStarted.current = true;
+      void submitAttempt(true);
+    }
   }, [active, secondsLeft, savingQuestionId, submitAttempt]);
 
   const recordIntegrity = React.useCallback((eventType: 'TAB_HIDDEN' | 'WINDOW_BLUR' | 'FULLSCREEN_EXIT' | 'COPY_ATTEMPT' | 'PASTE_ATTEMPT') => {
@@ -345,7 +349,8 @@ function SubmitDialog({ answered, total, flagged, busy, onCancel, onConfirm }: {
       if (event.key !== 'Tab') return;
       const items = focusables();
       if (!items.length) return;
-      const first = items[0]; const last = items[items.length - 1];
+      const first = items[0];
+      const last = items[items.length - 1];
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
