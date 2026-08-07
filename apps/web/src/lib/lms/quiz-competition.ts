@@ -226,17 +226,47 @@ export async function saveAttemptAnswer(access: CourseAccess, attemptId: string,
   const unique = Array.from(new Set(selectedOptionIds));
   if (unique.length !== selectedOptionIds.length || unique.some((id) => !allowed.has(id))) throw new Error('Answer contains an invalid option.');
   if (question.type !== 'MULTIPLE_CHOICE' && unique.length > 1) throw new Error('Only one option can be selected for this question.');
+
   const entity = answerEntity(attemptId, question.id);
   const payload = JSON.stringify({ selectedOptionIds: unique, savedAt: new Date().toISOString() });
-  const existing = await access.db.auditLog.findFirst({
-    where: { tenantId: access.session.tenantId, userId: access.session.userId, action: QUIZ_COMPETITION_ANSWER_ACTION, entity },
-    select: { id: true },
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "quiz_attempts" WHERE "id" = ${attemptId}::uuid FOR UPDATE`;
+    const attempt = await tx.quizAttempt.findFirst({
+      where: {
+        id: attemptId,
+        completedAt: null,
+        quiz: { tenantId: access.session.tenantId, courseOfferingId: access.offering.id },
+        student: { userId: access.session.userId },
+      },
+      select: { id: true },
+    });
+    if (!attempt) throw new Error('This competition attempt no longer accepts answers.');
+
+    const existing = await tx.auditLog.findFirst({
+      where: {
+        tenantId: access.session.tenantId,
+        userId: access.session.userId,
+        action: QUIZ_COMPETITION_ANSWER_ACTION,
+        entity,
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (existing) {
+      await tx.auditLog.update({ where: { id: existing.id }, data: { diffJson: payload } });
+    } else {
+      await tx.auditLog.create({
+        data: {
+          tenantId: access.session.tenantId,
+          userId: access.session.userId,
+          action: QUIZ_COMPETITION_ANSWER_ACTION,
+          entity,
+          diffJson: payload,
+        },
+      });
+    }
   });
-  if (existing) {
-    await access.db.auditLog.update({ where: { id: existing.id }, data: { diffJson: payload } });
-  } else {
-    await access.db.auditLog.create({ data: { tenantId: access.session.tenantId, userId: access.session.userId, action: QUIZ_COMPETITION_ANSWER_ACTION, entity, diffJson: payload } });
-  }
 }
 
 export async function finalizeCompetitionAttempt(access: CourseAccess, quizId: string, attemptId: string): Promise<CompetitionScore | null> {
