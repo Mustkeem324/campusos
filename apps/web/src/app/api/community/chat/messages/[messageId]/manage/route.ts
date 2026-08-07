@@ -1,3 +1,4 @@
+import type { RoleType } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -9,8 +10,9 @@ import { prisma } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 const editSchema = z.object({ body: z.string().min(1).max(5000) });
+type MessageSession = { userId: string; tenantId: string; role: RoleType };
 
-async function resolve(requestSession: { userId: string; tenantId: string; role: any }, messageId: string) {
+async function resolve(requestSession: MessageSession, messageId: string) {
   const message = await prisma.chatMessage.findFirst({
     where: { id: messageId, tenantId: requestSession.tenantId, isDeleted: false },
     select: { communityId: true },
@@ -24,7 +26,7 @@ export async function PATCH(request: Request, { params }: { params: { messageId:
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const chatSession = { userId: session.userId, tenantId: session.tenantId, role: session.role };
+    const chatSession: MessageSession = { userId: session.userId, tenantId: session.tenantId, role: session.role };
     const message = await resolve(chatSession, params.messageId);
     if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     const validated = editSchema.parse(await request.json());
@@ -42,7 +44,7 @@ export async function DELETE(_request: Request, { params }: { params: { messageI
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const chatSession = { userId: session.userId, tenantId: session.tenantId, role: session.role };
+    const chatSession: MessageSession = { userId: session.userId, tenantId: session.tenantId, role: session.role };
     const message = await resolve(chatSession, params.messageId);
     if (!message) return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     const result = await new CommunityChatService(prisma).deleteMessage(chatSession, params.messageId);
