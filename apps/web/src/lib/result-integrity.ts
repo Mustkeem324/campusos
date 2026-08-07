@@ -90,12 +90,27 @@ export function resultVerificationSecret() {
 
 export function resultPublicOrigin() {
   const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || process.env.VERCEL_URL?.trim();
-  const raw = process.env.APP_PUBLIC_URL?.trim() || (vercelHost ? `https://${vercelHost.replace(/^https?:\/\//, '')}` : 'http://localhost:3000');
+  const configured = process.env.APP_PUBLIC_URL?.trim();
+  const raw = configured || (vercelHost ? `https://${vercelHost.replace(/^https?:\/\//, '')}` : '');
+
+  if (!raw) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('Result verification is not configured. Set APP_PUBLIC_URL or a Vercel public URL.');
+    }
+    return 'http://localhost:3000';
+  }
+
   try {
     const url = new URL(raw);
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error('unsupported protocol');
+    if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+      throw new Error('production verification origin must use HTTPS');
+    }
     return url.origin;
-  } catch {
+  } catch (error: unknown) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Result verification public origin is invalid: ${raw}`, { cause: error });
+    }
     return 'http://localhost:3000';
   }
 }
