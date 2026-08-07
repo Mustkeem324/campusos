@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-import { RoleType } from '@prisma/client';
+import { Prisma, RoleType } from '@prisma/client';
 
 import type { ActiveUserContext } from './active-user-context';
 import { prisma } from './db';
@@ -52,6 +52,7 @@ type ApprovalEvent = {
   approverRole: string;
   approvedAt: string;
   comment: string | null;
+  snapshotHash: string | null;
 };
 
 export type OfficialResultCourse = {
@@ -165,6 +166,7 @@ export async function loadLatestOfficialResultForViewer(context: ActiveUserConte
       select: { id: true },
     });
     if (linkedStudents.length === 0) return null;
+
     const result = await prisma.studentSemesterResult.findFirst({
       where: {
         tenantId: context.tenantId,
@@ -212,8 +214,13 @@ export async function loadVerifiedPublicResult(token: string): Promise<OfficialR
     return null;
   }
   if (!resultId) return null;
-  const result = await prisma.studentSemesterResult.findUnique({ where: { id: resultId }, select: { tenantId: true, published: true } });
+
+  const result = await prisma.studentSemesterResult.findUnique({
+    where: { id: resultId },
+    select: { tenantId: true, published: true },
+  });
   if (!result?.published) return null;
+
   const official = await loadOfficialResult(result.tenantId, resultId);
   return official.publication.integrity === 'VERIFIED' ? official : null;
 }
@@ -229,27 +236,29 @@ export async function loadResultPublicationWorkspace(context: ActiveUserContext)
   });
   if (!actor) throw new ResultPublicationError('Active result-publication user could not be resolved.', 403);
 
-  let departmentId: string | null = null;
+  let hodDepartmentId: string | null = null;
   if (context.activeRole === RoleType.HOD) {
     const staff = await prisma.staff.findFirst({
       where: { tenantId: context.tenantId, userId: context.userId },
       select: { departmentId: true },
     });
-    departmentId = staff?.departmentId ?? null;
-    if (!departmentId) throw new ResultPublicationError('The HOD department assignment could not be resolved.', 403);
+    hodDepartmentId = staff?.departmentId ?? null;
+    if (!hodDepartmentId) throw new ResultPublicationError('The HOD department assignment could not be resolved.', 403);
   }
 
-  const where = context.activeRole === RoleType.FACULTY
-    ? {
-        tenantId: context.tenantId,
-        courseResults: { some: { courseOffering: { facultyId: context.staffProfileId ?? '__unresolved__' } } },
-      }
-    : context.activeRole === RoleType.HOD
-      ? {
-          tenantId: context.tenantId,
-          courseResults: { some: { courseOffering: { course: { departmentId: departmentId! } } } },
-        }
-      : { tenantId: context.tenantId };
+  let where: Prisma.StudentSemesterResultWhereInput = { tenantId: context.tenantId };
+  if (context.activeRole === RoleType.FACULTY) {
+    if (!context.staffProfileId) throw new ResultPublicationError('Faculty profile could not be resolved.', 403);
+    where = {
+      tenantId: context.tenantId,
+      courseResults: { some: { courseOffering: { facultyId: context.staffProfileId } } },
+    };
+  } else if (context.activeRole === RoleType.HOD) {
+    where = {
+      tenantId: context.tenantId,
+      courseResults: { some: { courseOffering: { course: { departmentId: hodDepartmentId! } } } },
+    };
+  }
 
   const rows = await prisma.studentSemesterResult.findMany({
     where,
@@ -271,6 +280,9 @@ export async function approveResultPublication(context: ActiveUserContext, resul
     throw new ResultPublicationError('Your role is not authorised to approve this result.', 403);
   }
 
+  const record = await loadResultRecord(context.tenantId, resultId);
+  if (!record) throw new ResultPublicationError('Result not found.', 404);
+  const currentSnapshotHash = resultSnapshotHash(snapshotFor(record));
   const official = await loadOfficialResult(context.tenantId, resultId);
   if (official.publication.integrity === 'VERIFIED') {
     throw new ResultPublicationError('Published verified results are locked from further approval changes.', 409);
@@ -283,17 +295,16 @@ export async function approveResultPublication(context: ActiveUserContext, resul
   if (!actor) throw new ResultPublicationError('Approver account could not be resolved.', 403);
 
   const entity = resultEntity(resultId);
-  const current = await loadApprovalEvents(context.tenantId, resultId);
+  const currentEvents = await loadApprovalEvents(context.tenantId, resultId);
   const creates: Array<{ stage: ApprovalStage; scopeKey: string; label: string }> = [];
 
   if (context.activeRole === RoleType.FACULTY) {
     if (!context.staffProfileId) throw new ResultPublicationError('Faculty profile could not be resolved.', 403);
-    const record = await loadResultRecord(context.tenantId, resultId);
-    if (!record) throw new ResultPublicationError('Result not found.', 404);
     const assigned = record.courseResults.filter((course) => course.courseOffering.facultyId === context.staffProfileId);
     if (assigned.length === 0) throw new ResultPublicationError('This result has no course assigned to the active faculty member.', 403);
+
     for (const course of assigned) {
-      if (!approvalExists(current, 'FACULTY', course.courseOfferingId)) {
+      if (!approvalExists(currentEvents, 'FACULTY', course.courseOfferingId, currentSnapshotHash)) {
         creates.push({
           stage: 'FACULTY',
           scopeKey: course.courseOfferingId,
@@ -310,12 +321,12 @@ export async function approveResultPublication(context: ActiveUserContext, resul
     });
     const departmentId = staff?.departmentId;
     if (!departmentId) throw new ResultPublicationError('The HOD department assignment could not be resolved.', 403);
+
     const requirement = official.approvals.find((approval) => approval.stage === 'HOD' && approval.scopeKey === departmentId);
     if (!requirement) throw new ResultPublicationError('This result is outside the active HOD department.', 403);
-    const record = await loadResultRecord(context.tenantId, resultId);
-    if (!record) throw new ResultPublicationError('Result not found.', 404);
+
     const departmentCourses = record.courseResults.filter((course) => course.courseOffering.course.departmentId === departmentId);
-    const missingFaculty = departmentCourses.filter((course) => !approvalExists(current, 'FACULTY', course.courseOfferingId));
+    const missingFaculty = departmentCourses.filter((course) => !approvalExists(currentEvents, 'FACULTY', course.courseOfferingId, currentSnapshotHash));
     if (missingFaculty.length > 0) {
       throw new ResultPublicationError(`Faculty certification is still pending for ${missingFaculty.length} course(s) in this department.`, 409);
     }
@@ -327,21 +338,21 @@ export async function approveResultPublication(context: ActiveUserContext, resul
       throw new ResultPublicationError('Result approval requirements are incomplete.', 409);
     }
     if (official.approvalSummary.facultyApproved !== official.approvalSummary.facultyRequired) {
-      throw new ResultPublicationError('All course faculty must certify marks before Dean approval.', 409);
+      throw new ResultPublicationError('All course faculty must certify the current result snapshot before Dean approval.', 409);
     }
     if (official.approvalSummary.hodApproved !== official.approvalSummary.hodRequired) {
-      throw new ResultPublicationError('All required Heads of Department must approve before Dean approval.', 409);
+      throw new ResultPublicationError('All required Heads of Department must approve the current result snapshot before Dean approval.', 409);
     }
     if (!official.approvalSummary.deanApproved) creates.push({ stage: 'DEAN', scopeKey: 'FINAL', label: 'Academic Dean approval' });
   }
 
-  if (creates.length === 0) return { changed: false, message: 'The active approval scope is already authorised.' };
+  if (creates.length === 0) return { changed: false, message: 'The active approval scope is already authorised for this result version.' };
 
   await prisma.$transaction(creates.map((item) => prisma.auditLog.upsert({
-    where: { id: stableAuditId(resultId, APPROVAL_ACTION[item.stage], item.scopeKey) },
+    where: { id: stableAuditId(resultId, APPROVAL_ACTION[item.stage], `${item.scopeKey}:${currentSnapshotHash}`) },
     update: {},
     create: {
-      id: stableAuditId(resultId, APPROVAL_ACTION[item.stage], item.scopeKey),
+      id: stableAuditId(resultId, APPROVAL_ACTION[item.stage], `${item.scopeKey}:${currentSnapshotHash}`),
       tenantId: context.tenantId,
       userId: context.userId,
       action: APPROVAL_ACTION[item.stage],
@@ -351,12 +362,13 @@ export async function approveResultPublication(context: ActiveUserContext, resul
         scopeKey: item.scopeKey,
         actorRole: actor.role,
         actorName: actor.name,
+        snapshotHash: currentSnapshotHash,
         comment: `Authorised in the CampusOS official result publication workflow: ${item.label}.`,
       } satisfies ResultAuditDetails),
     },
   })));
 
-  return { changed: true, message: `Recorded ${creates.length} official approval${creates.length === 1 ? '' : 's'}.` };
+  return { changed: true, message: `Recorded ${creates.length} official approval${creates.length === 1 ? '' : 's'} for the current result version.` };
 }
 
 export async function publishOfficialResult(context: ActiveUserContext, resultId: string) {
@@ -366,7 +378,7 @@ export async function publishOfficialResult(context: ActiveUserContext, resultId
 
   const official = await loadOfficialResult(context.tenantId, resultId);
   if (!official.approvalSummary.readyToPublish) {
-    throw new ResultPublicationError('Faculty, HOD and Dean authorisations must all be complete before publication.', 409);
+    throw new ResultPublicationError('Faculty, HOD and Dean authorisations for the current result version must all be complete before publication.', 409);
   }
 
   const record = await loadResultRecord(context.tenantId, resultId);
@@ -379,12 +391,12 @@ export async function publishOfficialResult(context: ActiveUserContext, resultId
 
   const snapshotHash = resultSnapshotHash(snapshotFor(record));
   const documentNumber = resultDocumentNumber(record.institution.code, examinationYear(record), record.id);
-  const publicationAuditId = stableAuditId(resultId, PUBLICATION_ACTION, 'FINAL');
+  const publicationAuditId = stableAuditId(resultId, PUBLICATION_ACTION, snapshotHash);
   const notificationId = stableAuditId(resultId, 'RESULT_PUBLICATION_NOTIFICATION', record.student.userId);
 
   await prisma.$transaction([
-    prisma.studentSemesterResult.update({
-      where: { id: resultId },
+    prisma.studentSemesterResult.updateMany({
+      where: { id: resultId, tenantId: context.tenantId },
       data: { published: true },
     }),
     prisma.auditLog.upsert({
@@ -403,7 +415,7 @@ export async function publishOfficialResult(context: ActiveUserContext, resultId
           documentNumber,
           snapshotHash,
           verificationVersion: 1,
-          comment: 'Official result published after completion of the required academic approval chain.',
+          comment: 'Official result published after completion of the required academic approval chain for this exact result snapshot.',
         } satisfies ResultAuditDetails),
       },
     }),
@@ -443,8 +455,10 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
         marksEntryBatch: {
           examinationId: record.examinationId,
           courseOfferingId: { in: record.courseResults.map((course) => course.courseOfferingId) },
+          status: 'APPROVED',
         },
       },
+      orderBy: { updatedAt: 'asc' },
       select: {
         marksObtained: true,
         maxMarks: true,
@@ -456,20 +470,20 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
   ]);
 
   const marksByOffering = new Map(marks.map((mark) => [mark.marksEntryBatch.courseOfferingId, mark]));
+  const currentSnapshotHash = resultSnapshotHash(snapshotFor(record));
   const approvalEvents = parseApprovalEvents(audits);
-  const approvals = buildApprovalRequirements(record, approvalEvents);
+  const approvals = buildApprovalRequirements(record, approvalEvents, currentSnapshotHash);
   const facultyApprovals = approvals.filter((approval) => approval.stage === 'FACULTY');
   const hodApprovals = approvals.filter((approval) => approval.stage === 'HOD');
   const deanApproval = approvals.find((approval) => approval.stage === 'DEAN');
-  const publicationAudit = audits.find((audit) => audit.action === PUBLICATION_ACTION) ?? null;
+  const publicationAudit = [...audits].reverse().find((audit) => audit.action === PUBLICATION_ACTION) ?? null;
   const publicationDetails = publicationAudit ? parseDetails(publicationAudit.diffJson) : null;
-  const snapshotHash = resultSnapshotHash(snapshotFor(record));
   const storedSnapshotHash = publicationDetails?.snapshotHash ?? null;
 
   let integrity: OfficialResult['publication']['integrity'];
   if (!record.published) integrity = 'DRAFT';
   else if (!publicationAudit || !storedSnapshotHash) integrity = 'LEGACY';
-  else if (storedSnapshotHash !== snapshotHash) integrity = 'CHANGED';
+  else if (storedSnapshotHash !== currentSnapshotHash) integrity = 'CHANGED';
   else integrity = 'VERIFIED';
 
   const documentNumber = publicationDetails?.documentNumber
@@ -576,24 +590,31 @@ async function workflowActionFor(context: ActiveUserContext, result: OfficialRes
   if (result.publication.integrity === 'VERIFIED') {
     return { kind: 'NONE', label: 'Published', enabled: false, reason: 'This result is published and integrity-verified.' };
   }
-  if (result.publication.integrity === 'CHANGED') {
-    return { kind: 'NONE', label: 'Integrity exception', enabled: false, reason: 'The academic snapshot differs from the published record. Administrative review is required.' };
-  }
+
+  const versionNotice = result.publication.integrity === 'CHANGED'
+    ? 'The result changed after its previous publication. The current academic version must complete the authorization chain again.'
+    : null;
 
   if (context.activeRole === RoleType.FACULTY) {
     const record = await loadResultRecord(context.tenantId, result.id);
-    const assignedScopes = record?.courseResults.filter((course) => course.courseOffering.facultyId === context.staffProfileId).map((course) => course.courseOfferingId) ?? [];
+    const assignedScopes = record?.courseResults
+      .filter((course) => course.courseOffering.facultyId === context.staffProfileId)
+      .map((course) => course.courseOfferingId) ?? [];
     const pending = result.approvals.filter((approval) => approval.stage === 'FACULTY' && assignedScopes.includes(approval.scopeKey) && !approval.approved);
     return pending.length > 0
-      ? { kind: 'APPROVE', label: `Certify ${pending.length} assigned course${pending.length === 1 ? '' : 's'}`, enabled: true, reason: null }
-      : { kind: 'NONE', label: 'Faculty certified', enabled: false, reason: 'Your assigned course marks are already certified.' };
+      ? { kind: 'APPROVE', label: `Certify ${pending.length} assigned course${pending.length === 1 ? '' : 's'}`, enabled: true, reason: versionNotice }
+      : { kind: 'NONE', label: 'Faculty certified', enabled: false, reason: 'Your assigned course marks are already certified for this result version.' };
   }
 
   if (context.activeRole === RoleType.HOD) {
-    const staff = await prisma.staff.findFirst({ where: { tenantId: context.tenantId, userId: context.userId }, select: { departmentId: true } });
+    const staff = await prisma.staff.findFirst({
+      where: { tenantId: context.tenantId, userId: context.userId },
+      select: { departmentId: true },
+    });
     const requirement = result.approvals.find((approval) => approval.stage === 'HOD' && approval.scopeKey === staff?.departmentId);
     if (!requirement) return { kind: 'NONE', label: 'Outside department', enabled: false, reason: 'No result scope belongs to the active HOD department.' };
-    if (requirement.approved) return { kind: 'NONE', label: 'HOD approved', enabled: false, reason: 'Department approval is complete.' };
+    if (requirement.approved) return { kind: 'NONE', label: 'HOD approved', enabled: false, reason: 'Department approval is complete for this result version.' };
+
     const record = await loadResultRecord(context.tenantId, result.id);
     const departmentCourses = record?.courseResults.filter((course) => course.courseOffering.course.departmentId === staff?.departmentId) ?? [];
     const facultyComplete = departmentCourses.every((course) => result.approvals.some((approval) => approval.stage === 'FACULTY' && approval.scopeKey === course.courseOfferingId && approval.approved));
@@ -601,12 +622,12 @@ async function workflowActionFor(context: ActiveUserContext, result: OfficialRes
       kind: 'APPROVE',
       label: 'Approve department result',
       enabled: facultyComplete,
-      reason: facultyComplete ? null : 'Faculty certification is still pending for one or more department courses.',
+      reason: facultyComplete ? versionNotice : 'Faculty certification is still pending for one or more department courses.',
     };
   }
 
   if (context.activeRole === RoleType.DEAN) {
-    if (result.approvalSummary.deanApproved) return { kind: 'NONE', label: 'Dean approved', enabled: false, reason: 'Academic Dean approval is complete.' };
+    if (result.approvalSummary.deanApproved) return { kind: 'NONE', label: 'Dean approved', enabled: false, reason: 'Academic Dean approval is complete for this result version.' };
     const priorComplete = result.approvalSummary.facultyApproved === result.approvalSummary.facultyRequired
       && result.approvalSummary.hodApproved === result.approvalSummary.hodRequired
       && result.approvalSummary.facultyRequired > 0
@@ -615,16 +636,18 @@ async function workflowActionFor(context: ActiveUserContext, result: OfficialRes
       kind: 'APPROVE',
       label: 'Authorise for publication',
       enabled: priorComplete,
-      reason: priorComplete ? null : 'Faculty and HOD authorisations must be complete first.',
+      reason: priorComplete ? versionNotice : 'Faculty and HOD authorisations must be complete first.',
     };
   }
 
   if (RESULT_PUBLICATION_ROLES.includes(context.activeRole)) {
     return {
       kind: 'PUBLISH',
-      label: result.publication.published ? 'Seal published legacy result' : 'Publish official result',
+      label: result.publication.published ? 'Republish authorized result' : 'Publish official result',
       enabled: result.approvalSummary.readyToPublish,
-      reason: result.approvalSummary.readyToPublish ? null : 'Faculty, HOD and Dean authorisations are incomplete.',
+      reason: result.approvalSummary.readyToPublish
+        ? versionNotice
+        : 'Faculty, HOD and Dean authorisations are incomplete for the current result version.',
     };
   }
 
@@ -674,23 +697,57 @@ async function loadResultRecord(tenantId: string, resultId: string) {
   return { ...result, institution };
 }
 
-function buildApprovalRequirements(record: NonNullLoadedResult, events: ApprovalEvent[]): OfficialResultApproval[] {
+function buildApprovalRequirements(
+  record: NonNullLoadedResult,
+  events: ApprovalEvent[],
+  currentSnapshotHash: string,
+): OfficialResultApproval[] {
+  const allowLegacyWithoutHash = record.published;
   const faculty = record.courseResults.map((course) => approvalRequirement(
     'FACULTY',
     course.courseOfferingId,
     `${course.courseOffering.course.code} - ${course.courseOffering.course.title}`,
     events,
+    currentSnapshotHash,
+    allowLegacyWithoutHash,
   ));
 
   const departments = new Map<string, string>();
-  for (const course of record.courseResults) departments.set(course.courseOffering.course.departmentId, course.courseOffering.course.department.name);
-  const hod = [...departments.entries()].map(([departmentId, name]) => approvalRequirement('HOD', departmentId, `${name} - Head of Department`, events));
-  const dean = approvalRequirement('DEAN', 'FINAL', 'Academic Dean - final academic authorisation', events);
+  for (const course of record.courseResults) {
+    departments.set(course.courseOffering.course.departmentId, course.courseOffering.course.department.name);
+  }
+  const hod = [...departments.entries()].map(([departmentId, name]) => approvalRequirement(
+    'HOD',
+    departmentId,
+    `${name} - Head of Department`,
+    events,
+    currentSnapshotHash,
+    allowLegacyWithoutHash,
+  ));
+  const dean = approvalRequirement(
+    'DEAN',
+    'FINAL',
+    'Academic Dean - final academic authorisation',
+    events,
+    currentSnapshotHash,
+    allowLegacyWithoutHash,
+  );
   return [...faculty, ...hod, dean];
 }
 
-function approvalRequirement(stage: ApprovalStage, scopeKey: string, label: string, events: ApprovalEvent[]): OfficialResultApproval {
-  const event = events.find((candidate) => candidate.action === APPROVAL_ACTION[stage] && candidate.scopeKey === scopeKey);
+function approvalRequirement(
+  stage: ApprovalStage,
+  scopeKey: string,
+  label: string,
+  events: ApprovalEvent[],
+  currentSnapshotHash: string,
+  allowLegacyWithoutHash: boolean,
+): OfficialResultApproval {
+  const event = [...events].reverse().find((candidate) =>
+    candidate.action === APPROVAL_ACTION[stage]
+    && candidate.scopeKey === scopeKey
+    && (candidate.snapshotHash === currentSnapshotHash || (allowLegacyWithoutHash && candidate.snapshotHash === null)),
+  );
   return {
     stage,
     scopeKey,
@@ -732,12 +789,22 @@ function parseApprovalEvents(audits: Awaited<ReturnType<typeof loadResultAudits>
       approverRole: details.actorRole ?? audit.user?.role ?? 'ACADEMIC_APPROVER',
       approvedAt: audit.createdAt.toISOString(),
       comment: details.comment ?? null,
+      snapshotHash: details.snapshotHash ?? null,
     }];
   });
 }
 
-function approvalExists(events: ApprovalEvent[], stage: ApprovalStage, scopeKey: string) {
-  return events.some((event) => event.action === APPROVAL_ACTION[stage] && event.scopeKey === scopeKey);
+function approvalExists(
+  events: ApprovalEvent[],
+  stage: ApprovalStage,
+  scopeKey: string,
+  snapshotHash: string,
+) {
+  return events.some((event) =>
+    event.action === APPROVAL_ACTION[stage]
+    && event.scopeKey === scopeKey
+    && event.snapshotHash === snapshotHash,
+  );
 }
 
 function snapshotFor(record: NonNullLoadedResult): ResultSnapshot {
