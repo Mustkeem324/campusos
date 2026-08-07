@@ -8,6 +8,7 @@ import {
   createResultVerificationToken,
   resultDocumentNumber,
   resultPublicOrigin,
+  resultSnapshotFingerprint,
   resultSnapshotHash,
   verifyResultVerificationToken,
   type ResultSnapshot,
@@ -27,6 +28,8 @@ const APPROVAL_ACTION = {
   DEAN: 'RESULT_DEAN_APPROVED',
 } as const;
 const PUBLICATION_ACTION = 'RESULT_PUBLISHED';
+const WORKSPACE_PAGE_SIZE = 40;
+const WORKSPACE_CONCURRENCY = 8;
 
 type ApprovalStage = keyof typeof APPROVAL_ACTION;
 
@@ -43,6 +46,7 @@ type ResultAuditDetails = {
 
 type LoadedResult = Awaited<ReturnType<typeof loadResultRecord>>;
 type NonNullLoadedResult = NonNullable<LoadedResult>;
+type ResolvedMarks = Awaited<ReturnType<typeof loadResolvedMarks>>;
 
 type ApprovalEvent = {
   id: string;
@@ -60,6 +64,7 @@ export type OfficialResultCourse = {
   code: string;
   title: string;
   department: string;
+  departmentId: string;
   credits: number;
   marksObtained: number;
   maxMarks: number | null;
@@ -68,6 +73,7 @@ export type OfficialResultCourse = {
   gradePoints: number;
   isPass: boolean;
   facultyName: string;
+  facultyId: string;
 };
 
 export type OfficialResultApproval = {
@@ -133,6 +139,7 @@ export type OfficialResult = {
     documentNumber: string;
     verificationToken: string | null;
     verificationUrl: string | null;
+    verificationFingerprint: string | null;
     integrity: 'VERIFIED' | 'LEGACY' | 'CHANGED' | 'DRAFT';
   };
 };
@@ -207,22 +214,24 @@ export async function loadOfficialResultForViewer(context: ActiveUserContext, re
 }
 
 export async function loadVerifiedPublicResult(token: string): Promise<OfficialResult | null> {
-  let resultId: string | null = null;
+  let verification: ReturnType<typeof verifyResultVerificationToken> = null;
   try {
-    resultId = verifyResultVerificationToken(token);
+    verification = verifyResultVerificationToken(token);
   } catch {
     return null;
   }
-  if (!resultId) return null;
+  if (!verification) return null;
 
   const result = await prisma.studentSemesterResult.findUnique({
-    where: { id: resultId },
+    where: { id: verification.resultId },
     select: { tenantId: true, published: true },
   });
   if (!result?.published) return null;
 
-  const official = await loadOfficialResult(result.tenantId, resultId);
-  return official.publication.integrity === 'VERIFIED' ? official : null;
+  const official = await loadOfficialResult(result.tenantId, verification.resultId);
+  if (official.publication.integrity !== 'VERIFIED') return null;
+  if (official.publication.verificationFingerprint !== verification.snapshotFingerprint) return null;
+  return official;
 }
 
 export async function loadResultPublicationWorkspace(context: ActiveUserContext): Promise<ResultPublicationWorkspace> {
@@ -263,14 +272,18 @@ export async function loadResultPublicationWorkspace(context: ActiveUserContext)
   const rows = await prisma.studentSemesterResult.findMany({
     where,
     orderBy: { updatedAt: 'desc' },
-    take: 60,
+    take: WORKSPACE_PAGE_SIZE,
     select: { id: true },
   });
 
-  const results = await Promise.all(rows.map(async ({ id }) => {
-    const official = await loadOfficialResult(context.tenantId, id);
-    return { ...official, workflowAction: await workflowActionFor(context, official) };
-  }));
+  const results: ResultPublicationWorkspace['results'] = [];
+  for (let offset = 0; offset < rows.length; offset += WORKSPACE_CONCURRENCY) {
+    const batch = await Promise.all(rows.slice(offset, offset + WORKSPACE_CONCURRENCY).map(async ({ id }) => {
+      const official = await loadOfficialResult(context.tenantId, id);
+      return { ...official, workflowAction: workflowActionFor(context, official, hodDepartmentId) };
+    }));
+    results.push(...batch);
+  }
 
   return { role: context.activeRole, actorName: actor.name, results };
 }
@@ -282,7 +295,8 @@ export async function approveResultPublication(context: ActiveUserContext, resul
 
   const record = await loadResultRecord(context.tenantId, resultId);
   if (!record) throw new ResultPublicationError('Result not found.', 404);
-  const currentSnapshotHash = resultSnapshotHash(snapshotFor(record));
+  const resolvedMarks = await loadResolvedMarks(record);
+  const currentSnapshotHash = resultSnapshotHash(snapshotFor(record, resolvedMarks));
   const official = await loadOfficialResult(context.tenantId, resultId);
   if (official.publication.integrity === 'VERIFIED') {
     throw new ResultPublicationError('Published verified results are locked from further approval changes.', 409);
@@ -383,13 +397,14 @@ export async function publishOfficialResult(context: ActiveUserContext, resultId
 
   const record = await loadResultRecord(context.tenantId, resultId);
   if (!record) throw new ResultPublicationError('Result not found.', 404);
+  const resolvedMarks = await loadResolvedMarks(record);
   const actor = await prisma.user.findFirst({
     where: { id: context.userId, tenantId: context.tenantId, isActive: true },
     select: { name: true, role: true },
   });
   if (!actor) throw new ResultPublicationError('Publisher account could not be resolved.', 403);
 
-  const snapshotHash = resultSnapshotHash(snapshotFor(record));
+  const snapshotHash = resultSnapshotHash(snapshotFor(record, resolvedMarks));
   const documentNumber = resultDocumentNumber(record.institution.code, examinationYear(record), record.id);
   const publicationAuditId = stableAuditId(resultId, PUBLICATION_ACTION, snapshotHash);
   const notificationId = stableAuditId(resultId, 'RESULT_PUBLICATION_NOTIFICATION', record.student.userId);
@@ -414,7 +429,7 @@ export async function publishOfficialResult(context: ActiveUserContext, resultId
           actorName: actor.name,
           documentNumber,
           snapshotHash,
-          verificationVersion: 1,
+          verificationVersion: 2,
           comment: 'Official result published after completion of the required academic approval chain for this exact result snapshot.',
         } satisfies ResultAuditDetails),
       },
@@ -447,30 +462,12 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
   const record = await loadResultRecord(tenantId, resultId);
   if (!record) throw new ResultPublicationError('Result not found.', 404);
 
-  const [marks, audits] = await Promise.all([
-    prisma.studentMarks.findMany({
-      where: {
-        tenantId,
-        studentId: record.studentId,
-        marksEntryBatch: {
-          examinationId: record.examinationId,
-          courseOfferingId: { in: record.courseResults.map((course) => course.courseOfferingId) },
-          status: 'APPROVED',
-        },
-      },
-      orderBy: { updatedAt: 'asc' },
-      select: {
-        marksObtained: true,
-        maxMarks: true,
-        isAbsent: true,
-        marksEntryBatch: { select: { courseOfferingId: true } },
-      },
-    }),
+  const [resolvedMarks, audits] = await Promise.all([
+    loadResolvedMarks(record),
     loadResultAudits(tenantId, resultId),
   ]);
 
-  const marksByOffering = new Map(marks.map((mark) => [mark.marksEntryBatch.courseOfferingId, mark]));
-  const currentSnapshotHash = resultSnapshotHash(snapshotFor(record));
+  const currentSnapshotHash = resultSnapshotHash(snapshotFor(record, resolvedMarks));
   const publicationAudit = [...audits].reverse().find((audit) => audit.action === PUBLICATION_ACTION) ?? null;
   const publicationDetails = publicationAudit ? parseDetails(publicationAudit.diffJson) : null;
   const storedSnapshotHash = publicationDetails?.snapshotHash ?? null;
@@ -495,18 +492,21 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
     ?? resultDocumentNumber(record.institution.code, examinationYear(record), record.id);
   let verificationToken: string | null = null;
   let verificationUrl: string | null = null;
+  let verificationFingerprint: string | null = null;
   if (integrity === 'VERIFIED') {
     try {
-      verificationToken = createResultVerificationToken(record.id);
-      verificationUrl = `${resultPublicOrigin()}/verify/result/${verificationToken}`;
+      verificationFingerprint = resultSnapshotFingerprint(currentSnapshotHash);
+      verificationToken = createResultVerificationToken(record.id, currentSnapshotHash);
+      verificationUrl = `${resultPublicOrigin()}/r/${verificationToken}`;
     } catch {
       verificationToken = null;
       verificationUrl = null;
+      verificationFingerprint = null;
     }
   }
 
   const courses: OfficialResultCourse[] = record.courseResults.map((courseResult) => {
-    const mark = marksByOffering.get(courseResult.courseOfferingId);
+    const mark = resolvedMarks.get(courseResult.courseOfferingId);
     const maxMarks = mark?.maxMarks ?? null;
     const obtained = mark?.isAbsent ? 0 : mark?.marksObtained ?? courseResult.totalMarks;
     return {
@@ -514,6 +514,7 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
       code: courseResult.courseOffering.course.code,
       title: courseResult.courseOffering.course.title,
       department: courseResult.courseOffering.course.department.name,
+      departmentId: courseResult.courseOffering.course.departmentId,
       credits: courseResult.credits,
       marksObtained: obtained,
       maxMarks,
@@ -522,6 +523,7 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
       gradePoints: courseResult.gradePoints,
       isPass: courseResult.isPass,
       facultyName: courseResult.courseOffering.faculty.user.name,
+      facultyId: courseResult.courseOffering.facultyId,
     };
   });
 
@@ -586,12 +588,17 @@ async function loadOfficialResult(tenantId: string, resultId: string): Promise<O
       documentNumber,
       verificationToken,
       verificationUrl,
+      verificationFingerprint,
       integrity,
     },
   };
 }
 
-async function workflowActionFor(context: ActiveUserContext, result: OfficialResult): Promise<ResultPublicationWorkspace['results'][number]['workflowAction']> {
+function workflowActionFor(
+  context: ActiveUserContext,
+  result: OfficialResult,
+  hodDepartmentId: string | null,
+): ResultPublicationWorkspace['results'][number]['workflowAction'] {
   if (result.publication.integrity === 'VERIFIED') {
     return { kind: 'NONE', label: 'Published', enabled: false, reason: 'This result is published and integrity-verified.' };
   }
@@ -601,10 +608,9 @@ async function workflowActionFor(context: ActiveUserContext, result: OfficialRes
     : null;
 
   if (context.activeRole === RoleType.FACULTY) {
-    const record = await loadResultRecord(context.tenantId, result.id);
-    const assignedScopes = record?.courseResults
-      .filter((course) => course.courseOffering.facultyId === context.staffProfileId)
-      .map((course) => course.courseOfferingId) ?? [];
+    const assignedScopes = result.courses
+      .filter((course) => course.facultyId === context.staffProfileId)
+      .map((course) => course.courseOfferingId);
     const pending = result.approvals.filter((approval) => approval.stage === 'FACULTY' && assignedScopes.includes(approval.scopeKey) && !approval.approved);
     return pending.length > 0
       ? { kind: 'APPROVE', label: `Certify ${pending.length} assigned course${pending.length === 1 ? '' : 's'}`, enabled: true, reason: versionNotice }
@@ -612,16 +618,13 @@ async function workflowActionFor(context: ActiveUserContext, result: OfficialRes
   }
 
   if (context.activeRole === RoleType.HOD) {
-    const staff = await prisma.staff.findFirst({
-      where: { tenantId: context.tenantId, userId: context.userId },
-      select: { departmentId: true },
-    });
-    const requirement = result.approvals.find((approval) => approval.stage === 'HOD' && approval.scopeKey === staff?.departmentId);
-    if (!requirement) return { kind: 'NONE', label: 'Outside department', enabled: false, reason: 'No result scope belongs to the active HOD department.' };
+    const requirement = result.approvals.find((approval) => approval.stage === 'HOD' && approval.scopeKey === hodDepartmentId);
+    if (!requirement || !hodDepartmentId) {
+      return { kind: 'NONE', label: 'Outside department', enabled: false, reason: 'No result scope belongs to the active HOD department.' };
+    }
     if (requirement.approved) return { kind: 'NONE', label: 'HOD approved', enabled: false, reason: 'Department approval is complete for this result version.' };
 
-    const record = await loadResultRecord(context.tenantId, result.id);
-    const departmentCourses = record?.courseResults.filter((course) => course.courseOffering.course.departmentId === staff?.departmentId) ?? [];
+    const departmentCourses = result.courses.filter((course) => course.departmentId === hodDepartmentId);
     const facultyComplete = departmentCourses.every((course) => result.approvals.some((approval) => approval.stage === 'FACULTY' && approval.scopeKey === course.courseOfferingId && approval.approved));
     return {
       kind: 'APPROVE',
@@ -700,6 +703,32 @@ async function loadResultRecord(tenantId: string, resultId: string) {
   ]);
   if (!result || !institution) return null;
   return { ...result, institution };
+}
+
+async function loadResolvedMarks(record: NonNullLoadedResult) {
+  const marks = await prisma.studentMarks.findMany({
+    where: {
+      tenantId: record.tenantId,
+      studentId: record.studentId,
+      marksEntryBatch: {
+        examinationId: record.examinationId,
+        courseOfferingId: { in: record.courseResults.map((course) => course.courseOfferingId) },
+        status: 'APPROVED',
+      },
+    },
+    orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+    select: {
+      id: true,
+      marksObtained: true,
+      maxMarks: true,
+      isAbsent: true,
+      marksEntryBatch: { select: { courseOfferingId: true } },
+    },
+  });
+
+  const byOffering = new Map<string, (typeof marks)[number]>();
+  for (const mark of marks) byOffering.set(mark.marksEntryBatch.courseOfferingId, mark);
+  return byOffering;
 }
 
 function buildApprovalRequirements(
@@ -812,7 +841,7 @@ function approvalExists(
   );
 }
 
-function snapshotFor(record: NonNullLoadedResult): ResultSnapshot {
+function snapshotFor(record: NonNullLoadedResult, resolvedMarks: ResolvedMarks): ResultSnapshot {
   return {
     resultId: record.id,
     tenantId: record.tenantId,
@@ -823,14 +852,19 @@ function snapshotFor(record: NonNullLoadedResult): ResultSnapshot {
     totalCredits: record.totalCredits,
     earnedCredits: record.earnedCredits,
     status: record.status,
-    courses: record.courseResults.map((course) => ({
-      courseOfferingId: course.courseOfferingId,
-      totalMarks: course.totalMarks,
-      grade: course.grade,
-      gradePoints: course.gradePoints,
-      credits: course.credits,
-      isPass: course.isPass,
-    })),
+    courses: record.courseResults.map((course) => {
+      const mark = resolvedMarks.get(course.courseOfferingId);
+      return {
+        courseOfferingId: course.courseOfferingId,
+        totalMarks: course.totalMarks,
+        marksObtained: mark?.isAbsent ? 0 : mark?.marksObtained ?? course.totalMarks,
+        maxMarks: mark?.maxMarks ?? null,
+        grade: course.grade,
+        gradePoints: course.gradePoints,
+        credits: course.credits,
+        isPass: course.isPass,
+      };
+    }),
   };
 }
 
