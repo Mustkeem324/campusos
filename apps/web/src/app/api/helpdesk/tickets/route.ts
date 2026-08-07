@@ -15,7 +15,14 @@ export async function POST(request: Request) {
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the helpdesk case details.', fields: parsed.error.flatten().fieldErrors }, { status: 400 });
-    const ticket = await createHelpdeskTicket(parsed.data);
+    const data = parsed.data;
+    const ticket = await createHelpdeskTicket({
+      category: data.category,
+      subject: data.subject,
+      description: data.description,
+      priority: data.priority ?? 'NORMAL',
+      relatedStudentId: data.relatedStudentId ?? null,
+    });
     return NextResponse.json({ success: true, ticket }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof HelpdeskError) return NextResponse.json({ error: error.message }, { status: error.status });
