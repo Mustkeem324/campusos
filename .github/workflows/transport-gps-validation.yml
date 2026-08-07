@@ -7,6 +7,7 @@ on:
       - 'apps/web/src/app/api/transport/**'
       - 'apps/web/src/components/campus/TransportAdminConsole.tsx'
       - 'apps/web/src/components/campus/TransportTrackerConsole.tsx'
+      - 'apps/web/src/components/campus/TransportPhase2*.tsx'
       - 'apps/web/src/components/layout/Sidebar.tsx'
       - 'apps/web/src/lib/transport-gps*'
       - 'packages/db/prisma/transport-gps.sql'
@@ -43,7 +44,7 @@ jobs:
         run: npm run lint -- --max-warnings=0
 
       - name: Transport GPS unit tests
-        run: npx vitest run apps/web/src/lib/transport-gps-sanitize.test.ts
+        run: npx vitest run apps/web/src/lib/transport-gps-sanitize.test.ts apps/web/src/lib/transport-gps-phase2.test.ts
 
       - name: Production build
         env:
