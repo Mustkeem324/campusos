@@ -1,5 +1,7 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { RoleType } from '@prisma/client';
+import { Trophy } from 'lucide-react';
 
 import { LmsProHome, type LmsCourseCard } from '../../../components/lms/LmsProHome';
 import { requireTenantContext } from '../../../lib/tenant-context';
@@ -127,18 +129,25 @@ export default async function LMSHomePage() {
         : 'Institution-wide course offerings and learning activity';
 
   return (
-    <LmsProHome
-      role={session.role}
-      heading={heading}
-      courses={courses}
-      totals={{
-        courses: courses.length,
-        lessons: courses.reduce((sum, course) => sum + course.lessons, 0),
-        assignments: courses.reduce((sum, course) => sum + course.totalAssignments, 0),
-        attention: courses.reduce((sum, course) => sum + course.pendingAssignments + course.overdueAssignments, 0),
-        upcomingQuizzes: courses.reduce((sum, course) => sum + course.upcomingQuizzes, 0),
-        students: courses.reduce((sum, course) => sum + course.students, 0),
-      }}
-    />
+    <div className="space-y-5">
+      <div className="flex justify-end">
+        <Link href="/lms/quiz-competitions" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#C8D7EA] bg-white px-4 text-sm font-black text-[#173A70] shadow-[0_6px_18px_rgba(15,23,42,0.05)] transition hover:border-[#9DB8D8] hover:bg-[#F7FAFE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6BFF]/30">
+          <Trophy className="h-4 w-4" aria-hidden="true" /> Quiz competitions
+        </Link>
+      </div>
+      <LmsProHome
+        role={session.role}
+        heading={heading}
+        courses={courses}
+        totals={{
+          courses: courses.length,
+          lessons: courses.reduce((sum, course) => sum + course.lessons, 0),
+          assignments: courses.reduce((sum, course) => sum + course.totalAssignments, 0),
+          attention: courses.reduce((sum, course) => sum + course.pendingAssignments + course.overdueAssignments, 0),
+          upcomingQuizzes: courses.reduce((sum, course) => sum + course.upcomingQuizzes, 0),
+          students: courses.reduce((sum, course) => sum + course.students, 0),
+        }}
+      />
+    </div>
   );
 }
