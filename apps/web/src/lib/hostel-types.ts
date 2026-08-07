@@ -22,9 +22,12 @@ export type HostelAvailability = {
 
 export type HostelCharge = {
   id: string;
+  studentId: string;
   category: 'HOSTEL' | 'MESS' | 'MAINTENANCE' | 'SECURITY_DEPOSIT' | 'DAMAGE' | 'OTHER';
   description: string;
   amount: number;
+  paidAmount: number;
+  balanceAmount: number;
   currency: string;
   dueDate: string | null;
   status: 'DUE' | 'PARTIAL' | 'PAID' | 'WAIVED' | 'DISPUTED';
@@ -45,6 +48,7 @@ export type HostelAllocationView = {
 
 export type HostelOutpassView = {
   id: string;
+  studentId: string;
   destination: string;
   reason: string | null;
   departureAt: string;
@@ -56,6 +60,7 @@ export type HostelOutpassView = {
 
 export type HostelIncidentView = {
   id: string;
+  studentId: string | null;
   kind: 'DAMAGE' | 'DISCIPLINE' | 'SAFETY' | 'MAINTENANCE';
   title: string;
   status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'CLOSED';
