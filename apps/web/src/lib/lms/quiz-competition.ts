@@ -45,6 +45,7 @@ export type CompetitionConfig = {
 };
 
 export type CompetitionPublicQuestion = Omit<CompetitionQuestion, 'correctOptionIds' | 'explanation'>;
+export type CompetitionScore = ReturnType<typeof scoreCompetition> & { submittedAt: string };
 
 export function configEntity(quizId: string) {
   return `QUIZ_COMPETITION:${quizId}`;
@@ -74,6 +75,7 @@ export function normalizeQuestion(input: Omit<CompetitionQuestion, 'id' | 'seque
   const options = input.options.map((option) => ({ id: option.id.trim() || crypto.randomUUID(), text: option.text.trim() })).filter((option) => option.text);
   if (options.length < 2 || options.length > 8) throw new Error(`Question ${sequence + 1} must have between 2 and 8 options.`);
   const optionIds = new Set(options.map((option) => option.id));
+  if (optionIds.size !== options.length) throw new Error(`Question ${sequence + 1} contains duplicate option identifiers.`);
   const correctOptionIds = Array.from(new Set(input.correctOptionIds)).filter((optionId) => optionIds.has(optionId));
   if (correctOptionIds.length === 0) throw new Error(`Question ${sequence + 1} must have at least one correct option.`);
   if (input.type !== 'MULTIPLE_CHOICE' && correctOptionIds.length !== 1) throw new Error(`Question ${sequence + 1} must have exactly one correct option.`);
@@ -197,14 +199,11 @@ export function scoreCompetition(questions: CompetitionQuestion[], answers: Map<
   return { score: Math.round(score * 100) / 100, totalMarks, percentage, correctCount, wrongCount, unansweredCount, review };
 }
 
-export async function loadAttemptAnswers(access: CourseAccess, attemptId: string) {
-  const rows = await access.db.auditLog.findMany({
-    where: { tenantId: access.session.tenantId, userId: access.session.userId, action: QUIZ_COMPETITION_ANSWER_ACTION, entity: { startsWith: answerPrefix(attemptId) } },
-    select: { entity: true, diffJson: true },
-  });
+function answersFromRows(rows: Array<{ entity: string; diffJson: string | null }>, attemptId: string) {
+  const prefix = answerPrefix(attemptId);
   const answers = new Map<string, string[]>();
   rows.forEach((row) => {
-    const questionId = row.entity.slice(answerPrefix(attemptId).length);
+    const questionId = row.entity.slice(prefix.length);
     if (!questionId || !row.diffJson) return;
     try {
       const parsed = JSON.parse(row.diffJson) as { selectedOptionIds?: unknown };
@@ -214,13 +213,21 @@ export async function loadAttemptAnswers(access: CourseAccess, attemptId: string
   return answers;
 }
 
+export async function loadAttemptAnswers(access: CourseAccess, attemptId: string) {
+  const rows = await access.db.auditLog.findMany({
+    where: { tenantId: access.session.tenantId, userId: access.session.userId, action: QUIZ_COMPETITION_ANSWER_ACTION, entity: { startsWith: answerPrefix(attemptId) } },
+    select: { entity: true, diffJson: true },
+  });
+  return answersFromRows(rows, attemptId);
+}
+
 export async function saveAttemptAnswer(access: CourseAccess, attemptId: string, question: CompetitionQuestion, selectedOptionIds: string[]) {
   const allowed = new Set(question.options.map((option) => option.id));
-  const normalized = Array.from(new Set(selectedOptionIds)).filter((id) => allowed.has(id));
-  if (normalized.length !== selectedOptionIds.length) throw new Error('Answer contains an invalid option.');
-  if (question.type !== 'MULTIPLE_CHOICE' && normalized.length > 1) throw new Error('Only one option can be selected for this question.');
+  const unique = Array.from(new Set(selectedOptionIds));
+  if (unique.length !== selectedOptionIds.length || unique.some((id) => !allowed.has(id))) throw new Error('Answer contains an invalid option.');
+  if (question.type !== 'MULTIPLE_CHOICE' && unique.length > 1) throw new Error('Only one option can be selected for this question.');
   const entity = answerEntity(attemptId, question.id);
-  const payload = JSON.stringify({ selectedOptionIds: normalized, savedAt: new Date().toISOString() });
+  const payload = JSON.stringify({ selectedOptionIds: unique, savedAt: new Date().toISOString() });
   const existing = await access.db.auditLog.findFirst({
     where: { tenantId: access.session.tenantId, userId: access.session.userId, action: QUIZ_COMPETITION_ANSWER_ACTION, entity },
     select: { id: true },
@@ -232,30 +239,65 @@ export async function saveAttemptAnswer(access: CourseAccess, attemptId: string,
   }
 }
 
-export async function finalizeCompetitionAttempt(access: CourseAccess, quizId: string, attemptId: string) {
+export async function finalizeCompetitionAttempt(access: CourseAccess, quizId: string, attemptId: string): Promise<CompetitionScore | null> {
   const competition = await loadCompetitionConfig(access, quizId);
   if (!competition) throw new Error('Quiz competition configuration is unavailable.');
   const questions = await loadCompetitionQuestions(access, quizId);
   const student = await access.db.student.findUnique({ where: { userId: access.session.userId }, select: { id: true } });
   if (!student) throw new Error('Student profile is unavailable.');
-  const attempt = await prisma.quizAttempt.findFirst({
-    where: { id: attemptId, quizId, studentId: student.id, quiz: { tenantId: access.session.tenantId, courseOfferingId: access.offering.id } },
-    select: { id: true, startedAt: true, completedAt: true, score: true },
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "quiz_attempts" WHERE "id" = ${attemptId}::uuid FOR UPDATE`;
+    const attempt = await tx.quizAttempt.findFirst({
+      where: { id: attemptId, quizId, studentId: student.id, quiz: { tenantId: access.session.tenantId, courseOfferingId: access.offering.id } },
+      select: { id: true, completedAt: true },
+    });
+    if (!attempt) throw new Error('Attempt not found.');
+
+    const existingResult = await tx.auditLog.findFirst({
+      where: {
+        tenantId: access.session.tenantId,
+        userId: access.session.userId,
+        action: QUIZ_COMPETITION_RESULT_ACTION,
+        entity: resultEntity(attemptId),
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { diffJson: true },
+    });
+    if (attempt.completedAt) return parseStoredResult(existingResult?.diffJson ?? null);
+    if (existingResult?.diffJson) return parseStoredResult(existingResult.diffJson);
+
+    const answerRows = await tx.auditLog.findMany({
+      where: {
+        tenantId: access.session.tenantId,
+        userId: access.session.userId,
+        action: QUIZ_COMPETITION_ANSWER_ACTION,
+        entity: { startsWith: answerPrefix(attemptId) },
+      },
+      select: { entity: true, diffJson: true },
+    });
+    const answers = answersFromRows(answerRows, attemptId);
+    const scored = scoreCompetition(questions, answers, competition.config.negativeMarking);
+    const submittedAt = new Date();
+    const result: CompetitionScore = { ...scored, submittedAt: submittedAt.toISOString() };
+
+    await tx.quizAttempt.update({ where: { id: attemptId }, data: { score: scored.score, completedAt: submittedAt } });
+    await tx.auditLog.create({
+      data: {
+        tenantId: access.session.tenantId,
+        userId: access.session.userId,
+        action: QUIZ_COMPETITION_RESULT_ACTION,
+        entity: resultEntity(attemptId),
+        diffJson: JSON.stringify(result),
+      },
+    });
+    return result;
   });
-  if (!attempt) throw new Error('Attempt not found.');
-  if (attempt.completedAt) {
-    const existing = await access.db.auditLog.findFirst({ where: { tenantId: access.session.tenantId, action: QUIZ_COMPETITION_RESULT_ACTION, entity: resultEntity(attemptId) }, select: { diffJson: true } });
-    return existing?.diffJson ? JSON.parse(existing.diffJson) as ReturnType<typeof scoreCompetition> & { submittedAt: string } : null;
-  }
-  const answers = await loadAttemptAnswers(access, attemptId);
-  const scored = scoreCompetition(questions, answers, competition.config.negativeMarking);
-  const submittedAt = new Date();
-  const result = { ...scored, submittedAt: submittedAt.toISOString() };
-  await prisma.$transaction([
-    prisma.quizAttempt.update({ where: { id: attemptId }, data: { score: scored.score, completedAt: submittedAt } }),
-    prisma.auditLog.create({ data: { tenantId: access.session.tenantId, userId: access.session.userId, action: QUIZ_COMPETITION_RESULT_ACTION, entity: resultEntity(attemptId), diffJson: JSON.stringify(result) } }),
-  ]);
-  return result;
+}
+
+function parseStoredResult(diffJson: string | null): CompetitionScore | null {
+  if (!diffJson) return null;
+  try { return JSON.parse(diffJson) as CompetitionScore; } catch { return null; }
 }
 
 export function shouldReleaseResult(config: CompetitionConfig, quiz: { endTime: Date | null }, now = new Date()) {
