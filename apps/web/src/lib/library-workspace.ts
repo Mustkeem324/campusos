@@ -106,6 +106,17 @@ export type LibraryWorkspaceItem = {
   tags: string[];
 };
 
+type LibraryItemRow = { id: string; title: string; isbn: string | null };
+type AuditRow = { entity: string; diffJson: string | null };
+
+type LibraryState = {
+  items: LibraryWorkspaceItem[];
+  loans: LibraryLoanMeta[];
+  reservations: LibraryReservationMeta[];
+  policy: LibraryPolicy;
+  catalogMap: Map<string, LibraryCatalogMeta>;
+};
+
 const DEFAULT_POLICY: LibraryPolicy = {
   version: 2,
   studentLoanDays: 14,
@@ -145,19 +156,7 @@ function legacyCatalogMeta(title: string): LibraryCatalogMeta {
   };
 }
 
-async function lockLibraryKeys(tx: Prisma.TransactionClient, keys: string[]) {
-  const ordered = [...new Set(keys)].sort();
-  for (const key of ordered) {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
-  }
-}
-
-async function latestAuditByEntity<T>(tenantId: string, action: string, prefix: string) {
-  const rows = await prisma.auditLog.findMany({
-    where: { tenantId, action, entity: { startsWith: prefix } },
-    orderBy: { createdAt: 'asc' },
-    select: { entity: true, diffJson: true },
-  });
+function foldAuditRows<T>(rows: AuditRow[]) {
   const latest = new Map<string, T>();
   for (const row of rows) {
     const parsed = safeJson<T>(row.diffJson);
@@ -166,36 +165,31 @@ async function latestAuditByEntity<T>(tenantId: string, action: string, prefix: 
   return latest;
 }
 
-export async function getLibraryPolicy(tenantId: string): Promise<LibraryPolicy> {
-  const row = await prisma.auditLog.findFirst({
-    where: { tenantId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(tenantId) },
-    orderBy: { createdAt: 'desc' },
-    select: { diffJson: true },
-  });
-  const parsed = safeJson<LibraryPolicy>(row?.diffJson);
+function activePolicy(value: string | null | undefined) {
+  const parsed = safeJson<LibraryPolicy>(value);
   return parsed?.version === 2 ? parsed : DEFAULT_POLICY;
 }
 
-export async function setLibraryPolicy(context: ActiveUserContext, policy: LibraryPolicy) {
-  if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
-  await prisma.auditLog.create({
-    data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(context.tenantId), diffJson: JSON.stringify(policy) },
-  });
+function loanIsCurrent(loan: LibraryLoanMeta) {
+  if (loan.returnedAt) return false;
+  return loan.mode === 'PHYSICAL' || new Date(loan.dueAt).getTime() > Date.now();
 }
 
-export async function getLibraryState(tenantId: string) {
-  const [items, catalogMap, loanMap, reservationMap, policy] = await Promise.all([
-    prisma.libraryItem.findMany({ where: { tenantId }, orderBy: { title: 'asc' }, select: { id: true, title: true, isbn: true } }),
-    latestAuditByEntity<LibraryCatalogMeta>(tenantId, LIBRARY_CATALOG_ACTION, 'library-item:'),
-    latestAuditByEntity<LibraryLoanMeta>(tenantId, LIBRARY_LOAN_ACTION, 'library-loan:'),
-    latestAuditByEntity<LibraryReservationMeta>(tenantId, LIBRARY_RESERVATION_ACTION, 'library-reservation:'),
-    getLibraryPolicy(tenantId),
-  ]);
-
-  const loans = [...loanMap.values()];
-  const reservations = [...reservationMap.values()].map((reservation) => reservation.status === 'ACTIVE' && reservation.expiresAt && new Date(reservation.expiresAt).getTime() < Date.now()
-    ? { ...reservation, status: 'EXPIRED' as const }
-    : reservation);
+function buildLibraryState(
+  items: LibraryItemRow[],
+  catalogRows: AuditRow[],
+  loanRows: AuditRow[],
+  reservationRows: AuditRow[],
+  policyJson?: string | null,
+): LibraryState {
+  const catalogMap = foldAuditRows<LibraryCatalogMeta>(catalogRows);
+  const loans = [...foldAuditRows<LibraryLoanMeta>(loanRows).values()];
+  const reservations = [...foldAuditRows<LibraryReservationMeta>(reservationRows).values()].map((reservation) => (
+    reservation.status === 'ACTIVE' && reservation.expiresAt && new Date(reservation.expiresAt).getTime() < Date.now()
+      ? { ...reservation, status: 'EXPIRED' as const }
+      : reservation
+  ));
+  const policy = activePolicy(policyJson);
 
   const workspaceItems: LibraryWorkspaceItem[] = items.map((item) => {
     const meta = catalogMap.get(catalogEntity(item.id)) ?? legacyCatalogMeta(item.title);
@@ -233,12 +227,53 @@ export async function getLibraryState(tenantId: string) {
       tags: meta.tags ?? [],
     };
   });
+
   return { items: workspaceItems, loans, reservations, policy, catalogMap };
 }
 
-function loanIsCurrent(loan: LibraryLoanMeta) {
-  if (loan.returnedAt) return false;
-  return loan.mode === 'PHYSICAL' || new Date(loan.dueAt).getTime() > Date.now();
+async function lockLibraryKeys(tx: Prisma.TransactionClient, keys: string[]) {
+  const ordered = [...new Set(keys)].sort();
+  for (const key of ordered) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+  }
+}
+
+async function getLibraryStateFromTransaction(tx: Prisma.TransactionClient, tenantId: string): Promise<LibraryState> {
+  const [items, catalogRows, loanRows, reservationRows, policyRow] = await Promise.all([
+    tx.libraryItem.findMany({ where: { tenantId }, orderBy: { title: 'asc' }, select: { id: true, title: true, isbn: true } }),
+    tx.auditLog.findMany({ where: { tenantId, action: LIBRARY_CATALOG_ACTION, entity: { startsWith: 'library-item:' } }, orderBy: { createdAt: 'asc' }, select: { entity: true, diffJson: true } }),
+    tx.auditLog.findMany({ where: { tenantId, action: LIBRARY_LOAN_ACTION, entity: { startsWith: 'library-loan:' } }, orderBy: { createdAt: 'asc' }, select: { entity: true, diffJson: true } }),
+    tx.auditLog.findMany({ where: { tenantId, action: LIBRARY_RESERVATION_ACTION, entity: { startsWith: 'library-reservation:' } }, orderBy: { createdAt: 'asc' }, select: { entity: true, diffJson: true } }),
+    tx.auditLog.findFirst({ where: { tenantId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(tenantId) }, orderBy: { createdAt: 'desc' }, select: { diffJson: true } }),
+  ]);
+  return buildLibraryState(items, catalogRows, loanRows, reservationRows, policyRow?.diffJson);
+}
+
+export async function getLibraryPolicy(tenantId: string): Promise<LibraryPolicy> {
+  const row = await prisma.auditLog.findFirst({
+    where: { tenantId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(tenantId) },
+    orderBy: { createdAt: 'desc' },
+    select: { diffJson: true },
+  });
+  return activePolicy(row?.diffJson);
+}
+
+export async function setLibraryPolicy(context: ActiveUserContext, policy: LibraryPolicy) {
+  if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
+  await prisma.auditLog.create({
+    data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(context.tenantId), diffJson: JSON.stringify(policy) },
+  });
+}
+
+export async function getLibraryState(tenantId: string): Promise<LibraryState> {
+  const [items, catalogRows, loanRows, reservationRows, policyRow] = await Promise.all([
+    prisma.libraryItem.findMany({ where: { tenantId }, orderBy: { title: 'asc' }, select: { id: true, title: true, isbn: true } }),
+    prisma.auditLog.findMany({ where: { tenantId, action: LIBRARY_CATALOG_ACTION, entity: { startsWith: 'library-item:' } }, orderBy: { createdAt: 'asc' }, select: { entity: true, diffJson: true } }),
+    prisma.auditLog.findMany({ where: { tenantId, action: LIBRARY_LOAN_ACTION, entity: { startsWith: 'library-loan:' } }, orderBy: { createdAt: 'asc' }, select: { entity: true, diffJson: true } }),
+    prisma.auditLog.findMany({ where: { tenantId, action: LIBRARY_RESERVATION_ACTION, entity: { startsWith: 'library-reservation:' } }, orderBy: { createdAt: 'asc' }, select: { entity: true, diffJson: true } }),
+    prisma.auditLog.findFirst({ where: { tenantId, action: LIBRARY_POLICY_ACTION, entity: policyEntity(tenantId) }, orderBy: { createdAt: 'desc' }, select: { diffJson: true } }),
+  ]);
+  return buildLibraryState(items, catalogRows, loanRows, reservationRows, policyRow?.diffJson);
 }
 
 export async function getLibraryWorkspace(context: ActiveUserContext) {
@@ -284,16 +319,27 @@ export function calculateLibraryFineAmount(dueAt: string, returnedAt: Date, poli
   return Number((Math.ceil((returnedAt.getTime() - due.getTime()) / 86_400_000) * policy.finePerDay).toFixed(2));
 }
 
+async function promoteNextWaitingReservation(tx: Prisma.TransactionClient, context: ActiveUserContext, state: LibraryState, itemId: string, excludedReservationId?: string) {
+  const next = state.reservations
+    .filter((reservation) => reservation.itemId === itemId && reservation.status === 'ACTIVE' && !reservation.expiresAt && reservation.reservationId !== excludedReservationId)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
+  if (!next) return;
+  const promoted = { ...next, expiresAt: new Date(Date.now() + state.policy.reservationHoldHours * 3_600_000).toISOString() };
+  await tx.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_RESERVATION_ACTION, entity: reservationEntity(next.reservationId), diffJson: JSON.stringify(promoted) } });
+}
+
 export async function reserveLibraryItem(context: ActiveUserContext, itemId: string) {
   if (!isLibraryBorrower(context.activeRole)) throw new Error('LIBRARY_BORROWING_FORBIDDEN');
   return prisma.$transaction(async (tx) => {
-    await lockLibraryKeys(tx, [`library:reservation:${context.tenantId}:${context.userId}:${itemId}`]);
-    const state = await getLibraryState(context.tenantId);
+    await lockLibraryKeys(tx, [`library:item:${context.tenantId}:${itemId}`, `library:user:${context.tenantId}:${context.userId}`]);
+    const state = await getLibraryStateFromTransaction(tx, context.tenantId);
     const item = state.items.find((entry) => entry.id === itemId);
     if (!item || item.resourceType === 'EBOOK') throw new Error('LIBRARY_ITEM_NOT_RESERVABLE');
     if (state.reservations.some((reservation) => reservation.itemId === itemId && reservation.userId === context.userId && reservation.status === 'ACTIVE')) throw new Error('LIBRARY_ALREADY_RESERVED');
     const user = await tx.user.findFirst({ where: { id: context.userId, tenantId: context.tenantId }, select: { name: true, email: true } });
     if (!user) throw new Error('LIBRARY_USER_NOT_FOUND');
+    const readyHolds = state.reservations.filter((reservation) => reservation.itemId === itemId && reservation.status === 'ACTIVE' && Boolean(reservation.expiresAt)).length;
+    const canHoldNow = item.physical.available > readyHolds;
     const reservation: LibraryReservationMeta = {
       version: 2,
       reservationId: randomUUID(),
@@ -302,7 +348,7 @@ export async function reserveLibraryItem(context: ActiveUserContext, itemId: str
       userName: user.name,
       userEmail: user.email,
       createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + state.policy.reservationHoldHours * 3_600_000).toISOString(),
+      expiresAt: canHoldNow ? new Date(Date.now() + state.policy.reservationHoldHours * 3_600_000).toISOString() : undefined,
       status: 'ACTIVE',
     };
     await tx.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_RESERVATION_ACTION, entity: reservationEntity(reservation.reservationId), diffJson: JSON.stringify(reservation) } });
@@ -312,13 +358,17 @@ export async function reserveLibraryItem(context: ActiveUserContext, itemId: str
 
 export async function cancelLibraryReservation(context: ActiveUserContext, reservationId: string) {
   return prisma.$transaction(async (tx) => {
-    await lockLibraryKeys(tx, [`library:reservation:${context.tenantId}:${reservationId}`]);
-    const state = await getLibraryState(context.tenantId);
+    const initial = await getLibraryStateFromTransaction(tx, context.tenantId);
+    const initialReservation = initial.reservations.find((entry) => entry.reservationId === reservationId);
+    if (!initialReservation) throw new Error('LIBRARY_RESERVATION_NOT_FOUND');
+    await lockLibraryKeys(tx, [`library:item:${context.tenantId}:${initialReservation.itemId}`, `library:reservation:${context.tenantId}:${reservationId}`]);
+    const state = await getLibraryStateFromTransaction(tx, context.tenantId);
     const reservation = state.reservations.find((entry) => entry.reservationId === reservationId);
     if (!reservation) throw new Error('LIBRARY_RESERVATION_NOT_FOUND');
     if (!isLibraryManager(context.activeRole) && reservation.userId !== context.userId) throw new Error('LIBRARY_FORBIDDEN');
     const updated = { ...reservation, status: 'CANCELLED' as const };
     await tx.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_RESERVATION_ACTION, entity: reservationEntity(reservationId), diffJson: JSON.stringify(updated) } });
+    if (reservation.expiresAt) await promoteNextWaitingReservation(tx, context, state, reservation.itemId, reservationId);
     return updated;
   });
 }
@@ -326,11 +376,8 @@ export async function cancelLibraryReservation(context: ActiveUserContext, reser
 export async function borrowDigitalItem(context: ActiveUserContext, itemId: string) {
   if (!isLibraryBorrower(context.activeRole)) throw new Error('LIBRARY_BORROWING_FORBIDDEN');
   return prisma.$transaction(async (tx) => {
-    await lockLibraryKeys(tx, [
-      `library:item:${context.tenantId}:${itemId}`,
-      `library:user:${context.tenantId}:${context.userId}`,
-    ]);
-    const state = await getLibraryState(context.tenantId);
+    await lockLibraryKeys(tx, [`library:item:${context.tenantId}:${itemId}`, `library:user:${context.tenantId}:${context.userId}`]);
+    const state = await getLibraryStateFromTransaction(tx, context.tenantId);
     const item = state.items.find((entry) => entry.id === itemId);
     const catalog = state.catalogMap.get(catalogEntity(itemId));
     if (!item || !item.digital.enabled || !catalog?.digital) throw new Error('LIBRARY_DIGITAL_UNAVAILABLE');
@@ -362,18 +409,21 @@ export async function checkoutPhysicalItem(context: ActiveUserContext, borrowerE
   if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
   const normalizedEmail = borrowerEmail.trim().toLowerCase();
   const normalizedBarcode = barcode.trim();
-  const initialBorrower = await prisma.user.findFirst({ where: { tenantId: context.tenantId, email: normalizedEmail, isActive: true }, select: { id: true } });
-  if (!initialBorrower) throw new Error('LIBRARY_BORROWER_NOT_FOUND');
 
   return prisma.$transaction(async (tx) => {
-    await lockLibraryKeys(tx, [
-      `library:copy:${context.tenantId}:${normalizedBarcode}`,
-      `library:user:${context.tenantId}:${initialBorrower.id}`,
-    ]);
-    const state = await getLibraryState(context.tenantId);
-    const itemEntry = [...state.catalogMap.entries()].find(([, meta]) => meta.physicalCopies.some((copy) => copy.barcode === normalizedBarcode || copy.rfidTag === normalizedBarcode));
+    const initial = await getLibraryStateFromTransaction(tx, context.tenantId);
+    const itemEntry = [...initial.catalogMap.entries()].find(([, meta]) => meta.physicalCopies.some((copy) => copy.barcode === normalizedBarcode || copy.rfidTag === normalizedBarcode));
     if (!itemEntry) throw new Error('LIBRARY_COPY_NOT_FOUND');
     const itemId = itemEntry[0].replace('library-item:', '');
+    const initialBorrower = await tx.user.findFirst({ where: { tenantId: context.tenantId, email: normalizedEmail, isActive: true }, select: { id: true } });
+    if (!initialBorrower) throw new Error('LIBRARY_BORROWER_NOT_FOUND');
+
+    await lockLibraryKeys(tx, [
+      `library:copy:${context.tenantId}:${normalizedBarcode}`,
+      `library:item:${context.tenantId}:${itemId}`,
+      `library:user:${context.tenantId}:${initialBorrower.id}`,
+    ]);
+    const state = await getLibraryStateFromTransaction(tx, context.tenantId);
     if (state.loans.some((loan) => loan.copyBarcode === normalizedBarcode && !loan.returnedAt)) throw new Error('LIBRARY_COPY_ALREADY_LOANED');
     const borrower = await tx.user.findFirst({ where: { id: initialBorrower.id, tenantId: context.tenantId, email: normalizedEmail, isActive: true }, select: { id: true, name: true, email: true, role: true } });
     if (!borrower || !isLibraryBorrower(borrower.role)) throw new Error('LIBRARY_BORROWER_NOT_FOUND');
@@ -404,6 +454,8 @@ export async function checkoutPhysicalItem(context: ActiveUserContext, borrowerE
     if (reservation) {
       const fulfilled = { ...reservation, status: 'FULFILLED' as const };
       await tx.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_RESERVATION_ACTION, entity: reservationEntity(reservation.reservationId), diffJson: JSON.stringify(fulfilled) } });
+      const item = state.items.find((entry) => entry.id === itemId);
+      if (item && item.physical.available > 1) await promoteNextWaitingReservation(tx, context, state, itemId, reservation.reservationId);
     }
     return loan;
   });
@@ -412,21 +464,28 @@ export async function checkoutPhysicalItem(context: ActiveUserContext, borrowerE
 export async function returnLibraryLoan(context: ActiveUserContext, loanId: string) {
   if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
   return prisma.$transaction(async (tx) => {
-    await lockLibraryKeys(tx, [`library:loan:${context.tenantId}:${loanId}`]);
-    const state = await getLibraryState(context.tenantId);
+    const initial = await getLibraryStateFromTransaction(tx, context.tenantId);
+    const initialLoan = initial.loans.find((entry) => entry.loanId === loanId);
+    if (!initialLoan) throw new Error('LIBRARY_LOAN_NOT_ACTIVE');
+    await lockLibraryKeys(tx, [`library:item:${context.tenantId}:${initialLoan.itemId}`, `library:loan:${context.tenantId}:${loanId}`, `library:user:${context.tenantId}:${initialLoan.borrowerUserId}`]);
+    const state = await getLibraryStateFromTransaction(tx, context.tenantId);
     const loan = state.loans.find((entry) => entry.loanId === loanId);
     if (!loan || loan.returnedAt) throw new Error('LIBRARY_LOAN_NOT_ACTIVE');
     const returnedAt = new Date();
     const updated = { ...loan, returnedAt: returnedAt.toISOString(), finalFineAmount: calculateLibraryFineAmount(loan.dueAt, returnedAt, state.policy) };
     await tx.auditLog.create({ data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_LOAN_ACTION, entity: loanEntity(loanId), diffJson: JSON.stringify(updated) } });
+    if (loan.mode === 'PHYSICAL') await promoteNextWaitingReservation(tx, context, state, loan.itemId);
     return updated;
   });
 }
 
 export async function renewLibraryLoan(context: ActiveUserContext, loanId: string) {
   return prisma.$transaction(async (tx) => {
-    await lockLibraryKeys(tx, [`library:loan:${context.tenantId}:${loanId}`]);
-    const state = await getLibraryState(context.tenantId);
+    const initial = await getLibraryStateFromTransaction(tx, context.tenantId);
+    const initialLoan = initial.loans.find((entry) => entry.loanId === loanId);
+    if (!initialLoan) throw new Error('LIBRARY_LOAN_NOT_RENEWABLE');
+    await lockLibraryKeys(tx, [`library:item:${context.tenantId}:${initialLoan.itemId}`, `library:loan:${context.tenantId}:${loanId}`, `library:user:${context.tenantId}:${initialLoan.borrowerUserId}`]);
+    const state = await getLibraryStateFromTransaction(tx, context.tenantId);
     const loan = state.loans.find((entry) => entry.loanId === loanId);
     if (!loan || loan.returnedAt || new Date(loan.dueAt).getTime() <= Date.now()) throw new Error('LIBRARY_LOAN_NOT_RENEWABLE');
     if (!isLibraryManager(context.activeRole) && loan.borrowerUserId !== context.userId) throw new Error('LIBRARY_FORBIDDEN');
