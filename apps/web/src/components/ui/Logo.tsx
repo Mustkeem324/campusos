@@ -6,53 +6,44 @@ interface LogoProps {
   showText?: boolean;
 }
 
-export function Logo({ className = "w-8 h-8", variant = 'brand', showText = false }: LogoProps) {
-  const primaryColor = variant === 'light' ? '#FFFFFF' : '#1854E8';
-  const secondaryColor = variant === 'light' ? 'rgba(255,255,255,0.7)' : variant === 'dark' ? '#101B33' : '#101B33';
+export function Logo({ className = 'w-8 h-8', variant = 'brand', showText = false }: LogoProps) {
+  const primaryColor = variant === 'light' ? '#FFFFFF' : '#1754E8';
+  const nodeColor = variant === 'light' ? '#FFFFFF' : variant === 'dark' ? '#101D38' : '#101D38';
+  const fillColor = variant === 'light' ? 'rgba(255,255,255,0.08)' : 'rgba(23,84,232,0.08)';
 
   return (
-    <div className="flex items-center gap-2">
-      <svg 
-        viewBox="0 0 100 100" 
-        fill="none" 
+    <div className="flex items-center gap-2.5">
+      <svg
+        viewBox="0 0 64 64"
+        fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={`shrink-0 ${className}`}
+        role="img"
+        aria-label="NAVEMORA"
       >
-        {/* Outer Hexagon / Shield Shape */}
-        <path 
-          d="M50 4L91 25.5V74.5L50 96L9 74.5V25.5L50 4Z" 
-          fill={primaryColor} 
-          fillOpacity="0.1" 
-          stroke={primaryColor} 
-          strokeWidth="6" 
-          strokeLinecap="round" 
+        <path
+          d="M32 5.5 55 18.75v26.5L32 58.5 9 45.25v-26.5L32 5.5Z"
+          fill={fillColor}
+          stroke={primaryColor}
+          strokeWidth="3.5"
           strokeLinejoin="round"
         />
-        {/* Inner C */}
-        <path 
-          d="M68 36C65.5 32 60 28 50 28C36 28 26 38 26 50C26 62 36 72 50 72C60 72 65.5 68 68 64" 
-          stroke={primaryColor} 
-          strokeWidth="10" 
-          strokeLinecap="round" 
+        <path
+          d="M19 43V21l26 22V21"
+          stroke={primaryColor}
+          strokeWidth="6.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
-        {/* Inner Connection Node */}
-        <circle 
-          cx="68" 
-          cy="50" 
-          r="8" 
-          fill={secondaryColor} 
-        />
-        {/* Connecting line */}
-        <path 
-          d="M48 50H60" 
-          stroke={secondaryColor} 
-          strokeWidth="6" 
-          strokeLinecap="round" 
-        />
+        <circle cx="19" cy="21" r="3.5" fill={nodeColor} />
+        <circle cx="45" cy="43" r="3.5" fill={nodeColor} />
       </svg>
       {showText && (
-        <span className={`font-bold tracking-tight ${variant === 'light' ? 'text-white' : 'text-[#101828]'}`} style={{ fontSize: '1.25em' }}>
-          CampusOS
+        <span
+          className={`font-extrabold tracking-[-0.045em] ${variant === 'light' ? 'text-white' : 'text-[#101828]'}`}
+          style={{ fontSize: '1.18em' }}
+        >
+          NAVEMORA
         </span>
       )}
     </div>
