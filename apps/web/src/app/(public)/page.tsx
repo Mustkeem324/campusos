@@ -11,6 +11,7 @@ import { FinalCta } from '@/components/public/homepage/FinalCta';
 import { HeroSection } from '@/components/public/homepage/HeroSection';
 import { ImplementationJourney } from '@/components/public/homepage/ImplementationJourney';
 import { IndianCampaignPopup } from '@/components/public/homepage/IndianCampaignPopup';
+import { InstitutionalAssuranceRoadmap } from '@/components/public/homepage/InstitutionalAssuranceRoadmap';
 import { InstitutionTypeSection } from '@/components/public/homepage/InstitutionTypeSection';
 import { OperatingStorySection } from '@/components/public/homepage/OperatingStorySection';
 import { PlatformSystemsSection } from '@/components/public/homepage/PlatformSystemsSection';
@@ -60,6 +61,7 @@ export default async function Homepage() {
         <RegionalCapabilities />
         <ImplementationJourney />
         <SecuritySection />
+        <InstitutionalAssuranceRoadmap />
         <ResourcePreview />
         <CustomerProofSection />
         <PricingSection />
