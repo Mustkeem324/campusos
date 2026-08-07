@@ -16,13 +16,14 @@ export async function POST() {
   }
 
   const response = NextResponse.json({ success: true });
-  clearSessionCookie(response);
+  clearCookie(response, 'campusos_session', true);
+  clearCookie(response, 'campusos_workspace', true);
   return response;
 }
 
-function clearSessionCookie(response: NextResponse) {
-  response.cookies.set('campusos_session', '', {
-    httpOnly: true,
+function clearCookie(response: NextResponse, name: string, httpOnly: boolean) {
+  response.cookies.set(name, '', {
+    httpOnly,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
