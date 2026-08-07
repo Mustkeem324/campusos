@@ -32,7 +32,11 @@ function errorResponse(error: unknown) {
 export async function POST(request: Request) {
   try {
     const context = await requireActiveUserContext();
-    const input = resetDashboardLayoutSchema.parse(await request.json());
+    const parsed = resetDashboardLayoutSchema.parse(await request.json());
+    const input = {
+      expectedRevision: parsed.expectedRevision as number,
+      dashboardKey: (parsed.dashboardKey ?? 'main') as string,
+    };
     const response = await resetDashboardLayouts(
       context,
       input,
