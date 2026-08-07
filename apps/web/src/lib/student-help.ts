@@ -152,9 +152,10 @@ export function explicitlyLiveAssessment(message: string) {
 
 async function findActiveAssessment(context: ActiveUserContext): Promise<ActiveAssessment | null> {
   if (!context.studentProfileId) return null;
-  const attempt = await prisma.quizAttempt.findFirst({
+  const attempts = await prisma.quizAttempt.findMany({
     where: { studentId: context.studentProfileId, completedAt: null },
     orderBy: { startedAt: 'desc' },
+    take: 5,
     select: {
       id: true,
       startedAt: true,
@@ -174,22 +175,26 @@ async function findActiveAssessment(context: ActiveUserContext): Promise<ActiveA
       },
     },
   });
-  if (!attempt || attempt.quiz.courseOffering.tenantId !== context.tenantId) return null;
 
   const now = new Date();
-  if (attempt.quiz.startTime && now < attempt.quiz.startTime) return null;
-  const timedDeadline = attempt.quiz.timeLimitMins
-    ? new Date(attempt.startedAt.getTime() + attempt.quiz.timeLimitMins * 60_000)
-    : null;
-  const deadline = earliestDate(timedDeadline, attempt.quiz.endTime);
-  if (deadline && now >= deadline) return null;
+  for (const attempt of attempts) {
+    if (attempt.quiz.courseOffering.tenantId !== context.tenantId) continue;
+    if (attempt.quiz.startTime && now < attempt.quiz.startTime) continue;
+    const timedDeadline = attempt.quiz.timeLimitMins
+      ? new Date(attempt.startedAt.getTime() + attempt.quiz.timeLimitMins * 60_000)
+      : null;
+    const deadline = earliestDate(timedDeadline, attempt.quiz.endTime);
+    if (deadline && now >= deadline) continue;
 
-  return {
-    attemptId: attempt.id,
-    title: attempt.quiz.title,
-    courseCode: attempt.quiz.courseOffering.course.code,
-    deadline: deadline?.toISOString() ?? null,
-  };
+    return {
+      attemptId: attempt.id,
+      title: attempt.quiz.title,
+      courseCode: attempt.quiz.courseOffering.course.code,
+      deadline: deadline?.toISOString() ?? null,
+    };
+  }
+
+  return null;
 }
 
 function earliestDate(first: Date | null, second: Date | null) {
@@ -315,15 +320,15 @@ function answerOperationalQuestion(message: string, dashboard: Awaited<ReturnTyp
   }
 
   if (/\b(assignment|assignments|due work|submission|deadline)\b/.test(lower)) {
-    const pending = dashboard.assignments
+    const allPending = dashboard.assignments
       .filter((assignment) => !assignment.submitted)
-      .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime())
-      .slice(0, 6);
-    if (pending.length === 0) {
+      .sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime());
+    const preview = allPending.slice(0, 6);
+    if (allPending.length === 0) {
       return { answer: 'You have no unsubmitted assignments in your currently loaded enrolled-course data.', sources: [{ label: 'Assignments', href: '/assignments' }] };
     }
     return {
-      answer: `You have ${pending.length} upcoming/unsubmitted assignment${pending.length === 1 ? '' : 's'} in view: ${pending.map((item) => `${item.courseCode} — ${item.title} (${formatDate(item.dueDate)})`).join('; ')}.`,
+      answer: `You have ${allPending.length} upcoming/unsubmitted assignment${allPending.length === 1 ? '' : 's'}. ${preview.map((item) => `${item.courseCode} — ${item.title} (${formatDate(item.dueDate)})`).join('; ')}${allPending.length > preview.length ? `; plus ${allPending.length - preview.length} more in Assignments.` : ''}`,
       sources: [{ label: 'Assignments', href: '/assignments' }],
     };
   }
@@ -379,11 +384,6 @@ function compactDashboardContext(dashboard: Awaited<ReturnType<typeof getStudent
     programme: dashboard.identity.programme,
     batch: dashboard.identity.batch,
     section: dashboard.identity.section,
-    cgpa: dashboard.cgpa,
-    creditsEarned: dashboard.creditsEarned,
-    attendance: dashboard.attendance,
-    pendingAssignments: dashboard.assignments.filter((item) => !item.submitted).slice(0, 8),
-    upcomingExams: dashboard.examinations.filter((item) => item.status === 'UPCOMING').slice(0, 8),
   };
 }
 
@@ -484,7 +484,12 @@ function providerConfig(): AiProviderConfig | null {
   if (!endpoint || !model) return null;
   try {
     const parsed = new URL(endpoint);
-    if (parsed.protocol !== 'https:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') return null;
+    if (parsed.protocol === 'http:') {
+      const isLoopback = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      if (!isLoopback || process.env.NODE_ENV === 'production') return null;
+    } else if (parsed.protocol !== 'https:') {
+      return null;
+    }
   } catch {
     return null;
   }
