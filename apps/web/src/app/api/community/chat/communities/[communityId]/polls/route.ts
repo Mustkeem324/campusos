@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { getSessionFromCookies } from '@/lib/auth';
-import { assertStrictAcademicAccess, chatHttpError } from '@/lib/community-chat-academic';
+import { assertStrictAcademicAccess } from '@/lib/community-chat-academic';
+import { mapCommunityRouteError } from '@/lib/community-chat-route-error';
 import { CommunityChatService } from '@/lib/community-chat-service';
 import { prisma } from '@/lib/db';
 
@@ -36,7 +37,7 @@ export async function POST(request: Request, { params }: { params: { communityId
     return NextResponse.json({ success: true, messageId: result.messageId }, { status: 201 });
   } catch (error: unknown) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
-    const failure = chatHttpError(error);
+    const failure = mapCommunityRouteError(error, 'POLL_CREATE');
     return NextResponse.json({ error: failure.error }, { status: failure.status });
   }
 }
