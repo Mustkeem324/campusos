@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -37,7 +36,7 @@ const catalogSchema = z.object({
   digitalSeats: z.coerce.number().int().min(0).max(10000).default(0),
   digitalLoanDays: z.coerce.number().int().min(1).max(180).default(7),
   externalUrl: z.string().trim().url().optional().or(z.literal('')),
-  allowDownload: z.coerce.boolean().default(false),
+  allowDownload: z.enum(['true', 'false', 'on']).optional().transform((value) => value === 'true' || value === 'on'),
   tags: z.string().trim().max(1000).optional(),
   vendor: z.string().trim().max(160).optional(),
   unitCost: z.coerce.number().min(0).max(100000000).optional(),
@@ -58,15 +57,11 @@ async function toPrivateFile(file: File) {
 }
 
 function copyList(total: number, prefix: string, shelfLocation?: string, previous: LibraryCopyMeta[] = []) {
-  const kept = previous.slice(0, total);
+  const kept = previous.slice(0, total).map((copy) => ({ ...copy, shelfLocation: shelfLocation || copy.shelfLocation }));
   const result = [...kept];
   for (let index = kept.length; index < total; index += 1) {
     const serial = String(index + 1).padStart(4, '0');
-    result.push({
-      barcode: `${prefix}-${serial}`,
-      accessionNumber: `${prefix}-${serial}`,
-      shelfLocation,
-    });
+    result.push({ barcode: `${prefix}-${serial}`, accessionNumber: `${prefix}-${serial}`, shelfLocation });
   }
   return result;
 }
@@ -75,17 +70,26 @@ export async function POST(request: Request) {
   try {
     const context = await requireActiveUserContext();
     if (!isLibraryManager(context.activeRole)) throw new Error('LIBRARY_FORBIDDEN');
+
     const form = await request.formData();
     const raw = Object.fromEntries([...form.entries()].filter(([, value]) => typeof value === 'string'));
     const input = catalogSchema.parse(raw);
+
     if ((input.resourceType === 'PHYSICAL' || input.resourceType === 'HYBRID') && input.totalCopies < 1) {
       return NextResponse.json({ error: 'Physical and hybrid titles need at least one physical copy.' }, { status: 422 });
     }
-    if (input.resourceType === 'EBOOK' && input.digitalSeats < 1) {
-      return NextResponse.json({ error: 'E-books need at least one licensed digital seat.' }, { status: 422 });
+    if ((input.resourceType === 'EBOOK' || input.resourceType === 'HYBRID') && input.digitalSeats < 1) {
+      return NextResponse.json({ error: 'E-book and hybrid titles need at least one licensed digital seat.' }, { status: 422 });
     }
     if (input.externalUrl && !input.externalUrl.startsWith('https://')) {
       return NextResponse.json({ error: 'External e-book access must use HTTPS.' }, { status: 422 });
+    }
+
+    const ownedItem = input.itemId
+      ? await prisma.libraryItem.findFirst({ where: { id: input.itemId, tenantId: context.tenantId }, select: { id: true } })
+      : null;
+    if (input.itemId && !ownedItem) {
+      return NextResponse.json({ error: 'Library title not found in the active institution.' }, { status: 404 });
     }
 
     const state = await getLibraryState(context.tenantId);
@@ -93,9 +97,13 @@ export async function POST(request: Request) {
     const ebook = form.get('ebook');
     let fileId = existingMeta?.digital?.fileId;
     let mimeType = existingMeta?.digital?.mimeType;
+
     if (ebook instanceof File && ebook.size > 0) {
       const fileUrl = await toPrivateFile(ebook);
-      const stored = await prisma.file.create({ data: { tenantId: context.tenantId, fileName: ebook.name, fileUrl, mimeType: ebook.type }, select: { id: true } });
+      const stored = await prisma.file.create({
+        data: { tenantId: context.tenantId, fileName: ebook.name, fileUrl, mimeType: ebook.type },
+        select: { id: true },
+      });
       fileId = stored.id;
       mimeType = ebook.type;
     }
@@ -138,7 +146,13 @@ export async function POST(request: Request) {
     }
 
     await prisma.auditLog.create({
-      data: { tenantId: context.tenantId, userId: context.userId, action: LIBRARY_CATALOG_ACTION, entity: catalogEntity(item.id), diffJson: JSON.stringify(meta) },
+      data: {
+        tenantId: context.tenantId,
+        userId: context.userId,
+        action: LIBRARY_CATALOG_ACTION,
+        entity: catalogEntity(item.id),
+        diffJson: JSON.stringify(meta),
+      },
     });
 
     return NextResponse.json({ success: true, itemId: item.id }, { status: input.itemId ? 200 : 201 });
