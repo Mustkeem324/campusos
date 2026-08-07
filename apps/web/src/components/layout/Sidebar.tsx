@@ -14,6 +14,7 @@ import {
   CheckSquare,
   Database,
   DollarSign,
+  FileCheck2,
   FileText,
   GraduationCap,
   HelpCircle,
@@ -46,6 +47,16 @@ interface NavGroup {
   items: NavItem[];
 }
 
+const RESULT_PUBLICATION_ROLES = new Set([
+  'FACULTY',
+  'HOD',
+  'DEAN',
+  'EXAMINATION_CONTROLLER',
+  'REGISTRAR',
+  'INSTITUTION_ADMIN',
+  'SUPER_ADMIN',
+]);
+
 function formatRole(role?: string) {
   if (!role) return 'Workspace member';
 
@@ -76,6 +87,7 @@ function iconForHref(href: string): React.ElementType {
   if (href.startsWith('/timetable')) return Calendar;
   if (href.startsWith('/attendance') || href.startsWith('/registration')) return CheckSquare;
   if (href.startsWith('/examinations')) return FileText;
+  if (href.startsWith('/result-publication')) return FileCheck2;
   if (href.startsWith('/results')) return GraduationCap;
   if (href.startsWith('/microcredentials')) return Award;
   if (href.startsWith('/helpdesk')) return HelpCircle;
@@ -127,16 +139,31 @@ export function Sidebar() {
     setIsMobileOpen(false);
   }, [pathname]);
 
-  const navGroups: NavGroup[] = currentSession?.role
+  const canPublishResults = Boolean(currentSession?.role && RESULT_PUBLICATION_ROLES.has(currentSession.role));
+  const baseNavGroups: NavGroup[] = currentSession?.role
     ? dashboardDefinitionForRole(currentSession.role).navigation.map((group) => ({
         label: group.label,
-        items: group.items.map((item) => ({
-          label: item.label,
-          icon: iconForHref(item.href),
-          href: item.href,
-        })),
-      }))
+        items: group.items
+          .filter((item) => !(canPublishResults && item.href === '/results'))
+          .map((item) => ({
+            label: item.label,
+            icon: iconForHref(item.href),
+            href: item.href,
+          })),
+      })).filter((group) => group.items.length > 0)
     : [];
+
+  const navGroups: NavGroup[] = canPublishResults
+    ? [
+        ...baseNavGroups,
+        {
+          label: 'ACADEMIC GOVERNANCE',
+          items: [
+            { label: 'Result Publication', icon: FileCheck2, href: '/result-publication' },
+          ],
+        },
+      ]
+    : baseNavGroups;
 
   const roleLabel = formatRole(currentSession?.role);
   const institutionName = currentSession?.institutionName ?? 'CampusOS Institution';
