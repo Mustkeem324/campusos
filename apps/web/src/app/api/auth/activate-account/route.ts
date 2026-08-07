@@ -18,6 +18,8 @@ const activationSchema = z.object({
   password: z.string().min(1).max(256),
 });
 
+class InvalidActivationTokenError extends Error {}
+
 export async function POST(request: Request) {
   try {
     const ipAddress = requestIp(request);
@@ -56,8 +58,18 @@ export async function POST(request: Request) {
 
     const newHash = await hashPassword(password);
     await prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: user.id },
+      // Consume the token in the same conditional write that activates the
+      // account. If two requests race with one link, exactly one may succeed.
+      const consumed = await tx.user.updateMany({
+        where: {
+          id: user.id,
+          isActive: false,
+          emailVerified: null,
+          OR: [
+            { verificationToken: tokenHash },
+            { verificationToken: token },
+          ],
+        },
         data: {
           passwordHash: newHash,
           verificationToken: null,
@@ -67,6 +79,7 @@ export async function POST(request: Request) {
           lockedUntil: null,
         },
       });
+      if (consumed.count !== 1) throw new InvalidActivationTokenError();
 
       // Only the original institution-admin registration may advance an
       // institution awaiting email verification. Staff/student invitations must
@@ -104,6 +117,9 @@ export async function POST(request: Request) {
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Token and a valid new password are required.' }, { status: 400 });
+    }
+    if (error instanceof InvalidActivationTokenError) {
+      return NextResponse.json({ error: 'Invalid or already-used activation link.' }, { status: 400 });
     }
     console.error('Activate account error:', error);
     return NextResponse.json({ error: 'Unable to activate the account.' }, { status: 500 });
