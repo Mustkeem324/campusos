@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -14,7 +14,7 @@ function bin(name) {
     : path.join(process.cwd(), 'node_modules', '.bin', name);
 }
 
-function run(command, args, label, env = process.env) {
+function run(command, args, label, env) {
   const result = spawnSync(command, args, {
     env,
     stdio: 'inherit',
@@ -48,10 +48,7 @@ async function waitForPostgres(localEnv) {
     );
 
     if (result.status === 0) return;
-
-    if (attempt < POSTGRES_READY_ATTEMPTS) {
-      await sleep(POSTGRES_READY_DELAY_MS);
-    }
+    if (attempt < POSTGRES_READY_ATTEMPTS) await sleep(POSTGRES_READY_DELAY_MS);
   }
 
   throw new Error('Local PostgreSQL did not become ready. Run `npm run services:status` and inspect the postgres service.');
@@ -59,21 +56,20 @@ async function waitForPostgres(localEnv) {
 
 async function main() {
   if (!dockerComposeAvailable()) {
-    throw new Error('Docker Compose is required for `npm run dev:local`. Install/start Docker, then retry.');
+    throw new Error('Docker Compose is required for `npm run db:seed-synthetic:local`. Install/start Docker, then retry.');
   }
 
   const ports = getLocalServicePorts();
   const localEnv = createLocalServiceEnv({
+    CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true',
     CAMPUSOS_AUTO_DB_PUSH: 'true',
-    CAMPUSOS_AUTO_SEED_SYNTHETIC: process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC ?? 'false',
+    CAMPUSOS_AUTO_SEED_SYNTHETIC: 'false',
   });
 
-  console.log(
-    `Starting NAVEMORA local services (PostgreSQL:${ports.postgres}, Redis:${ports.redis}, MinIO:${ports.minioApi}, MailHog:${ports.mailhogUi})...`,
-  );
-  run('docker', ['compose', 'up', '-d', 'postgres', 'redis', 'minio', 'mailhog'], 'Docker Compose startup', localEnv);
+  console.log(`Starting local PostgreSQL on host port ${ports.postgres}...`);
+  run('docker', ['compose', 'up', '-d', 'postgres'], 'Local PostgreSQL startup', localEnv);
 
-  console.log('Waiting for PostgreSQL to become ready...');
+  console.log('Waiting for local PostgreSQL...');
   await waitForPostgres(localEnv);
 
   console.log('Generating Prisma Client...');
@@ -82,33 +78,19 @@ async function main() {
   console.log('Preparing the local NAVEMORA database...');
   run(process.execPath, ['scripts/prepare-database.mjs'], 'Local database preparation', localEnv);
 
-  console.log(`Local services are ready. Redis is available at ${localEnv.REDIS_URL}.`);
-  console.log('Starting Next.js on http://localhost:3000 ...');
-  const child = spawn(
-    bin('next'),
-    ['dev', 'apps/web', '--port', '3000', '--webpack'],
-    {
-      env: localEnv,
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    },
-  );
+  console.log('Resetting the local synthetic tenant...');
+  run(process.execPath, ['scripts/reset-synthetic-campus.mjs', '--allow-synthetic-seed'], 'Synthetic tenant reset', localEnv);
 
-  child.on('error', (error) => {
-    console.error(`Unable to start Next.js: ${error.message}`);
-    process.exitCode = 1;
-  });
+  console.log('Seeding the local synthetic campus...');
+  run(process.execPath, ['scripts/seed-synthetic-campus.mjs', '--allow-synthetic-seed'], 'Synthetic campus seed', localEnv);
 
-  child.on('exit', (code, signal) => {
-    if (signal) {
-      process.kill(process.pid, signal);
-      return;
-    }
-    process.exitCode = code ?? 1;
-  });
+  console.log('Verifying the local synthetic campus...');
+  run(process.execPath, ['scripts/verify-synthetic-campus.mjs'], 'Synthetic campus verification', localEnv);
+
+  console.log('Local synthetic campus is ready. The command intentionally ignored any hosted DATABASE_URL in your shell or .env.');
 }
 
 main().catch((error) => {
-  console.error(`Local development startup failed: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`Local synthetic seed failed: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });

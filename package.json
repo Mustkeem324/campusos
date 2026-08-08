@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node scripts/run-with-service-env.mjs next dev apps/web --port 3000 --webpack",
     "dev:local": "node scripts/dev-local.mjs",
+    "dev:local:seed": "npm run db:seed-synthetic:local && npm run dev:local",
     "services:up": "docker compose up -d postgres redis minio mailhog",
     "services:down": "docker compose down",
     "services:status": "docker compose ps",
@@ -19,6 +20,7 @@
     "db:prepare": "node scripts/run-with-service-env.mjs node scripts/prepare-database.mjs",
     "db:reset-synthetic": "node scripts/run-with-service-env.mjs node scripts/reset-synthetic-campus.mjs --allow-synthetic-seed",
     "db:seed-synthetic": "npm run db:reset-synthetic && node scripts/run-with-service-env.mjs node scripts/seed-synthetic-campus.mjs --allow-synthetic-seed",
+    "db:seed-synthetic:local": "node scripts/seed-synthetic-local.mjs",
     "db:seed-synthetic:reset": "npm run db:seed-synthetic",
     "db:verify-synthetic": "node scripts/run-with-service-env.mjs node scripts/verify-synthetic-campus.mjs",
     "db:bootstrap-demo": "npm run db:seed-synthetic:reset",
