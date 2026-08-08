@@ -128,6 +128,13 @@ function provisionAttendanceStorage() {
   );
 }
 
+function provisionExamProctoringStorage() {
+  executeSqlFile(
+    'packages/db/prisma/exam-proctoring.sql',
+    'Secure Examination, AI Proctoring & 3D Eyes 2.0 provisioning',
+  );
+}
+
 function runSyntheticCampusSeed() {
   const seedEnv = { CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true' };
 
@@ -199,6 +206,10 @@ function prepareDatabase() {
   console.log('Provisioning NAVEMORA timetable-driven smart attendance tables...');
   provisionAttendanceStorage();
   console.log('Smart attendance storage is ready.');
+
+  console.log('Provisioning NAVEMORA Secure Examination, AI Proctoring & 3D Eyes 2.0 tables...');
+  provisionExamProctoringStorage();
+  console.log('Secure examination and proctoring storage is ready.');
 
   if (shouldSeedSyntheticCampus()) {
     console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');
