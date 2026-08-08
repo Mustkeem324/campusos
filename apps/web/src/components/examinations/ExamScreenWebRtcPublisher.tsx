@@ -70,9 +70,25 @@ export function ExamScreenWebRtcPublisher({ attemptId }: { attemptId: string }) 
   }
 
   const connected = state === 'CONNECTED';
+  if (!connected) {
+    return (
+      <div className="fixed inset-0 z-[65] flex items-center justify-center bg-slate-950/88 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-6 text-white shadow-2xl sm:p-8">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-300"><MonitorUp className="h-6 w-6" /></span>
+          <p className="mt-5 text-[10px] font-black uppercase tracking-[0.13em] text-amber-300">Required proctor stream</p>
+          <h2 className="mt-2 text-2xl font-black">Share the approved exam screen</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-300">{message}</p>
+          <p className="mt-4 text-xs leading-5 text-slate-400">NAVEMORA uses the browser&apos;s explicit screen-sharing permission. The question workspace remains covered if the required stream stops. A screen-stream failure is handled as a technical/review condition, not an automatic cheating verdict.</p>
+          <button onClick={() => void start()} disabled={busy} className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-xs font-extrabold text-white disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MonitorUp className="h-4 w-4" />}{state === 'FAILED' ? 'Retry screen stream' : 'Share exam screen'}</button>
+          {state === 'FAILED' && <AlertTriangle className="mt-3 h-4 w-4 text-red-400" />}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
-      <div className="flex items-start gap-3"><span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${connected ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>{connected ? <Radio className="h-4 w-4" /> : <MonitorUp className="h-4 w-4" />}</span><div className="min-w-0 flex-1"><p className="text-[11px] font-extrabold">Screen proctor stream · {state.toLowerCase()}</p><p className="mt-1 text-[10px] leading-4 text-slate-500">{message}</p>{!connected && <button onClick={() => void start()} disabled={busy} className="mt-2 inline-flex h-8 items-center gap-2 rounded-lg bg-blue-700 px-3 text-[10px] font-extrabold text-white disabled:opacity-50">{busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MonitorUp className="h-3.5 w-3.5" />}Share exam screen</button>}{state === 'FAILED' && <AlertTriangle className="mt-2 h-4 w-4 text-red-600" />}</div></div>
+      <div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><Radio className="h-4 w-4" /></span><div className="min-w-0 flex-1"><p className="text-[11px] font-extrabold">Screen proctor stream · live</p><p className="mt-1 text-[10px] leading-4 text-slate-500">{message}</p></div></div>
     </div>
   );
 }
