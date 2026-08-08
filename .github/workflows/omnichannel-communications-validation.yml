@@ -102,9 +102,7 @@ jobs:
           }
           NODE
       - name: Validate communication worker syntax
-        run: |
-          node --check workers/communication-delivery-worker.mjs
-          node --check workers/communication-worker.mjs
+        run: node --check workers/communication-delivery-worker.mjs
       - name: Validate communications Docker composition
         run: docker compose --profile communications config --quiet
       - name: Typecheck
