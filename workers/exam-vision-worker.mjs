@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import os from 'node:os';
 import process from 'node:process';
 
@@ -11,6 +10,7 @@ const inferenceUrl = (process.env.NAVEMORA_EXAM_VISION_INFER_URL || '').trim();
 const inferenceSecret = process.env.NAVEMORA_EXAM_VISION_INFER_SECRET || '';
 const mediaBase = (process.env.NAVEMORA_EXAM_MEDIA_INTERNAL_URL || 'http://mediamtx:8889').replace(/\/+$/, '');
 const mediaSecret = process.env.NAVEMORA_EXAM_VISION_MEDIA_SECRET || '';
+const inferenceConfigured = Boolean(inferenceUrl) && inferenceSecret.length >= 16 && mediaSecret.length >= 32;
 let stopping = false;
 
 const allowedSeverity = new Set(['INFO', 'LOW', 'MEDIUM', 'HIGH']);
@@ -106,8 +106,7 @@ async function claimJob() {
 }
 
 async function callInference(job) {
-  if (!inferenceUrl || inferenceSecret.length < 16) throw new Error('AI inference provider is not configured.');
-  if (mediaSecret.length < 32) throw new Error('NAVEMORA_EXAM_VISION_MEDIA_SECRET must contain at least 32 characters.');
+  if (!inferenceConfigured) throw new Error('AI inference provider is not configured.');
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
   try {
@@ -239,13 +238,15 @@ process.on('SIGINT', () => { stopping = true; });
 
 try {
   await ensureRuntimeReady();
-  if (!inferenceUrl || !inferenceSecret) {
-    console.warn('NAVEMORA AI vision worker is idle because no inference provider is configured. No detections will be fabricated.');
-  }
   console.log(`NAVEMORA exam vision worker started as ${workerId}.`);
-  while (!stopping) {
-    const worked = await runOnce();
-    if (!worked) await sleep(pollMs);
+  if (!inferenceConfigured) {
+    console.warn('NAVEMORA AI vision worker is idle because the inference endpoint, inference secret, or scoped media secret is not configured. No jobs or detections will be fabricated.');
+    while (!stopping) await sleep(Math.max(pollMs, 30_000));
+  } else {
+    while (!stopping) {
+      const worked = await runOnce();
+      if (!worked) await sleep(pollMs);
+    }
   }
 } catch (error) {
   console.error('NAVEMORA exam vision worker failed:', error);
