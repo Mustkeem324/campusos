@@ -1,5 +1,5 @@
-import { SecureExaminationWorkspaceV2 } from '@/components/examinations/SecureExaminationWorkspaceV2';
+import { SecureExaminationWorkspaceClient } from '@/components/examinations/SecureExaminationWorkspaceClient';
 
 export default function ExaminationAdminPage() {
-  return <SecureExaminationWorkspaceV2 />;
+  return <SecureExaminationWorkspaceClient />;
 }
