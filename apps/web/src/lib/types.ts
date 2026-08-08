@@ -39,7 +39,12 @@ export type PermissionScope = 'all' | 'institution' | 'department' | 'own_sectio
 
 export type PermissionString = `${string}:${PermissionAction}:${PermissionScope}`;
 
-export const ROLE_PERMISSIONS: Partial<Record<UserRole, PermissionString[]>> = {
+/**
+ * Granular product permissions used by dashboard/API capability checks.
+ * Keep this exhaustive across RoleType so a newly supported role cannot silently
+ * become permission-less simply because it was omitted from a Partial record.
+ */
+export const ROLE_PERMISSIONS: Record<UserRole, PermissionString[]> = {
   SUPER_ADMIN: ['*:manage:all'],
   INSTITUTION_ADMIN: [
     'users:manage:institution',
@@ -48,7 +53,26 @@ export const ROLE_PERMISSIONS: Partial<Record<UserRole, PermissionString[]>> = {
     'fees:manage:institution',
     'attendance:read:institution',
     'audit:read:institution',
-    'notices:manage:institution'
+    'notices:manage:institution',
+    'reports:read:institution',
+  ],
+  REGISTRAR: [
+    'users:read:institution',
+    'academics:manage:institution',
+    'courses:read:institution',
+    'attendance:read:institution',
+    'grades:read:institution',
+    'reports:read:institution',
+    'notices:manage:institution',
+  ],
+  DEAN: [
+    'academics:read:institution',
+    'courses:read:institution',
+    'attendance:read:institution',
+    'grades:read:institution',
+    'marks:approve:institution',
+    'reports:read:institution',
+    'notices:create:institution',
   ],
   HOD: [
     'department:manage:department',
@@ -56,7 +80,7 @@ export const ROLE_PERMISSIONS: Partial<Record<UserRole, PermissionString[]>> = {
     'workload:manage:department',
     'attendance:read:department',
     'marks:approve:department',
-    'notices:create:department'
+    'notices:create:department',
   ],
   FACULTY: [
     'attendance:mark:own_section',
@@ -65,7 +89,7 @@ export const ROLE_PERMISSIONS: Partial<Record<UserRole, PermissionString[]>> = {
     'assignments:manage:own_section',
     'grades:manage:own_section',
     'marks:submit:own_section',
-    'notices:create:department'
+    'notices:create:department',
   ],
   STUDENT: [
     'courses:read:institution',
@@ -76,27 +100,69 @@ export const ROLE_PERMISSIONS: Partial<Record<UserRole, PermissionString[]>> = {
     'fees:pay:own',
     'notices:read:institution',
     'hostel:read:own',
-    'certificates:request:own'
+    'certificates:request:own',
   ],
   PARENT: [
     'attendance:read:own',
     'grades:read:own',
     'fees:pay:own',
     'notices:read:institution',
-    'hostel:approve_outpass:own'
+    'hostel:approve_outpass:own',
   ],
-  WARDEN: [
-    'hostel:manage:institution',
-    'outpass:approve:institution',
-    'mess:manage:institution',
-    'complaints:manage:institution'
+  FINANCE_OFFICER: [
+    'fees:manage:institution',
+    'invoices:manage:institution',
+    'payments:manage:institution',
+    'reports:read:institution',
   ],
   ACCOUNTANT: [
     'fees:manage:institution',
     'invoices:create:institution',
     'payments:manage:institution',
-    'reports:read:institution'
-  ]
+    'reports:read:institution',
+  ],
+  HR_ADMIN: [
+    'users:manage:institution',
+    'staff:manage:institution',
+    'reports:read:institution',
+  ],
+  WARDEN: [
+    'hostel:manage:institution',
+    'outpass:approve:institution',
+    'mess:manage:institution',
+    'complaints:manage:institution',
+  ],
+  LIBRARIAN: [
+    'library:manage:institution',
+    'books:manage:institution',
+    'loans:manage:institution',
+    'reports:read:institution',
+  ],
+  TRANSPORT_MANAGER: [
+    'transport:manage:institution',
+    'vehicles:manage:institution',
+    'routes:manage:institution',
+    'reports:read:institution',
+  ],
+  PLACEMENT_OFFICER: [
+    'placements:manage:institution',
+    'applications:read:institution',
+    'students:read:institution',
+    'reports:read:institution',
+  ],
+  ADMISSIONS_COUNSELLOR: [
+    'admissions:manage:institution',
+    'applications:manage:institution',
+    'students:read:institution',
+    'notices:create:institution',
+  ],
+  EXAMINATION_CONTROLLER: [
+    'exams:manage:institution',
+    'marks:approve:institution',
+    'grades:manage:institution',
+    'academics:read:institution',
+    'reports:read:institution',
+  ],
 };
 
 export const UserSchema = z.object({
@@ -107,5 +173,5 @@ export const UserSchema = z.object({
   role: z.nativeEnum(RoleType),
   isActive: z.boolean().default(true),
   createdAt: z.date(),
-  updatedAt: z.date()
+  updatedAt: z.date(),
 });

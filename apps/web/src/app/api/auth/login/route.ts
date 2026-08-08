@@ -91,14 +91,24 @@ export async function POST(request: Request) {
 
     const isValid = await comparePassword(password, user.passwordHash);
     if (!isValid) {
-      const attempts = user.loginAttempts + 1;
-      const lockedUntil = attempts >= MAX_LOGIN_ATTEMPTS ? new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60_000) : null;
-      await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: attempts, lockedUntil } });
+      // Increment atomically so concurrent failed requests cannot overwrite one
+      // another and accidentally postpone the account lockout threshold.
+      const failed = await prisma.user.update({
+        where: { id: user.id },
+        data: { loginAttempts: { increment: 1 } },
+        select: { loginAttempts: true },
+      });
+      if (failed.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60_000) },
+        });
+      }
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     if (user.mfaEnabled) {
-      const challenge = createMfaChallenge(user.id, user.tenantId);
+      const challenge = createMfaChallenge(user.id, user.tenantId, rememberMe);
       return NextResponse.json({ mfaRequired: true, userId: challenge });
     }
 

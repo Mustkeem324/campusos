@@ -12,6 +12,22 @@ function safeFileName(value: string) {
   return value.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 180) || 'payment-proof';
 }
 
+function hasExpectedFileSignature(mimeType: string, bytes: Buffer) {
+  if (mimeType === 'image/jpeg') {
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (mimeType === 'image/png') {
+    return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  if (mimeType === 'image/webp') {
+    return bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP';
+  }
+  if (mimeType === 'application/pdf') {
+    return bytes.length >= 5 && bytes.subarray(0, 5).toString('ascii') === '%PDF-';
+  }
+  return false;
+}
+
 export async function POST(request: Request) {
   const context = await requireActiveUserContext().catch(() => null);
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -55,6 +71,10 @@ export async function POST(request: Request) {
     }
 
     const proofBytes = Buffer.from(await proof.arrayBuffer());
+    if (!hasExpectedFileSignature(proof.type, proofBytes)) {
+      return NextResponse.json({ error: 'The uploaded proof content does not match its declared file type.' }, { status: 415 });
+    }
+
     const submission = await createManualPaymentSubmission({
       context,
       invoiceIds,
@@ -85,7 +105,7 @@ export async function POST(request: Request) {
     }
     const duplicate = /unique|transaction_reference/i.test(message);
     return NextResponse.json(
-      { error: duplicate ? 'This transaction/UTR reference is already attached to an active or approved submission.' : message },
+      { error: duplicate ? 'This transaction/UTR reference is already attached to an active or approved submission.' : 'Unable to submit bank transfer proof.' },
       { status: duplicate ? 409 : 500 },
     );
   }

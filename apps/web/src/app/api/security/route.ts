@@ -84,6 +84,18 @@ export async function POST(request: Request) {
     }
 
     if (payload.action === 'mfa-setup') {
+      // Never let an authenticated browser session silently replace an active
+      // MFA secret. Otherwise a stolen session could call the setup action and
+      // downgrade an MFA-protected account without proving the current factor.
+      if (user.mfaEnabled) {
+        return NextResponse.json(
+          {
+            error: 'Multi-factor authentication is already enabled. Disable it with your current password and authenticator code before starting a new setup.',
+          },
+          { status: 409 },
+        );
+      }
+
       const secret = generateTotpSecret();
       await prisma.user.update({
         where: { id: user.id },
@@ -139,9 +151,7 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message ?? 'Invalid security request.' }, { status: 400 });
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unable to update account security.' },
-      { status: 401 },
-    );
+    console.error('Account security update failed:', error);
+    return NextResponse.json({ error: 'Unable to update account security.' }, { status: 500 });
   }
 }

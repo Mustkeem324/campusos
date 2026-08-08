@@ -14,7 +14,17 @@ describe('MFA login challenge', () => {
       purpose: 'campusos-mfa',
       userId: '11111111-1111-4111-8111-111111111111',
       tenantId: '22222222-2222-4222-8222-222222222222',
+      rememberMe: false,
     });
+  });
+
+  it('binds the remember-me choice into the signed challenge', () => {
+    const token = createMfaChallenge(
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222',
+      true,
+    );
+    expect(verifyMfaChallenge(token)?.rememberMe).toBe(true);
   });
 
   it('rejects a modified challenge', () => {

@@ -4,7 +4,9 @@ import { NextResponse } from 'next/server';
 
 import { findPaymentAttemptByReference } from '@/lib/payment-attempts';
 import { finalizeGatewayPayment, PaymentReconciliationError } from '@/lib/payment-finalizer';
+import { PayloadTooLargeError, readTextWithLimit } from '@/lib/public-rate-limit';
 
+const WEBHOOK_BODY_LIMIT_BYTES = 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function safeEqualHex(left: string, right: string) {
@@ -25,7 +27,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Webhook not configured.' }, { status: 503 });
   }
 
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readTextWithLimit(request, WEBHOOK_BODY_LIMIT_BYTES);
+  } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: 'Webhook payload is too large.' }, { status: 413 });
+    }
+    throw error;
+  }
+
   const signature = request.headers.get('x-razorpay-signature') ?? '';
   const expected = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
   if (!signature || !safeEqualHex(expected, signature)) {
