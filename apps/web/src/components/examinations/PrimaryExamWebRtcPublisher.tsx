@@ -27,6 +27,7 @@ export function PrimaryExamWebRtcPublisher({ attemptId }: { attemptId: string })
   const [detail, setDetail] = React.useState('Starting secure live camera…');
   const handleRef = React.useRef<WebRtcTransportHandle | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
+  const mediaStateRef = React.useRef<'PUBLISHING' | 'LIVE' | 'DEGRADED' | 'FAILED'>('PUBLISHING');
 
   React.useEffect(() => {
     let cancelled = false;
@@ -52,9 +53,14 @@ export function PrimaryExamWebRtcPublisher({ attemptId }: { attemptId: string })
             setState(next);
             setDetail(message || (next === 'CONNECTED' ? 'Primary camera is streaming to the authorized proctor media server.' : `Primary camera ${next.toLowerCase()}.`));
             const mapped = next === 'CONNECTED' ? 'LIVE' : next === 'DEGRADED' ? 'DEGRADED' : next === 'FAILED' ? 'FAILED' : 'PUBLISHING';
+            mediaStateRef.current = mapped;
             void runtimeAction({ action: 'media_state', attemptId, streamKind: 'PRIMARY', state: mapped, error: message || null }).catch(() => undefined);
           },
         });
+        if (cancelled) {
+          await handle.close();
+          return;
+        }
         handleRef.current = handle;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unable to start secure live camera.';
@@ -63,6 +69,7 @@ export function PrimaryExamWebRtcPublisher({ attemptId }: { attemptId: string })
           setDetail('This examination does not require live primary-camera streaming.');
           return;
         }
+        mediaStateRef.current = 'FAILED';
         setState('FAILED');
         setDetail(message);
         void runtimeAction({ action: 'media_state', attemptId, streamKind: 'PRIMARY', state: 'FAILED', error: message }).catch(() => undefined);
@@ -71,19 +78,23 @@ export function PrimaryExamWebRtcPublisher({ attemptId }: { attemptId: string })
 
     void start();
     const heartbeat = window.setInterval(() => {
-      if (handleRef.current && state !== 'FAILED' && state !== 'DISABLED') {
-        void runtimeAction({ action: 'media_state', attemptId, streamKind: 'PRIMARY', state: state === 'DEGRADED' ? 'DEGRADED' : 'LIVE' }).catch(() => undefined);
+      if (handleRef.current && mediaStateRef.current !== 'FAILED') {
+        const heartbeatState = mediaStateRef.current === 'DEGRADED' ? 'DEGRADED' : 'LIVE';
+        void runtimeAction({ action: 'media_state', attemptId, streamKind: 'PRIMARY', state: heartbeatState }).catch(() => undefined);
       }
     }, 10_000);
 
     return () => {
       cancelled = true;
       window.clearInterval(heartbeat);
-      void handleRef.current?.close();
+      const handle = handleRef.current;
+      handleRef.current = null;
+      if (handle) void handle.close();
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       void runtimeAction({ action: 'media_state', attemptId, streamKind: 'PRIMARY', state: 'ENDED' }).catch(() => undefined);
     };
-  }, [attemptId, state]);
+  }, [attemptId]);
 
   if (state === 'DISABLED') return null;
 
