@@ -1,0 +1,83 @@
+name: Secure Examination & Proctoring Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/app/(dashboard)/examinations/**'
+      - 'apps/web/src/app/examinations/**'
+      - 'apps/web/src/app/api/examinations/proctoring/**'
+      - 'apps/web/src/components/examinations/**'
+      - 'apps/web/src/lib/secure-examination*'
+      - 'packages/db/prisma/exam-proctoring.sql'
+      - 'scripts/prepare-database.mjs'
+      - '.env.example'
+      - '.github/workflows/secure-examination-proctoring-validation.yml'
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos?schema=public
+  JWT_SECRET: ci_only_jwt_secret_with_more_than_32_characters
+  JWT_REFRESH_SECRET: ci_only_refresh_secret_with_more_than_32_characters
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campusos"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema=packages/db/prisma/schema.prisma
+      - name: Create core database schema
+        run: npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
+      - name: Provision secure examination schema
+        run: npx prisma db execute --file=packages/db/prisma/exam-proctoring.sql --schema=packages/db/prisma/schema.prisma
+      - name: Re-provision secure examination schema
+        run: npx prisma db execute --file=packages/db/prisma/exam-proctoring.sql --schema=packages/db/prisma/schema.prisma
+      - name: Verify secure examination storage
+        run: |
+          node --input-type=module <<'NODE'
+          import { PrismaClient } from '@prisma/client';
+          const prisma = new PrismaClient();
+          try {
+            const rows = await prisma.$queryRawUnsafe("SELECT to_regclass('campusos_exam_proctoring.exam_configs')::text AS configs, to_regclass('campusos_exam_proctoring.secondary_camera_sessions')::text AS second_camera, to_regclass('campusos_exam_proctoring.answer_revisions')::text AS answers");
+            if (!rows[0]?.configs || !rows[0]?.second_camera || !rows[0]?.answers) process.exit(1);
+          } finally {
+            await prisma.$disconnect();
+          }
+          NODE
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint with zero warnings
+        run: npm run lint -- --max-warnings=0
+      - name: Secure examination policy tests
+        run: npx vitest run apps/web/src/lib/secure-examination-policy.test.ts
+      - name: Production build
+        env:
+          CAMPUSOS_AUTO_DB_PUSH: 'false'
+        run: npm run build

@@ -1,5 +1,5 @@
 import { SecureExaminationWorkspaceClient } from '@/components/examinations/SecureExaminationWorkspaceClient';
 
-export default function ExaminationsPage() {
+export default function ExaminationAdminPage() {
   return <SecureExaminationWorkspaceClient />;
 }
