@@ -1,3 +1,7 @@
+import {
+  databaseUnavailableLog,
+  isDatabaseUnavailableError,
+} from './database-errors';
 import { prisma } from './db';
 
 export type ComponentHealthStatus = 'operational' | 'unavailable';
@@ -22,14 +26,15 @@ export type SystemHealthSnapshot = {
   };
 };
 
-const DATABASE_TIMEOUT_MS = 3_500;
+const DATABASE_TIMEOUT_MS = 1_500;
+const HEALTH_ROUTE = '/api/health/ready';
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeout = setTimeout(() => {
-      reject(new Error('Health check timed out'));
+      reject(new Error('DATABASE_HEALTH_TIMEOUT'));
     }, timeoutMs);
   });
 
@@ -49,7 +54,18 @@ async function checkDatabase(): Promise<ComponentHealth> {
       latencyMs: Date.now() - startedAt,
     };
   } catch (error: unknown) {
-    console.error('Database health check failed:', error);
+    if (
+      isDatabaseUnavailableError(error) ||
+      (error instanceof Error && error.message === 'DATABASE_HEALTH_TIMEOUT')
+    ) {
+      databaseUnavailableLog(error, HEALTH_ROUTE);
+    } else {
+      console.error(JSON.stringify({
+        event: 'database_health_check_failed',
+        route: HEALTH_ROUTE,
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      }));
+    }
 
     return {
       status: 'unavailable',

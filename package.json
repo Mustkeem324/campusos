@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/run-with-service-env.mjs next dev apps/web --port 3000 --webpack",
+    "dev:local": "node scripts/dev-local.mjs",
+    "services:up": "docker compose up -d postgres redis minio mailhog",
+    "services:down": "docker compose down",
+    "services:status": "docker compose ps",
     "verify:prisma-toolchain": "node scripts/verify-prisma-toolchain.mjs",
     "prebuild": "npm run verify:prisma-toolchain && node scripts/run-with-service-env.mjs prisma generate --schema=packages/db/prisma/schema.prisma && node scripts/run-with-service-env.mjs node scripts/prepare-database.mjs",
     "build": "node scripts/run-with-service-env.mjs next build apps/web --webpack && node scripts/verify-next-output.mjs",
