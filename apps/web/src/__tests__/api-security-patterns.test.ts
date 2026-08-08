@@ -39,10 +39,14 @@ describe('API-wide dangerous security patterns', () => {
     expect(violations, `Literal secret fallbacks found:\n${violations.join('\n')}`).toEqual([]);
   });
 
-  it('keeps retired generic payment and email-verification downgrade routes inert', () => {
+  it('keeps retired auth and generic payment downgrade routes inert', () => {
+    const paymentCreate = readFileSync(resolve(API_ROOT, 'payments/create/route.ts'), 'utf8');
     const paymentWebhook = readFileSync(resolve(API_ROOT, 'payments/webhook/route.ts'), 'utf8');
     const legacyVerifyEmail = readFileSync(resolve(API_ROOT, 'auth/verify-email/route.ts'), 'utf8');
+    expect(paymentCreate).toContain('{ status: 410 }');
     expect(paymentWebhook).toContain('{ status: 410 }');
     expect(legacyVerifyEmail).toContain('{ status: 410 }');
+    expect(paymentCreate).not.toContain('mock_public_key');
+    expect(paymentCreate).not.toContain('crypto.randomBytes');
   });
 });
