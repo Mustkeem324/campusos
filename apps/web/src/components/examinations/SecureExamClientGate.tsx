@@ -50,6 +50,28 @@ export function SecureExamClientGate({ attemptId }: { attemptId: string }) {
     setMessage('Secure-client challenge copied. Paste it into the enrolled NAVEMORA Secure Client.');
   }
 
+  async function verifyAndEnter() {
+    setBusy(true);
+    try {
+      const response = await fetch('/api/examinations/proctoring/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start_attempt', attemptId }),
+      });
+      const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+      if (!response.ok) throw new Error(typeof body.error === 'string' ? body.error : 'Secure-client attestation has not been accepted yet.');
+      if (body.attestationRequired === true) {
+        setMessage('Attestation has not reached NAVEMORA yet. Complete the challenge in the enrolled Secure Client, then try again.');
+        return;
+      }
+      window.location.reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to enter the examination.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-12 dark:bg-slate-950">
       <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
@@ -67,11 +89,11 @@ export function SecureExamClientGate({ attemptId }: { attemptId: string }) {
         ) : (
           <div className="mt-6 space-y-3">
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900/50 dark:bg-blue-950/20"><p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Challenge</p><p className="mt-2 break-all font-mono text-xs font-bold text-slate-800 dark:text-slate-100">{challenge.challengeToken}</p><p className="mt-2 text-[10px] text-slate-500">Policy {challenge.policyVersion} · expires {new Date(challenge.expiresAt).toLocaleTimeString()}</p></div>
-            <div className="flex flex-wrap gap-2"><button onClick={() => void copyToken()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold dark:border-slate-700"><Copy className="h-4 w-4" />Copy challenge</button><button onClick={() => window.location.reload()} className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-extrabold text-white"><RefreshCw className="h-4 w-4" />Check attestation</button></div>
+            <div className="flex flex-wrap gap-2"><button onClick={() => void copyToken()} className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-extrabold dark:border-slate-700"><Copy className="h-4 w-4" />Copy challenge</button><button onClick={() => void verifyAndEnter()} disabled={busy} className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-700 px-4 text-xs font-extrabold text-white disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Verify & enter exam</button></div>
           </div>
         )}
 
-        <div className="mt-7 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /><p className="text-xs leading-5">The secure client gate is separate from AI proctoring. Passing the client attestation does not make any academic-integrity judgment; it only confirms the approved exam client/device posture.</p></div>
+        <div className="mt-7 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /><p className="text-xs leading-5">The exam timer is not started by this gate until NAVEMORA accepts the enrolled-device attestation. The secure client gate is separate from AI proctoring and does not make an academic-integrity judgment.</p></div>
       </div>
     </div>
   );
