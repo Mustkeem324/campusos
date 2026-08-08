@@ -3,8 +3,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { setTimeout as sleep } from 'node:timers/promises';
 
-const LOCAL_DATABASE_URL = 'postgresql://campusos:campusos_password@127.0.0.1:5433/campusos_db?schema=public';
-const LOCAL_REDIS_URL = 'redis://127.0.0.1:6379';
+import { createLocalServiceEnv, getLocalServicePorts } from './local-service-config.mjs';
+
 const POSTGRES_READY_ATTEMPTS = 30;
 const POSTGRES_READY_DELAY_MS = 1_000;
 
@@ -35,12 +35,13 @@ function dockerComposeAvailable() {
   return result.status === 0;
 }
 
-async function waitForPostgres() {
+async function waitForPostgres(localEnv) {
   for (let attempt = 1; attempt <= POSTGRES_READY_ATTEMPTS; attempt += 1) {
     const result = spawnSync(
       'docker',
       ['compose', 'exec', '-T', 'postgres', 'pg_isready', '-U', 'campusos', '-d', 'campusos_db'],
       {
+        env: localEnv,
         stdio: 'ignore',
         shell: process.platform === 'win32',
       },
@@ -53,7 +54,7 @@ async function waitForPostgres() {
     }
   }
 
-  throw new Error('Local PostgreSQL did not become ready. Run `docker compose ps` and inspect the postgres service.');
+  throw new Error('Local PostgreSQL did not become ready. Run `npm run services:status` and inspect the postgres service.');
 }
 
 async function main() {
@@ -61,19 +62,19 @@ async function main() {
     throw new Error('Docker Compose is required for `npm run dev:local`. Install/start Docker, then retry.');
   }
 
-  const localEnv = {
-    ...process.env,
-    DATABASE_URL: LOCAL_DATABASE_URL,
-    REDIS_URL: LOCAL_REDIS_URL,
+  const ports = getLocalServicePorts();
+  const localEnv = createLocalServiceEnv({
     CAMPUSOS_AUTO_DB_PUSH: 'true',
     CAMPUSOS_AUTO_SEED_SYNTHETIC: process.env.CAMPUSOS_AUTO_SEED_SYNTHETIC ?? 'false',
-  };
+  });
 
-  console.log('Starting NAVEMORA local services (PostgreSQL, Redis, MinIO and MailHog)...');
+  console.log(
+    `Starting NAVEMORA local services (PostgreSQL:${ports.postgres}, Redis:${ports.redis}, MinIO:${ports.minioApi}, MailHog:${ports.mailhogUi})...`,
+  );
   run('docker', ['compose', 'up', '-d', 'postgres', 'redis', 'minio', 'mailhog'], 'Docker Compose startup', localEnv);
 
   console.log('Waiting for PostgreSQL to become ready...');
-  await waitForPostgres();
+  await waitForPostgres(localEnv);
 
   console.log('Generating Prisma Client...');
   run(bin('prisma'), ['generate', '--schema=packages/db/prisma/schema.prisma'], 'Prisma Client generation', localEnv);
@@ -81,7 +82,8 @@ async function main() {
   console.log('Preparing the local NAVEMORA database...');
   run(process.execPath, ['scripts/prepare-database.mjs'], 'Local database preparation', localEnv);
 
-  console.log('Local services are ready. Starting Next.js on http://localhost:3000 ...');
+  console.log(`Local services are ready. Redis is available at ${localEnv.REDIS_URL}.`);
+  console.log('Starting Next.js on http://localhost:3000 ...');
   const child = spawn(
     bin('next'),
     ['dev', 'apps/web', '--port', '3000', '--webpack'],
