@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { emitSubmittedAttendanceWarnings } from '@/lib/communications-integrations';
 import {
   createAttendanceCalendarDay,
   manualMarkAttendance,
@@ -67,6 +68,14 @@ export async function POST(request: Request) {
         break;
       case 'submit':
         result = await submitAttendanceSession(input.sessionId);
+        // Attendance is already committed at this point. Communication is
+        // best-effort and idempotent so a provider/queue outage can never roll
+        // back or duplicate the academic register.
+        try {
+          await emitSubmittedAttendanceWarnings(input.sessionId);
+        } catch (communicationError) {
+          console.error('Attendance submitted but shortage communication enqueue failed:', communicationError);
+        }
         break;
       case 'student-mode':
         result = await updateAttendanceStudent({
