@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useAuthStore } from '../../lib/auth-store';
 import { UserSession } from '../../lib/types';
 
@@ -11,18 +11,14 @@ export function AuthProvider({
   children: React.ReactNode;
   initialSession: UserSession;
 }) {
-  const initialized = useRef(false);
+  const setSession = useAuthStore((state) => state.setSession);
 
-  // Initialize store synchronously on first render
-  if (!initialized.current) {
-    useAuthStore.getState().setSession(initialSession);
-    initialized.current = true;
-  }
-
-  // Effect to handle subsequent updates if needed
+  // React renders must stay pure. Synchronize the server-resolved session only
+  // after commit so subscribers (including login surfaces) are never updated
+  // while AuthProvider is rendering.
   useEffect(() => {
-    useAuthStore.getState().setSession(initialSession);
-  }, [initialSession]);
+    setSession(initialSession);
+  }, [initialSession, setSession]);
 
   return <>{children}</>;
 }
