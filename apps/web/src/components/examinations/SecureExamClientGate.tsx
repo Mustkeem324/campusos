@@ -41,6 +41,7 @@ export function SecureExamClientGate({ attemptId }: { attemptId: string }) {
   async function copyToken() {
     if (!challenge) return;
     await navigator.clipboard.writeText(JSON.stringify({
+      challengeId: challenge.challengeId,
       challengeToken: challenge.challengeToken,
       nonce: challenge.nonce,
       policyVersion: challenge.policyVersion,
