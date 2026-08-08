@@ -11,15 +11,19 @@ function safeEqual(left: string, right: string) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+export function isVisionWorkerMediaToken(value: unknown) {
+  const configured = process.env.NAVEMORA_EXAM_VISION_MEDIA_SECRET || '';
+  const supplied = String(value || '');
+  return configured.length >= 32 && supplied.length > 0 && safeEqual(configured, supplied);
+}
+
 export async function authorizeVisionWorkerMedia(input: {
   token?: unknown;
   action?: unknown;
   path?: unknown;
   protocol?: unknown;
 }) {
-  const configured = process.env.NAVEMORA_EXAM_VISION_MEDIA_SECRET || '';
-  const supplied = String(input.token || '');
-  if (configured.length < 32 || !supplied || !safeEqual(configured, supplied)) {
+  if (!isVisionWorkerMediaToken(input.token)) {
     throw new SecureExaminationError('AI vision worker media authorization failed.', 401);
   }
   if (String(input.action || '') !== 'read' || String(input.protocol || '') !== 'webrtc') {
