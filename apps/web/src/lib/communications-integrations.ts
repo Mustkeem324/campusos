@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { Prisma } from '@prisma/client';
+
 import { prisma } from './db';
 import { requireActiveUserContext } from './active-user-context';
 import { attendancePercentage } from './smart-attendance-policy';
@@ -41,12 +43,13 @@ export async function emitSubmittedAttendanceWarnings(sessionId: string) {
   if (!enrollments.length) return { emitted: 0 };
 
   const studentIds = enrollments.map((item) => item.studentId);
+  const studentUuidList = Prisma.join(studentIds.map((studentId) => Prisma.sql`${studentId}::uuid`));
   const summaries = await prisma.$queryRaw<Array<{
     student_id: string;
     held: bigint;
     present: bigint;
     late: bigint;
-  }>>`
+  }>>(Prisma.sql`
     SELECT m.student_id,
            count(*)::bigint AS held,
            count(*) FILTER (WHERE m.status='PRESENT')::bigint AS present,
@@ -56,9 +59,9 @@ export async function emitSubmittedAttendanceWarnings(sessionId: string) {
     WHERE s.tenant_id=${context.tenantId}::uuid
       AND s.course_offering_id=${session.course_offering_id}::uuid
       AND s.status='SUBMITTED'
-      AND m.student_id IN (${PrismaJoinUuid(studentIds)})
+      AND m.student_id IN (${studentUuidList})
     GROUP BY m.student_id
-  `;
+  `);
   const summaryMap = new Map(summaries.map((row) => [row.student_id, row]));
   let emitted = 0;
 
@@ -92,11 +95,4 @@ export async function emitSubmittedAttendanceWarnings(sessionId: string) {
     emitted += 1;
   }
   return { emitted };
-}
-
-/** Prisma.sql-like UUID list without importing client-private helpers. */
-function PrismaJoinUuid(values: string[]) {
-  // This helper is deliberately unreachable with an empty array. UUIDs came
-  // from Prisma-owned Enrollment rows, not browser input.
-  return values.join("'::uuid,'") as never;
 }
