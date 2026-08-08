@@ -11,6 +11,7 @@ on:
       - 'apps/web/src/components/research/**'
       - 'apps/web/src/lib/library-*'
       - 'apps/web/src/lib/research-*'
+      - 'apps/web/src/__tests__/library-membership-bootstrap.test.ts'
       - 'packages/db/prisma/library-operations.sql'
       - 'packages/db/prisma/research-operations.sql'
       - 'scripts/prepare-database.mjs'
@@ -70,12 +71,30 @@ jobs:
         run: npx prisma db execute --file=packages/db/prisma/research-operations.sql --schema=packages/db/prisma/schema.prisma
       - name: Re-provision Research schema (idempotency)
         run: npx prisma db execute --file=packages/db/prisma/research-operations.sql --schema=packages/db/prisma/schema.prisma
+      - name: Verify canonical student to program relation
+        run: |
+          node --input-type=module <<'NODE'
+          import { PrismaClient } from '@prisma/client';
+          const prisma = new PrismaClient();
+          try {
+            await prisma.$queryRawUnsafe(`
+              SELECT b.program_id
+              FROM public.students s
+              JOIN public.batches b
+                ON b.id = s.batch_id
+               AND b.tenant_id = s.tenant_id
+              LIMIT 0
+            `);
+          } finally {
+            await prisma.$disconnect();
+          }
+          NODE
       - name: Typecheck
         run: npm run typecheck
       - name: Lint
         run: npm run lint -- --max-warnings=0
       - name: Library & research policy tests
-        run: npx vitest run apps/web/src/__tests__/library-research-operations.test.ts
+        run: npx vitest run apps/web/src/__tests__/library-research-operations.test.ts apps/web/src/__tests__/library-membership-bootstrap.test.ts
       - name: Legacy research-service tests
         run: npx vitest run apps/web/src/__tests__/research-grants.test.ts apps/web/src/__tests__/patent-royalties.test.ts apps/web/src/__tests__/h-index-calculator.test.ts
       - name: Production build
