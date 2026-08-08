@@ -17,7 +17,8 @@ function routeFiles(directory: string): string[] {
 }
 
 // Routes in this set are intentionally reachable before a user session exists,
-// are read-only public content, or authenticate the caller cryptographically.
+// are read-only public content, cryptographically authenticated ingress, or
+// retired compatibility endpoints that now return 410 without reading input.
 // Adding an entry requires manual review; this allowlist must not become a way to
 // silence the discovery test for a route whose authorization is unclear.
 const INTENTIONALLY_PUBLIC = new Set([
@@ -35,6 +36,7 @@ const INTENTIONALLY_PUBLIC = new Set([
   'contact/route.ts',
   'health/route.ts',
   'institutions/resolve/route.ts',
+  'payments/create/route.ts',
   'payments/webhook/route.ts',
   'payments/webhooks/stripe/route.ts',
   'payments/webhooks/razorpay/route.ts',
