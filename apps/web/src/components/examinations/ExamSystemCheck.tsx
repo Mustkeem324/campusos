@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React from 'react';
 import { Camera, CheckCircle2, Laptop, Mic, MonitorUp, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 
@@ -86,7 +87,7 @@ export function ExamSystemCheck() {
             })}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3"><button onClick={() => void run()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-extrabold text-white hover:bg-blue-800"><RefreshCw className="h-4 w-4" />Run device check</button><a href="/examinations" className="inline-flex h-11 items-center rounded-xl border border-slate-200 px-5 text-xs font-extrabold text-slate-700 dark:border-slate-700 dark:text-slate-200">Back to examinations</a></div>
+          <div className="mt-6 flex flex-wrap gap-3"><button onClick={() => void run()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-blue-700 px-5 text-xs font-extrabold text-white hover:bg-blue-800"><RefreshCw className="h-4 w-4" />Run device check</button><Link href="/examinations" className="inline-flex h-11 items-center rounded-xl border border-slate-200 px-5 text-xs font-extrabold text-slate-700 dark:border-slate-700 dark:text-slate-200">Back to examinations</Link></div>
         </div>
       </div>
     </div>
