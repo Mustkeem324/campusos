@@ -16,8 +16,10 @@ function routeFiles(directory: string): string[] {
   return output;
 }
 
-// Routes in this set are intentionally reachable before a user session exists
-// or are provider callbacks that authenticate the sender cryptographically.
+// Routes in this set are intentionally reachable before a user session exists,
+// are read-only public content, or authenticate the caller cryptographically.
+// Adding an entry requires manual review; this allowlist must not become a way to
+// silence the discovery test for a route whose authorization is unclear.
 const INTENTIONALLY_PUBLIC = new Set([
   'auth/login/route.ts',
   'auth/mfa-verify/route.ts',
@@ -32,9 +34,15 @@ const INTENTIONALLY_PUBLIC = new Set([
   'auth/reset-password/route.ts',
   'contact/route.ts',
   'health/route.ts',
+  'institutions/resolve/route.ts',
   'payments/webhook/route.ts',
   'payments/webhooks/stripe/route.ts',
   'payments/webhooks/razorpay/route.ts',
+  'public/careers/jobs/route.ts',
+  'public/careers/jobs/[slug]/route.ts',
+  'public/guides/[slug]/download/route.ts',
+  'transport/gps/ingest/route.ts',
+  'hostel/provider/sync/route.ts',
 ]);
 
 const AUTH_BOUNDARY_MARKERS = [
@@ -44,6 +52,7 @@ const AUTH_BOUNDARY_MARKERS = [
   'requireCompanyAdminContext(',
   'requireCompanyAdmin(',
   'requirePlatformAdmin(',
+  'requireBlogEditor(',
   'resolvePaymentRequestContext(',
   'resolvePaymentContext(',
   'verifyApiKey(',
