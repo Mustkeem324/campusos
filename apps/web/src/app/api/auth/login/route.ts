@@ -2,6 +2,11 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { comparePassword, createSession, signToken } from '../../../../lib/auth';
+import {
+  databaseUnavailableLog,
+  databaseUnavailablePublicMessage,
+  isDatabaseUnavailableError,
+} from '../../../../lib/database-errors';
 import { prisma } from '../../../../lib/db';
 import { createMfaChallenge } from '../../../../lib/mfa-challenge';
 import {
@@ -145,6 +150,21 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     if (error instanceof PayloadTooLargeError) return NextResponse.json({ error: 'Request payload is too large.' }, { status: 413 });
     if (error instanceof InvalidJsonError) return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+
+    if (isDatabaseUnavailableError(error)) {
+      databaseUnavailableLog(error, '/api/auth/login');
+      return NextResponse.json(
+        { error: databaseUnavailablePublicMessage(), code: 'DATABASE_UNAVAILABLE' },
+        {
+          status: 503,
+          headers: {
+            'Cache-Control': 'no-store',
+            'Retry-After': '5',
+          },
+        },
+      );
+    }
+
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
