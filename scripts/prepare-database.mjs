@@ -142,6 +142,13 @@ function provisionExamRuntimeStorage() {
   );
 }
 
+function provisionExamRuntimeSafety() {
+  executeSqlFile(
+    'packages/db/prisma/exam-proctoring-runtime-safety.sql',
+    'Secure Examination AI finding safety constraints',
+  );
+}
+
 function runSyntheticCampusSeed() {
   const seedEnv = { CAMPUSOS_ALLOW_SYNTHETIC_SEED: 'true' };
 
@@ -221,6 +228,10 @@ function prepareDatabase() {
   console.log('Provisioning NAVEMORA realtime exam media, AI worker and secure-client runtime tables...');
   provisionExamRuntimeStorage();
   console.log('Realtime secure examination runtime storage is ready.');
+
+  console.log('Applying NAVEMORA secure-exam AI finding safety constraints...');
+  provisionExamRuntimeSafety();
+  console.log('Secure-exam AI finding safety constraints are ready.');
 
   if (shouldSeedSyntheticCampus()) {
     console.warn('Explicit synthetic seed opt-in detected. This should only be used in isolated development or QA databases.');
