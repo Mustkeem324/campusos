@@ -1,0 +1,40 @@
+logLevel: info
+logDestinations: [stdout]
+
+# Every WebRTC publish/read request is authorized by NAVEMORA. The Docker
+# Compose service overrides this address through MTX_AUTHHTTPADDRESS when needed.
+authMethod: http
+authHTTPAddress: http://host.docker.internal:3000/api/examinations/proctoring/runtime/media-auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
+  - action: pprof
+
+# The browser-facing WebRTC handshake endpoint. In production place this behind
+# an HTTPS reverse proxy or enable MediaMTX WebRTC TLS with a trusted certificate.
+webrtc: true
+webrtcAddress: :8889
+webrtcEncryption: false
+webrtcAllowOrigins: ["http://localhost:3000"]
+webrtcTrustedProxies: []
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: ""
+webrtcIPsFromInterfaces: true
+webrtcAdditionalHosts: []
+
+# Production internet deployments should configure a STUN/TURN service through
+# webrtcICEServers2. Do not commit long-lived TURN credentials here.
+webrtcICEServers2: []
+webrtcHandshakeTimeout: 10s
+webrtcTrackGatherTimeout: 2s
+
+pathDefaults:
+  source: publisher
+  # A second publisher must never silently replace the authenticated student
+  # camera that already owns an examination stream path.
+  overridePublisher: false
+  maxReaders: 0
+  record: false
+
+paths:
+  all_others:
