@@ -1,8 +1,5 @@
-'use client';
+import { SecureExaminationWorkspace } from '@/components/examinations/SecureExaminationWorkspace';
 
-import React from 'react';
-import { LMSWorkspace } from '../../../components/lms/LMSWorkspace';
-
-export default function Page() {
-  return <LMSWorkspace />;
+export default function ExaminationsPage() {
+  return <SecureExaminationWorkspace />;
 }
