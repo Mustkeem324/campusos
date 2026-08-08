@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { requireActiveUserContext } from '@/lib/active-user-context';
+import { ensureCanonicalLibraryMembership } from '@/lib/library-membership-bootstrap';
 import { LibraryError, getLibraryWorkspaceView } from '@/lib/library-operations';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const context = await requireActiveUserContext();
+    await ensureCanonicalLibraryMembership(context);
     const workspace = await getLibraryWorkspaceView(context);
     return NextResponse.json(workspace);
   } catch (error) {
