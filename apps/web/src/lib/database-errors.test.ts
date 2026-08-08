@@ -29,15 +29,15 @@ describe('database error handling', () => {
   });
 
   it('returns a useful development message and a generic production message', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
+    try {
+      vi.stubEnv('NODE_ENV', 'development');
+      expect(databaseUnavailablePublicMessage()).toContain('DATABASE_URL');
 
-    process.env.NODE_ENV = 'development';
-    expect(databaseUnavailablePublicMessage()).toContain('DATABASE_URL');
-
-    process.env.NODE_ENV = 'production';
-    expect(databaseUnavailablePublicMessage()).not.toContain('DATABASE_URL');
-
-    process.env.NODE_ENV = originalNodeEnv;
+      vi.stubEnv('NODE_ENV', 'production');
+      expect(databaseUnavailablePublicMessage()).not.toContain('DATABASE_URL');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('logs structured metadata without logging the database message', () => {
