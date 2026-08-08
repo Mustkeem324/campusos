@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 
-import { getSecureExamWorkspace, SecureExaminationError } from '@/lib/secure-examination';
+import { SecureExaminationError } from '@/lib/secure-examination';
+import { getSecureExamWorkspaceForRequest } from '@/lib/secure-examination-workspace';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const workspace = await getSecureExamWorkspace();
+    const workspace = await getSecureExamWorkspaceForRequest();
     return NextResponse.json(workspace, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     if (error instanceof SecureExaminationError) {
