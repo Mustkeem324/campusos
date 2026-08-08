@@ -31,12 +31,12 @@ export async function emitSubmittedAttendanceWarnings(sessionId: string) {
 
   const offering = await prisma.courseOffering.findFirst({
     where: { id: session.course_offering_id, tenantId: context.tenantId },
-    include: { course: { select: { code: true, name: true } } },
+    include: { course: { select: { code: true, title: true } } },
   });
   if (!offering) return { emitted: 0 };
 
   const enrollments = await prisma.enrollment.findMany({
-    where: { tenantId: context.tenantId, courseOfferingId: session.course_offering_id, status: 'ENROLLED' },
+    where: { tenantId: context.tenantId, courseOfferingId: session.course_offering_id },
     include: { student: { select: { id: true, user: { select: { name: true } } } } },
     take: 5000,
   });
@@ -83,7 +83,7 @@ export async function emitSubmittedAttendanceWarnings(sessionId: string) {
       requiredPercentage: session.required_percentage,
       data: {
         student: { name: enrollment.student.user.name },
-        course: { code: offering.course.code, title: offering.course.name },
+        course: { code: offering.course.code, title: offering.course.title },
         attendance: {
           percentage: Math.round(percentage * 100) / 100,
           requiredPercentage: session.required_percentage,
