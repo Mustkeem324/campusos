@@ -25,6 +25,7 @@ import {
   submitExamAttempt,
   verifyStudentIdentityForExam,
 } from '@/lib/secure-examination';
+import { getSecureClientGate } from '@/lib/secure-examination-runtime';
 import type { ExamDeliveryMode, NetworkQuality, ProctoringSeverity } from '@/lib/secure-examination-types';
 
 export const dynamic = 'force-dynamic';
@@ -197,9 +198,16 @@ export async function POST(request: Request) {
           evidenceEventId: payload.evidenceEventId ? stringValue(payload.evidenceEventId) : null,
         });
         break;
-      case 'start_attempt':
-        result = await startExamAttempt(stringValue(payload.attemptId));
+      case 'start_attempt': {
+        const attemptId = stringValue(payload.attemptId);
+        const secureClient = await getSecureClientGate(attemptId);
+        if (secureClient.required && !secureClient.ready) {
+          result = { attemptId, secureClientRequired: true, attestationRequired: true };
+        } else {
+          result = await startExamAttempt(attemptId);
+        }
         break;
+      }
       case 'save_answer':
         result = await saveExamAnswer(stringValue(payload.attemptId), {
           attemptQuestionId: stringValue(payload.attemptQuestionId),
