@@ -6,11 +6,29 @@ resolveServiceEnvironment();
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
+const SLOW_QUERY_MS = Number(process.env.DB_SLOW_QUERY_MS ?? 500);
+
+function createPrismaClient() {
+  const client = new PrismaClient({
+    log: [
+      { emit: 'event', level: 'query' },
+      { emit: 'event', level: 'error' },
+      { emit: 'event', level: 'warn' },
+    ],
+  });
+
+  client.$on('query', (event) => {
+    if (event.duration < SLOW_QUERY_MS) return;
+    // Never emit query parameters: they can contain student or financial data.
+    console.warn(JSON.stringify({ event: 'slow_database_query', durationMs: event.duration }));
+  });
+  client.$on('error', (event) => console.error(JSON.stringify({ event: 'database_error', message: event.message })));
+  return client;
+}
+
 export const prisma =
   globalForPrisma.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  });
+  createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
@@ -36,7 +54,17 @@ const TENANT_MODELS = [
   'CommunityReport', 'CommunityModerationAction', 'CommunityAcknowledgement',
   'CommunityFollow',
   // Demo Scenario models
-  'DemoScenarioInstance', 'DemoScenarioEvent'
+  'DemoScenarioInstance', 'DemoScenarioEvent',
+  // Governance, International and Data Migration workspace models
+  'GovernanceCommittee', 'GovernanceMeeting', 'GovernanceResolution',
+  'GovernancePolicy', 'GovernanceDelegation',
+  'InternationalStudent', 'ExchangeProgram', 'CreditMapping',
+  'MigrationConnector', 'MigrationJob', 'MigrationFieldMapping',
+  'MigrationValidation', 'MigrationLog',
+  // AI Governance workspace models
+  'AiTenantPolicy', 'AiKnowledgeDocument', 'AiKnowledgeChunk',
+  'AiConversation', 'AiMessage', 'AiActionProposal', 'AiAuditLog',
+  'AiBiasAudit', 'AiIncident'
 ];
 
 /**

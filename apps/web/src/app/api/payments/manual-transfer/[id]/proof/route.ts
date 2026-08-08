@@ -13,7 +13,9 @@ type ProofRow = {
   proof_bytes: Uint8Array;
 };
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   const context = await requireActiveUserContext().catch(() => null);
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

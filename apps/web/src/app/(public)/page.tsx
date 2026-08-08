@@ -26,7 +26,7 @@ import { getEnterpriseHomepageData } from '@/lib/homepage/workspace';
 export const dynamic = 'force-dynamic';
 
 export default async function Homepage() {
-  const hasSessionCookie = cookies().has('campusos_session');
+  const hasSessionCookie = (await cookies()).has('campusos_session');
   const context = hasSessionCookie
     ? await requireActiveUserContext().catch((error: unknown) => {
         console.error('Unable to resolve active homepage context:', error);

@@ -72,6 +72,34 @@ function provisionPaymentPortalStorage() {
   );
 }
 
+function provisionFinanceOperationsStorage() {
+  executeSqlFile(
+    'packages/db/prisma/finance-operations.sql',
+    'Finance 2.0 operations provisioning',
+  );
+}
+
+function provisionWorkforceStorage() {
+  executeSqlFile(
+    'packages/db/prisma/workforce-operations.sql',
+    'Faculty HR Payroll & Workforce 2.0 operations provisioning',
+  );
+}
+
+function provisionLibraryStorage() {
+  executeSqlFile(
+    'packages/db/prisma/library-operations.sql',
+    'Library, Digital Resources & Research 2.0 library provisioning',
+  );
+}
+
+function provisionResearchStorage() {
+  executeSqlFile(
+    'packages/db/prisma/research-operations.sql',
+    'Library, Digital Resources & Research 2.0 research provisioning',
+  );
+}
+
 function provisionTransportGpsStorage() {
   executeSqlFile(
     'packages/db/prisma/transport-gps.sql',
@@ -139,6 +167,22 @@ function prepareDatabase() {
   console.log('Provisioning CampusOS payment orchestration tables...');
   provisionPaymentPortalStorage();
   console.log('Payment orchestration storage is ready.');
+
+  console.log('Provisioning NAVEMORA Finance 2.0 operations tables...');
+  provisionFinanceOperationsStorage();
+  console.log('Finance 2.0 operations storage is ready.');
+
+  console.log('Provisioning NAVEMORA Faculty, HR, Payroll & Workforce 2.0 operations tables...');
+  provisionWorkforceStorage();
+  console.log('Workforce 2.0 operations storage is ready.');
+
+  console.log('Provisioning NAVEMORA Library, Digital Resources & Research 2.0 library tables...');
+  provisionLibraryStorage();
+  console.log('Library 2.0 operations storage is ready.');
+
+  console.log('Provisioning NAVEMORA Library, Digital Resources & Research 2.0 research tables...');
+  provisionResearchStorage();
+  console.log('Research 2.0 operations storage is ready.');
 
   console.log('Provisioning optional CampusOS transport GPS tables...');
   provisionTransportGpsStorage();

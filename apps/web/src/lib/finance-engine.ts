@@ -85,6 +85,12 @@ export function calculateInvoiceTotals(
 }
 
 // 2. Webhook Idempotency Guard & Payment Processor
+//
+// Legacy helper kept for dashboard/export compatibility. It is NOT used by the
+// live payment pipeline: the reviewed gateway webhook handlers verify provider
+// signatures with server environment secrets and write confirmed payments
+// through the payment finalizer. This helper must never receive a default
+// secret — callers must supply the real configured secret explicitly.
 export function processPaymentWebhookIdempotent(
   payload: {
     transactionId: string;
@@ -94,8 +100,11 @@ export function processPaymentWebhookIdempotent(
     paymentMethod: 'RAZORPAY' | 'STRIPE' | 'UPI';
     signature: string;
   },
-  webhookSecret = 'whsec_campusos_secret_123'
+  webhookSecret: string
 ): { success: boolean; isDuplicate: boolean; receiptNumber?: string; message: string } {
+  if (!webhookSecret) {
+    throw new Error('A webhook secret must be supplied; refusing to process with an unverified signature.');
+  }
   const idempotencyKey = `wh_tx_${payload.transactionId}`;
 
   // Idempotency Check: Ignore if already processed
@@ -116,7 +125,7 @@ export function processPaymentWebhookIdempotent(
   // Mark key as processed
   PROCESSED_WEBHOOK_KEYS.add(idempotencyKey);
 
-  const receiptNumber = `RCPT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const receiptNumber = `RCPT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
   // Record Ledger Credit Entry
   PAYMENT_LEDGER.push({

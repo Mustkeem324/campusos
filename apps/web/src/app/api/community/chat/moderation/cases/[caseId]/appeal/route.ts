@@ -8,7 +8,9 @@ export const dynamic = 'force-dynamic';
 
 const appealSchema = z.object({ appealText: z.string().min(10).max(2000) });
 
-export async function POST(request: Request, { params }: { params: { caseId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ caseId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

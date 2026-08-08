@@ -7,11 +7,12 @@ import {
   ArrowRight,
   BookOpenCheck,
   Building2,
-  CheckCircle2,
+  Check,
   CreditCard,
   GraduationCap,
   Grid2X2,
   ShieldCheck,
+  Sparkles,
   UsersRound,
   Workflow,
   X,
@@ -19,104 +20,655 @@ import {
 
 import { useDialogFocusTrap } from '@/components/ui/useDialogFocusTrap';
 
-const DISMISS_KEY = 'campusos-india-institution-popup-v5-dismissed';
+const DISMISS_KEY = 'navemora-india-institution-popup-v6-dismissed';
 const OPEN_DELAY_MS = 900;
-const CAMPUS_IMAGE = '/images/campusos-india-campus.svg';
+
+const CAMPUS_IMAGE = '/images/campusos-india-campus.jpg';
 
 const capabilities = [
-  { label: 'Admissions', icon: UsersRound, tone: 'text-[#C75B13]' },
-  { label: 'Academics', icon: BookOpenCheck, tone: 'text-[#123E91]' },
-  { label: 'Finance', icon: CreditCard, tone: 'text-[#087A55]' },
-  { label: 'People & HR', icon: Building2, tone: 'text-[#123E91]' },
-  { label: 'Student Services', icon: GraduationCap, tone: 'text-[#C75B13]' },
+  {
+    label: 'Admissions',
+    description: 'Application to enrollment',
+    icon: UsersRound,
+    iconClass: 'text-[#C45A12]',
+    iconBg: 'bg-[#FFF3E8]',
+  },
+  {
+    label: 'Academics',
+    description: 'Teaching & timetable',
+    icon: BookOpenCheck,
+    iconClass: 'text-[#164A9C]',
+    iconBg: 'bg-[#EEF4FF]',
+  },
+  {
+    label: 'Finance',
+    description: 'Fees & scholarships',
+    icon: CreditCard,
+    iconClass: 'text-[#087A55]',
+    iconBg: 'bg-[#EAF8F1]',
+  },
+  {
+    label: 'People & HR',
+    description: 'Faculty & workforce',
+    icon: Building2,
+    iconClass: 'text-[#164A9C]',
+    iconBg: 'bg-[#EEF4FF]',
+  },
+  {
+    label: 'Student Services',
+    description: 'One connected journey',
+    icon: GraduationCap,
+    iconClass: 'text-[#C45A12]',
+    iconBg: 'bg-[#FFF3E8]',
+  },
 ] as const;
 
 const operatingPrinciples = [
-  { title: 'Institution-scoped', description: 'Tenant and campus context stays attached to authorised work.', icon: Building2 },
-  { title: 'Role-aware', description: 'Users see information and actions assigned to their responsibilities.', icon: ShieldCheck },
-  { title: 'Workflow-driven', description: 'Approvals, handoffs, statuses and evidence remain visible.', icon: Workflow },
+  {
+    title: 'Institution-scoped',
+    description:
+      'Tenant, campus and academic context stays attached to every authorised workflow.',
+    icon: Building2,
+    iconClass: 'text-[#164A9C]',
+    iconBg: 'bg-[#EEF4FF]',
+  },
+  {
+    title: 'Role-aware',
+    description:
+      'Students, faculty and administrators see only the information and actions they need.',
+    icon: ShieldCheck,
+    iconClass: 'text-[#C45A12]',
+    iconBg: 'bg-[#FFF3E8]',
+  },
+  {
+    title: 'Workflow-driven',
+    description:
+      'Approvals, handoffs, statuses and evidence stay visible across institutional operations.',
+    icon: Workflow,
+    iconClass: 'text-[#087A55]',
+    iconBg: 'bg-[#EAF8F1]',
+  },
 ] as const;
 
 export function IndianCampaignPopup() {
   const [isOpen, setIsOpen] = React.useState(false);
-  const dialogRef = React.useRef<HTMLElement>(null);
+
+  const dialogRef = React.useRef<HTMLDivElement>(null);
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
 
   const dismissPopup = React.useCallback(() => {
-    try { window.sessionStorage.setItem(DISMISS_KEY, 'true'); } catch { /* storage can be unavailable */ }
+    try {
+      window.sessionStorage.setItem(DISMISS_KEY, 'true');
+    } catch {
+      // sessionStorage can be unavailable.
+    }
+
     setIsOpen(false);
   }, []);
 
-  useDialogFocusTrap({ active: isOpen, containerRef: dialogRef, initialFocusRef: closeButtonRef });
+  useDialogFocusTrap({
+    active: isOpen,
+    containerRef: dialogRef,
+    initialFocusRef: closeButtonRef,
+  });
 
   React.useEffect(() => {
     let dismissed = false;
-    try { dismissed = window.sessionStorage.getItem(DISMISS_KEY) === 'true'; } catch { dismissed = false; }
+
+    try {
+      dismissed =
+        window.sessionStorage.getItem(DISMISS_KEY) === 'true';
+    } catch {
+      dismissed = false;
+    }
+
     if (dismissed) return;
-    const timer = window.setTimeout(() => setIsOpen(true), OPEN_DELAY_MS);
-    return () => window.clearTimeout(timer);
+
+    const timer = window.setTimeout(() => {
+      setIsOpen(true);
+    }, OPEN_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, []);
 
   React.useEffect(() => {
     if (!isOpen) return;
+
     const originalOverflow = document.body.style.overflow;
+
     document.body.style.overflow = 'hidden';
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') dismissPopup(); };
-    document.addEventListener('keydown', onKeyDown);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        dismissPopup();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
     return () => {
       document.body.style.overflow = originalOverflow;
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [dismissPopup, isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#071225]/72 p-0 sm:items-center sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) dismissPopup(); }}>
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="campaign-popup-title" aria-describedby="campaign-popup-description" className="relative w-full max-w-[1180px] overflow-hidden rounded-t-[20px] border border-[#D7DFE9] bg-[#FFFDF9] shadow-[0_32px_96px_rgba(0,0,0,0.36)] outline-none sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[18px]">
-        <button ref={closeButtonRef} type="button" onClick={dismissPopup} className="absolute right-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-[10px] border border-[#D7DFEA] bg-white text-[#0F1F3A] shadow-[0_6px_18px_rgba(15,31,58,0.12)] transition hover:bg-[#F7F9FC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1754E8] sm:right-5 sm:top-5" aria-label="Close institutional information"><X className="h-5 w-5" aria-hidden="true" /></button>
+    <div
+      className="
+        fixed inset-0 z-[120]
+        flex items-end justify-center
+        bg-[#06101F]/75
+        p-0
+        backdrop-blur-[5px]
+        sm:items-center sm:p-5
+      "
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          dismissPopup();
+        }
+      }}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="campaign-popup-title"
+        aria-describedby="campaign-popup-description"
+        className="
+          relative
+          w-full
+          max-w-[1420px]
+          overflow-hidden
+          bg-white
+          shadow-[0_32px_100px_rgba(4,15,34,0.35)]
+          sm:rounded-[26px]
+        "
+      >
+        {/* Top close button */}
+        <button
+          ref={closeButtonRef}
+          type="button"
+          aria-label="Close"
+          onClick={dismissPopup}
+          className="
+            absolute right-4 top-4 z-50
+            flex h-11 w-11 items-center justify-center
+            rounded-full
+            border border-[#D9E0E9]
+            bg-white/95
+            text-[#12213D]
+            shadow-[0_5px_18px_rgba(15,23,42,0.12)]
+            backdrop-blur
+            transition
+            hover:border-[#BBC7D6]
+            hover:bg-[#F8FAFC]
+            focus:outline-none
+            focus:ring-2
+            focus:ring-[#164A9C]
+            focus:ring-offset-2
+            sm:right-5 sm:top-5
+          "
+        >
+          <X className="h-5 w-5" aria-hidden="true" />
+        </button>
 
-        <div className="grid max-h-[100dvh] overflow-y-auto [scrollbar-color:#1D4ED8_#E5E7EB] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#E5E7EB] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#1D4ED8] sm:max-h-[calc(100dvh-2.5rem)] lg:grid-cols-[minmax(0,1.24fr)_minmax(410px,0.96fr)]">
-          <div className="px-5 pb-8 pt-12 sm:px-9 sm:py-10 lg:px-12">
-            <div className="mx-auto max-w-[690px] lg:mx-0">
-              <div className="inline-flex min-h-8 items-center gap-2 rounded-lg border border-[#E7D2B9] bg-[#FFF8EF] px-3 text-[10px] font-black uppercase tracking-[0.12em] text-[#B85814]"><GraduationCap className="h-3.5 w-3.5" aria-hidden="true" />Built for Indian higher education</div>
-              <p className="mt-5 text-sm font-extrabold text-[#101828] sm:text-base"><span className="text-[#C75B13]">Smarter</span> campus operations. <span className="text-[#087A55]">Clearer</span> institutional responsibility.</p>
+        {/* Indian accent */}
+        <div
+          className="absolute left-0 right-0 top-0 z-20 flex h-[5px]"
+          aria-hidden="true"
+        >
+          <span className="w-1/3 bg-[#D97706]" />
+          <span className="w-1/3 bg-white" />
+          <span className="w-1/3 bg-[#15803D]" />
+        </div>
 
-              <h2 id="campaign-popup-title" className="mt-4 text-[36px] font-extrabold leading-[1.02] tracking-[-0.045em] text-[#123E91] sm:text-[48px] lg:text-[54px]">Connect Your <span className="block"><span className="text-[#C75B13]">Campus</span> Operations</span></h2>
-              <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3" aria-hidden="true"><span className="h-px bg-[#C75B13]" /><span className="h-2 w-2 rotate-45 border border-[#087A55] bg-white" /><span className="h-px bg-[#087A55]" /></div>
-              <p id="campaign-popup-description" className="mt-5 max-w-[650px] text-sm font-semibold leading-7 text-[#344054] sm:text-[16px]">Bring admissions, academics, finance, people and student services into one institution-aware operating platform, configured around your approved roles and workflows.</p>
+        <div
+          className="
+            grid
+            max-h-[100dvh]
+            overflow-y-auto
+            [scrollbar-color:#164A9C_#E5E7EB]
+            [scrollbar-width:thin]
+            [&::-webkit-scrollbar]:w-1.5
+            [&::-webkit-scrollbar-track]:bg-[#E5E7EB]
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:bg-[#164A9C]
+            sm:max-h-[calc(100dvh-2.5rem)]
+            lg:grid-cols-[minmax(0,1.12fr)_minmax(440px,0.88fr)]
+          "
+        >
+          {/* LEFT */}
+          <div className="relative overflow-hidden bg-white px-5 pb-8 pt-14 sm:px-9 sm:pb-10 sm:pt-12 lg:px-12 xl:px-14">
+            {/* soft bottom architecture decoration */}
+            <div
+              className="
+                pointer-events-none
+                absolute inset-x-0 bottom-0
+                h-40
+                opacity-[0.055]
+              "
+              aria-hidden="true"
+            >
+              <svg
+                viewBox="0 0 1200 250"
+                className="h-full w-full"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d="M0 231V194H70V161H107V194H160V134H192V92H218V134H246V194H296V150H325V194H365V119H398V79H428V119H461V194H506V147H540V194H589V103H616V53H645V103H677V194H722V137H760V194H808V128H837V194H879V151H908V194H958V115H990V72H1021V115H1050V194H1103V151H1138V194H1200V231Z"
+                  fill="currentColor"
+                  className="text-[#164A9C]"
+                />
+              </svg>
+            </div>
 
-              <div className="mt-6 grid grid-cols-2 overflow-hidden rounded-[12px] border border-[#E2D8CB] bg-[#E2D8CB] sm:grid-cols-5">
-                {capabilities.map(({ label, icon: Icon, tone }) => <div key={label} className="flex min-h-[84px] flex-col items-center justify-center bg-white px-2 py-3 text-center"><Icon className={`h-5 w-5 ${tone}`} aria-hidden="true" /><span className="mt-2 max-w-[100px] text-[11px] font-extrabold leading-4 text-[#26344D]">{label}</span></div>)}
+            <div className="relative z-10 mx-auto max-w-[720px] lg:mx-0">
+              {/* eyebrow */}
+              <div
+                className="
+                  inline-flex min-h-9 items-center gap-2
+                  rounded-full
+                  border border-[#F0D4B6]
+                  bg-[#FFF8F0]
+                  px-3.5
+                  text-[10px] font-extrabold uppercase
+                  tracking-[0.11em]
+                  text-[#B65010]
+                "
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white">
+                  <GraduationCap
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  />
+                </span>
+
+                Built for Indian Higher Education
               </div>
 
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <Link href="/contact?intent=sales" onClick={dismissPopup} className="group inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-[9px] bg-[#123E91] px-6 text-sm font-extrabold text-white shadow-[0_10px_24px_rgba(18,62,145,0.18)] transition hover:bg-[#0E3277]">Talk to CampusOS <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></Link>
-                <Link href="/platform" onClick={dismissPopup} className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-[9px] border border-[#123E91] bg-white px-6 text-sm font-extrabold text-[#123E91] transition hover:bg-[#EEF3FF]"><Grid2X2 className="h-4 w-4" aria-hidden="true" />Explore Platform</Link>
+              <div className="mt-7">
+                <p className="flex items-center gap-2 text-sm font-bold text-[#44546B]">
+                  <Sparkles
+                    className="h-4 w-4 text-[#C45A12]"
+                    aria-hidden="true"
+                  />
+                  One operating system for the institution
+                </p>
+
+                <h2
+                  id="campaign-popup-title"
+                  className="
+                    mt-4
+                    max-w-[700px]
+                    text-[40px]
+                    font-extrabold
+                    leading-[0.98]
+                    tracking-[-0.045em]
+                    text-[#081B3A]
+                    sm:text-[50px]
+                    lg:text-[56px]
+                    xl:text-[62px]
+                  "
+                >
+                  Connect Your
+                  <span className="mt-1 block">
+                    <span className="text-[#C65B13]">
+                      Campus
+                    </span>{' '}
+                    <span className="text-[#164A9C]">
+                      Operations
+                    </span>
+                  </span>
+                </h2>
+
+                <p
+                  id="campaign-popup-description"
+                  className="
+                    mt-6
+                    max-w-[665px]
+                    text-[15px]
+                    font-medium
+                    leading-7
+                    text-[#526078]
+                    sm:text-[16px]
+                  "
+                >
+                  Bring admissions, academics, finance, workforce and
+                  student services into one secure institution-aware
+                  platform — built around real roles, approvals and
+                  operational accountability.
+                </p>
               </div>
 
-              <p className="mt-5 text-[11px] leading-5 text-[#667085]">No customer counts, performance metrics or commercial offer is implied by this message. Final capability and implementation scope is confirmed with each institution.</p>
+              {/* capability cards */}
+              <div className="mt-7 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
+                {capabilities.map(
+                  ({
+                    label,
+                    description,
+                    icon: Icon,
+                    iconClass,
+                    iconBg,
+                  }) => (
+                    <div
+                      key={label}
+                      className="
+                        group
+                        min-h-[122px]
+                        rounded-[15px]
+                        border border-[#E5EAF1]
+                        bg-white
+                        p-3.5
+                        transition
+                        hover:-translate-y-0.5
+                        hover:border-[#C8D3E2]
+                        hover:shadow-[0_10px_25px_rgba(15,23,42,0.07)]
+                      "
+                    >
+                      <span
+                        className={`
+                          flex h-9 w-9
+                          items-center justify-center
+                          rounded-[10px]
+                          ${iconBg}
+                          ${iconClass}
+                        `}
+                      >
+                        <Icon
+                          className="h-[18px] w-[18px]"
+                          aria-hidden="true"
+                        />
+                      </span>
+
+                      <p className="mt-3 text-[12px] font-extrabold leading-4 text-[#17243B]">
+                        {label}
+                      </p>
+
+                      <p className="mt-1 text-[9px] font-medium leading-[14px] text-[#7A8699]">
+                        {description}
+                      </p>
+                    </div>
+                  ),
+                )}
+              </div>
+
+              {/* CTA */}
+              <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                <Link
+                  href="/contact?intent=sales"
+                  onClick={dismissPopup}
+                  className="
+                    group
+                    inline-flex min-h-[54px]
+                    items-center justify-center gap-2.5
+                    rounded-[11px]
+                    bg-[#164A9C]
+                    px-6
+                    text-sm font-extrabold
+                    text-white
+                    shadow-[0_12px_28px_rgba(22,74,156,0.22)]
+                    transition
+                    hover:bg-[#103D84]
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-[#164A9C]
+                    focus:ring-offset-2
+                  "
+                >
+                  Talk to NAVEMORA
+
+                  <ArrowRight
+                    className="h-4 w-4 transition-transform group-hover:translate-x-1"
+                    aria-hidden="true"
+                  />
+                </Link>
+
+                <Link
+                  href="/platform"
+                  onClick={dismissPopup}
+                  className="
+                    inline-flex min-h-[54px]
+                    items-center justify-center gap-2.5
+                    rounded-[11px]
+                    border border-[#164A9C]
+                    bg-white
+                    px-6
+                    text-sm font-extrabold
+                    text-[#164A9C]
+                    transition
+                    hover:bg-[#F3F7FF]
+                    focus:outline-none
+                    focus:ring-2
+                    focus:ring-[#164A9C]
+                    focus:ring-offset-2
+                  "
+                >
+                  <Grid2X2 className="h-4 w-4" aria-hidden="true" />
+                  Explore Platform
+                </Link>
+              </div>
+
+              {/* disclaimer */}
+              <div
+                className="
+                  mt-6
+                  flex items-start gap-3
+                  rounded-[13px]
+                  border border-[#E7EBF1]
+                  bg-[#F8FAFC]
+                  p-4
+                "
+              >
+                <span
+                  className="
+                    mt-0.5
+                    flex h-8 w-8 shrink-0
+                    items-center justify-center
+                    rounded-[9px]
+                    border border-[#D7E1EE]
+                    bg-white
+                    text-[#164A9C]
+                  "
+                >
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                </span>
+
+                <p className="text-[10.5px] font-medium leading-5 text-[#6A778C]">
+                  No customer counts, performance metrics or commercial
+                  offer is implied by this message. Final implementation
+                  scope and applicable capabilities are confirmed with
+                  each institution.
+                </p>
+              </div>
             </div>
           </div>
 
-          <aside className="relative min-h-[500px] overflow-hidden bg-[#102F70] lg:min-h-full">
-            <img src={CAMPUS_IMAGE} alt="Illustration of Indian university students collaborating with a laptop on campus" className="absolute inset-0 h-full w-full object-cover object-center" loading="eager" />
-            <div className="pointer-events-none absolute inset-0 bg-[#102F70]/18" aria-hidden="true" />
-            <div className="pointer-events-none absolute left-0 top-0 h-2 w-1/3 bg-[#D97706]" aria-hidden="true" />
-            <div className="pointer-events-none absolute left-1/3 top-0 h-2 w-1/3 bg-white" aria-hidden="true" />
-            <div className="pointer-events-none absolute right-0 top-0 h-2 w-1/3 bg-[#15803D]" aria-hidden="true" />
+          {/* RIGHT */}
+          <aside
+            className="
+              relative
+              min-h-[560px]
+              overflow-hidden
+              bg-[#0E326F]
+              lg:min-h-full
+            "
+          >
+            <img
+              src={CAMPUS_IMAGE}
+              alt="Indian university students collaborating with a laptop on campus"
+              className="absolute inset-0 h-full w-full object-cover object-center"
+              loading="eager"
+            />
 
-            <div className="absolute left-6 top-8 z-20 max-w-[310px] rounded-[10px] border border-white/80 bg-white/94 p-4 text-[#101D38] shadow-[0_10px_26px_rgba(16,29,56,0.12)] sm:left-8 sm:top-10">
-              <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#667085]">Institution operating model</p>
-              <p className="mt-2 text-xl font-extrabold tracking-[-0.035em]">Built around responsibility, not decoration.</p>
+            {/* image treatment */}
+            <div
+              className="
+                pointer-events-none
+                absolute inset-0
+                bg-[#0A2C68]/16
+              "
+              aria-hidden="true"
+            />
+
+            <div
+              className="
+                pointer-events-none
+                absolute inset-x-0 bottom-0
+                h-[55%]
+                bg-[linear-gradient(to_top,rgba(5,28,65,0.88),rgba(5,28,65,0.48),transparent)]
+              "
+              aria-hidden="true"
+            />
+
+            {/* top statement */}
+            <div
+              className="
+                absolute
+                left-5 right-16 top-7 z-20
+                rounded-[16px]
+                border border-white/80
+                bg-white/95
+                p-4
+                text-[#14213A]
+                shadow-[0_18px_40px_rgba(7,20,45,0.16)]
+                backdrop-blur-md
+                sm:left-auto sm:right-7 sm:top-10 sm:w-[365px]
+              "
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className="
+                    flex h-11 w-11 shrink-0
+                    items-center justify-center
+                    rounded-[13px]
+                    bg-[#EEF4FF]
+                    text-[#164A9C]
+                  "
+                >
+                  <Building2 className="h-5 w-5" aria-hidden="true" />
+                </span>
+
+                <div>
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-[#738095]">
+                    Institution operating model
+                  </p>
+
+                  <p className="mt-1.5 text-lg font-extrabold leading-6 tracking-[-0.025em] text-[#17213A]">
+                    Built around responsibility,
+                    <span className="block">
+                      not decoration.
+                    </span>
+                  </p>
+
+                  <div className="mt-3 h-0.5 w-14 rounded-full bg-[#164A9C]" />
+                </div>
+              </div>
             </div>
 
-            <div className="absolute inset-x-5 bottom-5 z-20 rounded-[12px] border border-white/80 bg-white/96 p-4 text-[#101D38] shadow-[0_16px_38px_rgba(0,0,0,0.2)] sm:inset-x-7 sm:p-5">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-[#667085]">Operating principles</p>
-              <div className="mt-3 space-y-2">
-                {operatingPrinciples.map(({ title, description, icon: Icon }) => <div key={title} className="flex items-start gap-3 rounded-[9px] border border-[#E6EAF0] bg-[#F8FAFC] p-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] bg-[#EDF3FF] text-[#123E91]"><Icon className="h-4 w-4" aria-hidden="true" /></span><div><p className="text-xs font-extrabold">{title}</p><p className="mt-1 text-[10px] leading-4 text-[#667085]">{description}</p></div></div>)}
+            {/* operating principle card */}
+            <div
+              className="
+                absolute
+                inset-x-4 bottom-4 z-20
+                rounded-[18px]
+                border border-white/80
+                bg-white/95
+                p-4
+                text-[#13203A]
+                shadow-[0_22px_55px_rgba(0,0,0,0.24)]
+                backdrop-blur-md
+                sm:inset-x-6 sm:bottom-6 sm:p-5
+              "
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.12em] text-[#7A8699]">
+                    Operating principles
+                  </p>
+
+                  <p className="mt-1 text-base font-extrabold tracking-[-0.02em] text-[#17213A]">
+                    Operational clarity by design
+                  </p>
+                </div>
+
+                <span className="hidden rounded-full border border-[#DDE5EF] bg-[#F8FAFC] px-3 py-1.5 text-[9px] font-bold text-[#64748B] sm:inline-flex">
+                  NAVEMORA
+                </span>
               </div>
-              <div className="mt-4 flex items-center gap-2 text-xs font-extrabold text-[#123E91]"><CheckCircle2 className="h-4 w-4 text-[#15803D]" aria-hidden="true" />Institution requirements are confirmed before rollout.</div>
+
+              <div className="mt-4 grid gap-2.5 xl:grid-cols-3">
+                {operatingPrinciples.map(
+                  ({
+                    title,
+                    description,
+                    icon: Icon,
+                    iconClass,
+                    iconBg,
+                  }) => (
+                    <div
+                      key={title}
+                      className="
+                        rounded-[13px]
+                        border border-[#E5EAF0]
+                        bg-[#FAFBFD]
+                        p-3.5
+                      "
+                    >
+                      <span
+                        className={`
+                          flex h-9 w-9
+                          items-center justify-center
+                          rounded-[10px]
+                          ${iconBg}
+                          ${iconClass}
+                        `}
+                      >
+                        <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                      </span>
+
+                      <p className="mt-3 text-[11px] font-extrabold text-[#18243A]">
+                        {title}
+                      </p>
+
+                      <p className="mt-1.5 text-[9px] font-medium leading-[15px] text-[#78859A]">
+                        {description}
+                      </p>
+                    </div>
+                  ),
+                )}
+              </div>
+
+              <div
+                className="
+                  mt-4
+                  flex items-center gap-3
+                  rounded-[11px]
+                  border border-[#E4EBE7]
+                  bg-[#F5FAF7]
+                  px-3.5 py-3
+                "
+              >
+                <span
+                  className="
+                    flex h-7 w-7 shrink-0
+                    items-center justify-center
+                    rounded-full
+                    bg-[#0B8A5B]
+                    text-white
+                  "
+                >
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                </span>
+
+                <p className="text-[10px] font-extrabold leading-4 text-[#263B35]">
+                  Institution requirements and rollout scope are confirmed before implementation.
+                </p>
+              </div>
             </div>
           </aside>
         </div>

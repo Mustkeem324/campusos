@@ -9,6 +9,8 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default function CourseWorkspacePage({ params }: { params: { courseId: string } }) {
+export default async function CourseWorkspacePage({ params: paramsPromise }: { params: Promise<{ courseId: string }>; }) {
+  const params = await paramsPromise;
+
   return <CourseWorkspacePro courseId={params.courseId} />;
 }

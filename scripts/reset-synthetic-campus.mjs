@@ -65,8 +65,77 @@ async function resetTenant(code) {
   await prisma.attendanceSession.deleteMany({ where: { tenantId } });
   await prisma.enrollment.deleteMany({ where: { tenantId } });
 
+  // Chat, community and learning-session tables reference users restrictively,
+  // so they must be removed before profiles and users.
+  await prisma.chatPollVote.deleteMany({ where: { option: { poll: { community: { tenantId } } } } });
+  await prisma.chatPollOption.deleteMany({ where: { poll: { community: { tenantId } } } });
+  await prisma.chatPoll.deleteMany({ where: { community: { tenantId } } });
+  await prisma.chatReadReceipt.deleteMany({ where: { message: { community: { tenantId } } } });
+  await prisma.chatReaction.deleteMany({ where: { message: { community: { tenantId } } } });
+  await prisma.chatAttachment.deleteMany({ where: { message: { community: { tenantId } } } });
+  await prisma.chatBookmark.deleteMany({ where: { message: { community: { tenantId } } } });
+  await prisma.chatPinnedMessage.deleteMany({ where: { community: { tenantId } } });
+  await prisma.chatModerationAction.deleteMany({ where: { case: { community: { tenantId } } } });
+  await prisma.chatModerationCase.deleteMany({ where: { community: { tenantId } } });
+  await prisma.chatUserRestriction.deleteMany({ where: { tenantId } });
+  await prisma.chatNotificationPref.deleteMany({ where: { community: { tenantId } } });
+  await prisma.chatLinkPreview.deleteMany({ where: { community: { tenantId } } });
+  await prisma.chatReport.deleteMany({ where: { community: { tenantId } } });
+  await prisma.chatMessage.deleteMany({ where: { tenantId } });
+  await prisma.chatCommunityMember.deleteMany({ where: { tenantId } });
+  await prisma.chatCommunity.deleteMany({ where: { tenantId } });
+  await prisma.chatAuditEvent.deleteMany({ where: { tenantId } });
+
+  await prisma.communityPollVote.deleteMany({ where: { option: { poll: { post: { tenantId } } } } });
+  await prisma.communityPollOption.deleteMany({ where: { poll: { post: { tenantId } } } });
+  await prisma.communityPoll.deleteMany({ where: { post: { tenantId } } });
+  await prisma.communityBookmark.deleteMany({ where: { tenantId } });
+  await prisma.communityFollow.deleteMany({ where: { tenantId } });
+  await prisma.communityAcknowledgement.deleteMany({ where: { tenantId } });
+  await prisma.communityModerationAction.deleteMany({ where: { report: { tenantId } } });
+  await prisma.communityReport.deleteMany({ where: { tenantId } });
+  await prisma.communityVote.deleteMany({ where: { tenantId } });
+  await prisma.communityReaction.deleteMany({ where: { tenantId } });
+  await prisma.communityReply.deleteMany({ where: { tenantId } });
+  await prisma.communityPost.deleteMany({ where: { tenantId } });
+
+  await prisma.learningSessionPollVote.deleteMany({ where: { poll: { session: { tenantId } } } });
+  await prisma.learningSessionPoll.deleteMany({ where: { session: { tenantId } } });
+  await prisma.learningSessionChatMessage.deleteMany({ where: { session: { tenantId } } });
+  await prisma.learningSessionPresence.deleteMany({ where: { session: { tenantId } } });
+  await prisma.learningSessionParticipant.deleteMany({ where: { session: { tenantId } } });
+  await prisma.learningSession.deleteMany({ where: { tenantId } });
+
+  // Marks and gradebook children reference users/students restrictively.
+  await prisma.studentMarks.deleteMany({ where: { tenantId } });
+  await prisma.marksEntryBatch.deleteMany({ where: { tenantId } });
+  await prisma.studentSemesterResult.deleteMany({ where: { tenantId } });
+  await prisma.studentCourseResult.deleteMany({ where: { tenantId } });
+  await prisma.gradebookScore.deleteMany({ where: { item: { gradebook: { tenantId } } } });
+  await prisma.gradebookItem.deleteMany({ where: { gradebook: { tenantId } } });
+  await prisma.gradebook.deleteMany({ where: { tenantId } });
+  await prisma.examinations.deleteMany({ where: { tenantId } });
+
+  // Demo scenarios and AI governance records reference users restrictively.
+  await prisma.demoScenarioEvent.deleteMany({ where: { tenantId } });
+  await prisma.demoScenarioInstance.deleteMany({ where: { tenantId } });
+  await prisma.aiAuditLog.deleteMany({ where: { tenantId } });
+  await prisma.aiActionProposal.deleteMany({ where: { tenantId } });
+  await prisma.aiMessage.deleteMany({ where: { tenantId } });
+  await prisma.aiConversation.deleteMany({ where: { tenantId } });
+  await prisma.aiKnowledgeChunk.deleteMany({ where: { tenantId } });
+  await prisma.aiKnowledgeDocument.deleteMany({ where: { tenantId } });
+  await prisma.aiIncident.deleteMany({ where: { tenantId } });
+  await prisma.aiBiasAudit.deleteMany({ where: { tenantId } });
+  await prisma.aiTenantPolicy.deleteMany({ where: { tenantId } });
+  await prisma.supportCase.deleteMany({ where: { tenantId } });
+  await prisma.studentSuccessCase.deleteMany({ where: { tenantId } });
+
   // Course offerings must be removed before staff because facultyId is restrictive.
   await prisma.courseAnnouncement.deleteMany({ where: { tenantId } });
+  await prisma.quizAttempt.deleteMany({ where: { quiz: { courseOffering: { tenantId } } } });
+  await prisma.quiz.deleteMany({ where: { courseOffering: { tenantId } } });
+  await prisma.courseModule.deleteMany({ where: { courseOffering: { tenantId } } });
   await prisma.courseOffering.deleteMany({ where: { tenantId } });
   await prisma.course.deleteMany({ where: { tenantId } });
 
@@ -85,6 +154,26 @@ async function resetTenant(code) {
   await prisma.program.deleteMany({ where: { tenantId } });
   await prisma.department.deleteMany({ where: { tenantId } });
   await prisma.campus.deleteMany({ where: { tenantId } });
+
+  // Governance, international and data-migration records are tenant-owned.
+  await prisma.governanceResolution.deleteMany({ where: { tenantId } });
+  await prisma.governanceMeeting.deleteMany({ where: { tenantId } });
+  await prisma.governanceCommittee.deleteMany({ where: { tenantId } });
+  await prisma.governancePolicy.deleteMany({ where: { tenantId } });
+  await prisma.governanceDelegation.deleteMany({ where: { tenantId } });
+  await prisma.internationalStudent.deleteMany({ where: { tenantId } });
+  await prisma.exchangeProgram.deleteMany({ where: { tenantId } });
+  await prisma.creditMapping.deleteMany({ where: { tenantId } });
+  await prisma.migrationJob.deleteMany({ where: { tenantId } });
+  await prisma.migrationConnector.deleteMany({ where: { tenantId } });
+  await prisma.migrationFieldMapping.deleteMany({ where: { tenantId } });
+  await prisma.migrationValidation.deleteMany({ where: { tenantId } });
+  await prisma.migrationLog.deleteMany({ where: { tenantId } });
+  await prisma.analyticsMetric.deleteMany({ where: { tenantId } });
+  await prisma.planningScenario.deleteMany({ where: { tenantId } });
+  await prisma.integrationConnection.deleteMany({ where: { tenantId } });
+  await prisma.smartDevice.deleteMany({ where: { tenantId } });
+  await prisma.implementationProject.deleteMany({ where: { tenantId } });
 
   await prisma.institution.delete({ where: { id: tenantId } });
   console.log(`Synthetic tenant ${institution.code} removed safely.`);

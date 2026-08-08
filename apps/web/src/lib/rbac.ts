@@ -1,11 +1,12 @@
 import { RoleType } from '@prisma/client';
 
-export type Permission = 
+export type Permission =
   | 'view_dashboard'
   | 'manage_users'
   | 'manage_roles'
   | 'view_academic_records'
   | 'edit_academic_records'
+  | 'manage_academic_records'
   | 'manage_finance'
   | 'view_finance'
   | 'manage_hostel'
@@ -70,7 +71,7 @@ export const ROLE_PERMISSIONS: Record<RoleType, Permission[]> = {
     'view_dashboard' // + admissions specific
   ],
   EXAMINATION_CONTROLLER: [
-    'view_dashboard', 'manage_academic_records' as any // Example
+    'view_dashboard', 'manage_academic_records', 'view_academic_records', 'edit_academic_records'
   ]
 };
 

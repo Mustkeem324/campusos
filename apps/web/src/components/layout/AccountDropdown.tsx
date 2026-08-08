@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity,
@@ -37,6 +38,7 @@ import { useAuthStore } from '../../lib/auth-store';
 type Tab = 'main' | 'account' | 'preferences' | 'communication' | 'security' | 'help';
 
 export function AccountDropdown() {
+  const router = useRouter();
   const { currentSession, isDarkMode, toggleDarkMode } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('main');
@@ -58,7 +60,8 @@ export function AccountDropdown() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
       useAuthStore.getState().setSession(null);
-      window.location.href = '/login';
+      router.push('/login');
+      router.refresh();
     } catch (error: unknown) {
       console.error('Logout failed', error);
     }

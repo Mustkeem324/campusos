@@ -8,7 +8,9 @@ export const dynamic = 'force-dynamic';
 
 const MESSAGE_TYPES = new Set(['TEXT', 'IMAGE', 'VIDEO', 'GIF', 'DOCUMENT', 'LINK', 'POLL', 'CODE', 'SYSTEM']);
 
-export async function GET(request: Request, { params }: { params: { communityId: string } }) {
+export async function GET(request: Request, { params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -13,7 +13,9 @@ const replySchema = z.object({
   message: z.string().trim().min(2).max(10_000),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   const actor = await requireCompanySuperAdmin().catch(() => null);
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

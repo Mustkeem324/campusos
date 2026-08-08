@@ -13,7 +13,9 @@ const reportSchema = z.object({
   description: z.string().max(1000).optional(),
 });
 
-export async function POST(request: Request, { params }: { params: { messageId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ messageId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

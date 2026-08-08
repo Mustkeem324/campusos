@@ -146,6 +146,21 @@ async function deleteTenantByCode(code) {
     prisma.document.deleteMany({ where: { tenantId } }),
     prisma.certificate.deleteMany({ where: { tenantId } }),
     prisma.alumni.deleteMany({ where: { tenantId } }),
+    prisma.governanceCommittee.deleteMany({ where: { tenantId } }),
+    prisma.governanceMeeting.deleteMany({ where: { tenantId } }),
+    prisma.governanceResolution.deleteMany({ where: { tenantId } }),
+    prisma.governancePolicy.deleteMany({ where: { tenantId } }),
+    prisma.governanceDelegation.deleteMany({ where: { tenantId } }),
+    prisma.internationalStudent.deleteMany({ where: { tenantId } }),
+    prisma.exchangeProgram.deleteMany({ where: { tenantId } }),
+    prisma.creditMapping.deleteMany({ where: { tenantId } }),
+    prisma.migrationConnector.deleteMany({ where: { tenantId } }),
+    prisma.migrationJob.deleteMany({ where: { tenantId } }),
+    prisma.migrationFieldMapping.deleteMany({ where: { tenantId } }),
+    prisma.migrationValidation.deleteMany({ where: { tenantId } }),
+    prisma.migrationLog.deleteMany({ where: { tenantId } }),
+    prisma.aiBiasAudit.deleteMany({ where: { tenantId } }),
+    prisma.aiIncident.deleteMany({ where: { tenantId } }),
   ]);
 
   await prisma.institution.delete({ where: { id: tenantId } });
@@ -788,6 +803,485 @@ async function seedSyntheticCampus() {
     }))),
   });
 
+  console.log('Creating governance, international, data migration and AI governance records...');
+
+  // --- Institutional Governance ---
+  const committeeDefs = [
+    ['Board of Governors', 'Statutory', 'Dr. Kavya Menon', 'Dr. Sameer Rao'],
+    ['Academic Council', 'Academic', 'Dr. Meera Iyer', 'Dr. Priya Sharma'],
+    ['Finance & Audit Committee', 'Administrative', 'Nikhil Bansal', 'Sonal Gupta'],
+    ['Anti-Ragging Committee', 'Statutory', 'Dr. Raghav Sinha', 'Mohit Tiwari'],
+    ['Research & Innovation Board', 'Advisory', 'Dr. Meera Iyer', 'Dr. Sameer Rao'],
+    ['Library & E-Resources Committee', 'Academic', 'Neha Joshi', 'Aditi Kulkarni'],
+  ];
+  const committees = [];
+  for (let index = 0; index < committeeDefs.length; index += 1) {
+    const [name, type, chairperson, secretary] = committeeDefs[index];
+    const committee = await prisma.governanceCommittee.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        name,
+        type,
+        chairperson,
+        secretary,
+        memberCount: 8 + (index % 5),
+        termStart: dateBeforeNow(120),
+        termEnd: dateFromNow(245),
+        status: index === 0 ? 'Active' : index % 3 === 0 ? 'Reconstitution Due' : 'Active',
+        lastMeetingDate: dateBeforeNow(index * 9 + 5),
+        nextMeetingDate: dateFromNow(12 - index),
+      },
+    });
+    committees.push(committee);
+  }
+
+  const meetingDefs = [
+    ['Statutory Board Meeting Q2', 'Physical', 'Board Room, Admin Block'],
+    ['Academic Council Curriculum Review', 'Hybrid', 'Senate Hall'],
+    ['Finance Committee Mid-Year Review', 'Virtual', 'Video Conference'],
+    ['Anti-Ragging Committee Orientation', 'Physical', 'Auditorium'],
+    ['Research Board Patent Filing', 'Hybrid', 'Research Park'],
+  ];
+  const meetings = [];
+  for (let index = 0; index < meetingDefs.length; index += 1) {
+    const [title, mode, venue] = meetingDefs[index];
+    const scheduledAt = dateFromNow(index === 0 ? -15 : 8 + index * 6);
+    const meeting = await prisma.governanceMeeting.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        committeeId: committees[index % committees.length].id,
+        title,
+        scheduledAt,
+        venue,
+        mode,
+        status: index === 0 ? 'Completed' : 'Scheduled',
+        agendaItems: 4 + (index % 3),
+        quorumRequired: Math.floor(committees[index % committees.length].memberCount * 0.6),
+        attendedCount: index === 0 ? 11 : 0,
+        minutesStatus: index === 0 ? 'Approved' : 'Draft',
+      },
+    });
+    meetings.push(meeting);
+  }
+
+  const resolutionDefs = [
+    ['Approve revised academic calendar 2026-27', 'Voted', 14, 2, 1, 3, 1],
+    ['Ratify research incentive policy', 'Approved', 16, 0, 1, 5, 5],
+    ['Sanction hostel fee revision', 'Discussed', 0, 0, 0, 2, 0],
+    ['Approve new B.Tech AI program proposal', 'Proposed', 0, 0, 0, 4, 0],
+    ['Adopt institutional sustainability charter', 'Approved', 15, 1, 1, 6, 4],
+  ];
+  for (let index = 0; index < resolutionDefs.length; index += 1) {
+    const [title, status, votesFor, votesAgainst, abstentions, actionItems, completedActions] = resolutionDefs[index];
+    await prisma.governanceResolution.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        meetingId: meetings[index % meetings.length].id,
+        title,
+        proposedBy: committees[index % committees.length].chairperson,
+        status,
+        votesFor,
+        votesAgainst,
+        abstentions,
+        actionItems,
+        completedActions,
+        createdAt: dateBeforeNow(index * 4 + 3),
+      },
+    });
+  }
+
+  const policyDefs = [
+    ['Academic Integrity Policy', 'Academic', 'Approved', 'Office of the Dean'],
+    ['Data Protection & Privacy Policy', 'Administrative', 'Published', 'Office of the Registrar'],
+    ['Harassment-Free Campus Policy', 'Statutory', 'Published', 'Office of the Dean'],
+    ['Research Ethics Policy', 'Academic', 'Under Review', 'Research & Innovation Board'],
+    ['Procurement & Vendor Policy', 'Administrative', 'Approved', 'Finance Office'],
+    ['International Student Welfare Policy', 'Academic', 'Under Review', 'International Office'],
+  ];
+  for (let index = 0; index < policyDefs.length; index += 1) {
+    const [title, category, status, approvedBy] = policyDefs[index];
+    await prisma.governancePolicy.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        title,
+        category,
+        version: `1.${index}`,
+        status,
+        effectiveDate: dateBeforeNow(index * 14 + 5),
+        lastReviewedAt: dateBeforeNow(index * 9),
+        approvedBy,
+        department: category,
+      },
+    });
+  }
+
+  const delegationDefs = [
+    ['Capital Expenditure', 'HOD', 'Dean', 'Registrar', 'Up to ₹5L', 'Above ₹5L'],
+    ['Recruitment & Hiring', 'HOD', 'HR Admin', 'Registrar', 'Up to 2 posts', 'Above 2 posts'],
+    ['Student Discipline', 'HOD', 'Dean', 'Registrar', 'Warning level', 'Suspension'],
+    ['Procurement', 'Department Admin', 'Finance Officer', 'Registrar', 'Up to ₹2L', 'Above ₹2L'],
+    ['Examination Exemptions', 'Course Faculty', 'HOD', 'Controller of Exams', 'Up to 7 days', 'Above 7 days'],
+    ['Scholarship Disbursal', 'Accounts', 'Finance Officer', 'Registrar', 'Up to ₹50K', 'Above ₹50K'],
+  ];
+  await prisma.governanceDelegation.createMany({
+    data: delegationDefs.map(([authority, level1, level2, level3, limit, escalation]) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      authority,
+      level1,
+      level2,
+      level3,
+      limit,
+      escalation,
+    })),
+  });
+
+  // --- International Students & Global Mobility ---
+  const intlStudents = [
+    ['Amina Yusuf', 'Nigeria', 'NG', 'B.Tech Computer Science', 'Student Visa', 'FRRO'],
+    ['Rafiq Hossain', 'Bangladesh', 'BD', 'MBA', 'Student Visa', 'FRRO'],
+    ['Ethan Carter', 'USA', 'US', 'B.Des Industrial Design', 'Student Visa', 'FRRO'],
+    ['Priyanka Sharma', 'India', 'IN', 'M.Tech Renewable Energy', 'Student Visa', 'FRRO'],
+    ['Kwame Mensah', 'Ghana', 'GH', 'B.Tech Civil Engineering', 'Student Visa', 'FRRO'],
+    ['Aisha Khan', 'UAE', 'AE', 'BBA', 'Student Visa', 'FRRO'],
+    ['Liam O’Brien', 'Ireland', 'IE', 'M.Sc Data Science', 'Student Visa', 'FRRO'],
+    ['Sofia Rossi', 'Italy', 'IT', 'B.Arch', 'Student Visa', 'FRRO'],
+    ['Chen Wei', 'China', 'CN', 'M.Tech Mechanical', 'Student Visa', 'FRRO'],
+    ['Fatima Zahra', 'Morocco', 'MA', 'B.Tech Electronics', 'Student Visa', 'FRRO'],
+    ['Daniel Kim', 'South Korea', 'KR', 'MBA', 'Student Visa', 'FRRO'],
+    ['Grace Adeyemi', 'Nigeria', 'NG', 'M.Sc Biotechnology', 'Student Visa', 'FRRO'],
+  ];
+  const intlStudentIds = [];
+  for (let index = 0; index < intlStudents.length; index += 1) {
+    const [fullName, nationality, countryCode, program] = intlStudents[index];
+    const frroStatus = index % 3 === 0 ? 'Pending' : index % 5 === 0 ? 'Expired' : 'Registered';
+    const created = await prisma.internationalStudent.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        fullName,
+        nationality,
+        countryCode,
+        program,
+        visaType: 'Student Visa (Form S)',
+        visaExpiry: dateFromNow(30 + (index % 3) * 60 + index * 5),
+        frroStatus,
+        insuranceStatus: index % 4 === 0 ? 'Expired' : index % 6 === 0 ? 'Not Enrolled' : 'Active',
+        email: `${fullName.split(' ')[0].toLowerCase()}${index}@nexus-campus.local`,
+        admissionYear: 2024 + (index % 3),
+      },
+    });
+    intlStudentIds.push(created.id);
+  }
+
+  const exchangeDefs = [
+    ['TU München', 'Germany', 'DE', 'Outbound', 'Fall 2026', 18, 4, 'Open'],
+    ['National University of Singapore', 'Singapore', 'SG', 'Outbound', 'Fall 2026', 15, 3, 'In Progress'],
+    ['University of Toronto', 'Canada', 'CA', 'Outbound', 'Spring 2027', 20, 5, 'Open'],
+    ['Tsinghua University', 'China', 'CN', 'Outbound', 'Fall 2026', 12, 2, 'Closed'],
+    ['Royal Melbourne Institute of Technology', 'Australia', 'AU', 'Outbound', 'Spring 2027', 16, 4, 'Open'],
+    ['HEC Paris', 'France', 'FR', 'Inbound', 'Fall 2026', 10, 3, 'In Progress'],
+  ];
+  await prisma.exchangeProgram.createMany({
+    data: exchangeDefs.map(([university, country, countryCode, type, semester, credits, seats, status], index) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      university,
+      country,
+      countryCode,
+      type,
+      semester,
+      creditsTransferable: credits,
+      seatsAvailable: seats,
+      applicationDeadline: dateFromNow(14 + index * 12),
+      status,
+    })),
+  });
+
+  const creditDefs = [
+    ['Data Structures', 4, 'Algorithms & Data Modeling', 4, 'TU München', 'Approved'],
+    ['Engineering Mathematics III', 3, 'Applied Mathematics', 3, 'National University of Singapore', 'Approved'],
+    ['Thermodynamics', 4, 'Thermal Systems', 4, 'University of Toronto', 'Under Review'],
+    ['Design Thinking', 2, 'Human-Centred Design', 2, 'HEC Paris', 'Approved'],
+    ['Embedded Systems', 4, 'Microcontroller Systems', 4, 'RMIT', 'Under Review'],
+    ['Business Analytics', 3, 'Analytics for Decision Making', 3, 'HEC Paris', 'Approved'],
+  ];
+  await prisma.creditMapping.createMany({
+    data: creditDefs.map(([homeCourse, homeCredits, hostCourse, hostCredits, hostUniversity, equivalence]) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      homeCourse,
+      homeCredits,
+      hostCourse,
+      hostCredits,
+      hostUniversity,
+      equivalence,
+      notes: 'Mapped by the International Office equivalence committee.',
+    })),
+  });
+
+  // --- Data Migration Factory & Control Tower ---
+  const connectorDefs = [
+    ['Legacy ERP (SAP)', 'ERP', 'Connected'],
+    ['LMS Moodle', 'LMS', 'Connected'],
+    ['Admissions Portal', 'API', 'Connected'],
+    ['Fee Ledger Export', 'Spreadsheet', 'Disconnected'],
+  ];
+  const connectorRows = [];
+  for (let index = 0; index < connectorDefs.length; index += 1) {
+    const [name, type, status] = connectorDefs[index];
+    const connector = await prisma.migrationConnector.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        name,
+        type,
+        status,
+        lastSyncAt: dateBeforeNow(index * 2),
+        recordCount: 52000 + index * 4100,
+        tableCount: 8 + index * 3,
+      },
+    });
+    connectorRows.push(connector);
+  }
+
+  const entityDefs = [
+    ['Students', 'Completed', 100],
+    ['Faculty', 'Completed', 60],
+    ['Courses', 'Completed', 240],
+    ['Enrollments', 'Running', 3400],
+    ['Finance', 'Pending', 12000],
+    ['Attendance', 'Running', 8800],
+  ];
+  const jobRows = [];
+  for (let index = 0; index < entityDefs.length; index += 1) {
+    const [entity, status, totalRecords] = entityDefs[index];
+    const migratedRecords =
+      status === 'Completed' ? totalRecords : status === 'Running' ? Math.floor(totalRecords * 0.62) : 0;
+    const errorCount = status === 'Completed' ? index * 6 : status === 'Running' ? 12 : 0;
+    const job = await prisma.migrationJob.create({
+      data: {
+        id: randomUUID(),
+        tenantId: institution.id,
+        connectorId: connectorRows[index % connectorRows.length].id,
+        entity,
+        status,
+        totalRecords,
+        migratedRecords,
+        errorCount,
+        throughput: status === 'Running' ? 'Streaming' : status === 'Completed' ? 'Done' : 'Idle',
+        startedAt: dateBeforeNow(40 - index * 5),
+        completedAt: status === 'Completed' ? dateBeforeNow(18 - index * 3) : null,
+      },
+    });
+    jobRows.push(job);
+  }
+
+  const mappingDefs = [
+    ['Student ID', 'student_id', 'uuid', 'Transform', 'STU-2024-0001'],
+    ['Roll Number', 'roll_number', 'string', 'None', 'NITX-2024-01'],
+    ['First Name', 'first_name', 'string', 'Trim', 'Rohan'],
+    ['Last Name', 'last_name', 'string', 'Trim', 'Verma'],
+    ['Email', 'email', 'email', 'Lowercase', 'student@nexus-campus.local'],
+    ['Program Code', 'program_code', 'string', 'Map', 'B.TECH-CSE'],
+    ['Batch Year', 'batch_year', 'int', 'Parse', '2024'],
+    ['Mobile', 'phone', 'phone', 'Normalize', '+91 98765 43210'],
+    ['Joining Date', 'enrolled_at', 'datetime', 'ISO-8601', '2024-07-15'],
+    ['Fee Status', 'fee_status', 'enum', 'Map', 'PAID'],
+  ];
+  await prisma.migrationFieldMapping.createMany({
+    data: mappingDefs.map(([source, target, dataType, transform, sample], index) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      entity: 'Students',
+      sourceField: source,
+      targetField: target,
+      dataType,
+      transform,
+      sampleValue: sample,
+      status: index % 4 === 0 ? 'Pending' : 'Mapped',
+    })),
+  });
+
+  const validationDefs = [
+    ['Students', 52400, 52180, 96, 74, 22, 99.2],
+    ['Faculty', 4300, 4290, 4, 6, 2, 99.8],
+    ['Courses', 1120, 1105, 8, 5, 1, 99.1],
+    ['Enrollments', 18200, 18010, 120, 48, 12, 98.6],
+    ['Finance', 12000, 11910, 40, 35, 15, 98.9],
+    ['Attendance', 8800, 8620, 96, 62, 18, 97.9],
+  ];
+  await prisma.migrationValidation.createMany({
+    data: validationDefs.map(([entity, total, valid, duplicates, missing, anomalies, quality]) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      entity,
+      total,
+      valid,
+      duplicates,
+      missing,
+      anomalies,
+      quality,
+    })),
+  });
+
+  const logMessages = [
+    ['INFO', 'Connector', 'Legacy ERP connector authenticated successfully.'],
+    ['INFO', 'Extract', 'Students table extracted: 52,400 rows in 4m 12s.'],
+    ['WARN', 'Transform', '42 rows skipped due to missing program mapping.'],
+    ['ERROR', 'Load', 'Bulk insert failed for 6 rows in enrollments (duplicate key).'],
+    ['INFO', 'Validate', 'Students validation complete: 99.2% quality score.'],
+    ['INFO', 'Publish', 'Students dataset published to staging.'],
+    ['WARN', 'Sync', 'Fee ledger export is stale (last sync 3 days ago).'],
+    ['INFO', 'Control', 'Dry run 2 snapshot created.'],
+  ];
+  await prisma.migrationLog.createMany({
+    data: Array.from({ length: 24 }, (_, index) => {
+      const [severity, source, message] = logMessages[index % logMessages.length];
+      return {
+        id: randomUUID(),
+        tenantId: institution.id,
+        severity,
+        source,
+        message: `${message} [run #${String(index + 1).padStart(3, '0')}]`,
+        createdAt: new Date(dateBeforeNow(2).getTime() - index * 900000),
+      };
+    }),
+  });
+
+  // --- AI Governance ---
+  const aiModelDefs = [
+    ['campusos-mock-v1', 'CampusOS Native Engine', 'openai', 'chat', 'Production', 98.4, 0.97],
+    ['gpt-4o', 'OpenAI GPT-4o', 'openai', 'chat', 'Production', 99.1, 0.98],
+    ['claude-3-5-sonnet', 'Anthropic Claude 3.5 Sonnet', 'anthropic', 'chat', 'Staging', 98.8, 0.97],
+    ['text-embedding-3-large', 'OpenAI Embedding', 'openai', 'embedding', 'Production', 97.6, 0.95],
+    ['gemini-1.5-pro', 'Google Gemini 1.5 Pro', 'google', 'chat', 'Development', 97.2, 0.94],
+  ];
+  const aiModels = [];
+  for (let index = 0; index < aiModelDefs.length; index += 1) {
+    const [modelId, name, provider, capability, deploymentStatus, accuracyPct, f1Score] = aiModelDefs[index];
+    const model = await prisma.aiModel.upsert({
+      where: { modelId },
+      update: {},
+      create: {
+        provider,
+        modelId,
+        name,
+        capability,
+        contextLimit: capability === 'chat' ? 128000 : 8191,
+        costClass: 'standard',
+        dataClassification: 'INTERNAL',
+        isEnabled: true,
+        deploymentStatus,
+        accuracyPct,
+        f1Score,
+        lastTrainedAt: dateBeforeNow(6 - index),
+        predictionCount: 84500 - index * 9200,
+        driftDetected: index % 4 === 0,
+      },
+    });
+    aiModels.push(model);
+  }
+
+  await prisma.aiTenantPolicy.upsert({
+    where: { tenantId: institution.id },
+    update: {},
+    create: {
+      tenantId: institution.id,
+      isEnabled: true,
+      allowedRoles: ['STUDENT', 'FACULTY', 'INSTITUTION_ADMIN'],
+      maxMonthlyBudgetUsd: 500,
+      currentMonthlySpendUsd: 132.4,
+      rateLimitPerMin: 30,
+      requireHumanApproval: true,
+      retentionDays: 90,
+    },
+  });
+
+  const aiPolicyDefs = [
+    ['Responsible AI Usage Policy', 'AI Governance', 'PUBLISHED', 'ALL'],
+    ['Student Data Handling in AI Tools', 'Data Governance', 'PUBLISHED', 'FACULTY'],
+    ['AI-Generated Content Disclosure', 'Academic Policy', 'PUBLISHED', 'ALL'],
+    ['Model Evaluation & Approval Policy', 'AI Governance', 'UNDER_REVIEW', 'INSTITUTION_ADMIN'],
+  ];
+  await prisma.aiKnowledgeDocument.createMany({
+    data: aiPolicyDefs.map(([title, category, publicationStatus, audience], index) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      title,
+      category,
+      scope: 'INSTITUTION',
+      audience,
+      classification: 'INTERNAL',
+      publicationStatus,
+      content: `Synthetic ${category.toLowerCase()} policy covering institutional expectations for ${audience.toLowerCase()} users. Reference ${index + 1}.`,
+      effectiveDate: dateBeforeNow(30 - index * 6),
+      authorName: 'Office of the Registrar',
+    })),
+  });
+
+  const biasDefs = [
+    [aiModels[0].id, 'Gender', 61.2, 57.8, 60.4, 0.04, 'Fair'],
+    [aiModels[1].id, 'Nationality', 59.1, 62.5, 58.9, 0.11, 'Review'],
+    [aiModels[3].id, 'First-Generation', 63.4, 60.2, 58.7, 0.06, 'Fair'],
+    [aiModels[2].id, 'Disability Status', 55.3, 59.7, 58.2, 0.08, 'Review'],
+  ];
+  await prisma.aiBiasAudit.createMany({
+    data: biasDefs.map(([modelId, groupName, groupA, groupB, groupC, biasScore, status]) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      modelId,
+      groupName,
+      groupA,
+      groupB,
+      groupC,
+      biasScore,
+      status,
+    })),
+  });
+
+  const incidentDefs = [
+    ['High', 'Open', 'Hallucination', 'Model cited a non-existent fee rule during a student query.'],
+    ['Medium', 'Resolved', 'Data Leak Risk', 'Embedding refresh exposed a draft document in retrieval; fixed within 2h.'],
+    ['Low', 'Resolved', 'Latency Spike', 'Inference latency exceeded 2s for 8 minutes during peak.'],
+    ['Medium', 'Open', 'Prompt Injection', 'Attempted prompt injection blocked by the safety engine.'],
+  ];
+  await prisma.aiIncident.createMany({
+    data: incidentDefs.map(([severity, status, type, description], index) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      modelId: aiModels[index % aiModels.length].id,
+      severity,
+      status,
+      type,
+      description,
+      resolution: status === 'Resolved' ? 'Resolved per incident response runbook.' : null,
+      occurredAt: dateBeforeNow(index * 3 + 1),
+    })),
+  });
+
+  await prisma.aiAuditLog.createMany({
+    data: Array.from({ length: 18 }, (_, index) => ({
+      id: randomUUID(),
+      tenantId: institution.id,
+      userId: roleUsers[index % roleUsers.length].id,
+      userRole: roleUsers[index % roleUsers.length].role,
+      feature: index % 3 === 0 ? 'ai_chat' : index % 3 === 1 ? 'ai_action' : 'ai_rag',
+      actionType: index % 5 === 0 ? 'PROMPT_INJECTION_BLOCKED' : 'QUERY',
+      modelUsed: aiModels[index % aiModels.length].modelId,
+      promptTokens: 200 + index * 17,
+      completionTokens: 80 + index * 9,
+      estimatedCostUsd: 0.002 + index * 0.0004,
+      promptInjectionBlocked: index % 5 === 0,
+      status: index % 5 === 0 ? 'BLOCKED' : 'SUCCESS',
+      createdAt: dateBeforeNow(index),
+    })),
+  });
+
   const summary = {
     tenant: `${institution.name} (${institution.code})`,
     roleAccounts: roleUsers.length,
@@ -802,6 +1296,11 @@ async function seedSyntheticCampus() {
     hostelAllocations: 72,
     placements: placements.length,
     applications: 160,
+    governanceCommittees: committees.length,
+    governanceMeetings: meetings.length,
+    internationalStudents: intlStudentIds.length,
+    migrationJobs: jobRows.length,
+    aiModels: aiModels.length,
     sharedPassword: SHARED_PASSWORD,
   };
 

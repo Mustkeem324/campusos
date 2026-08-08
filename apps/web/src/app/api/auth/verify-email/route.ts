@@ -1,9 +1,35 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/db';
+import {
+  checkPublicRateLimit,
+  InvalidJsonError,
+  PayloadTooLargeError,
+  readJsonWithLimit,
+  requestIp,
+} from '../../../../lib/public-rate-limit';
+
+const VERIFY_BODY_LIMIT_BYTES = 2 * 1024;
+const VERIFY_RATE_LIMIT_PER_IP = 20;
+const VERIFY_RATE_WINDOW_MS = 60 * 60_000;
 
 export async function POST(request: Request) {
   try {
-    const { token } = await request.json();
+    const ip = requestIp(request);
+    const rateLimit = checkPublicRateLimit({
+      key: `verify-email:${ip}`,
+      limit: VERIFY_RATE_LIMIT_PER_IP,
+      windowMs: VERIFY_RATE_WINDOW_MS,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait and try again.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
+    }
+
+    const body = await readJsonWithLimit(request, VERIFY_BODY_LIMIT_BYTES);
+    const payload = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+    const token = typeof payload.token === 'string' ? payload.token : '';
 
     if (!token) {
       return NextResponse.json({ error: 'Token is required' }, { status: 400 });
@@ -15,6 +41,12 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
+      return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
+    }
+
+    // Verify tokens must not be valid indefinitely.
+    const TOKEN_VALID_FOR_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+    if (user.createdAt.getTime() + TOKEN_VALID_FOR_MS < Date.now()) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 400 });
     }
 
@@ -37,6 +69,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) return NextResponse.json({ error: 'Request payload is too large.' }, { status: 413 });
+    if (error instanceof InvalidJsonError) return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
     console.error('Verify email error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

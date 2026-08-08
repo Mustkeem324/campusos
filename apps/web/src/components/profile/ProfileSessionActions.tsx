@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2, LogOut, UsersRound } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { useAuthStore } from '@/lib/auth-store';
@@ -8,6 +9,7 @@ import { useAuthStore } from '@/lib/auth-store';
 type LogoutMode = 'current' | 'all' | null;
 
 export function ProfileSessionActions() {
+  const router = useRouter();
   const [logoutMode, setLogoutMode] = useState<LogoutMode>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +37,8 @@ export function ProfileSessionActions() {
 
       useAuthStore.getState().setSession(null);
       window.localStorage.removeItem('campusos-auth-storage');
-      window.location.assign('/login');
+      router.push('/login');
+      router.refresh();
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Sign out failed. Please try again.');
       setLogoutMode(null);

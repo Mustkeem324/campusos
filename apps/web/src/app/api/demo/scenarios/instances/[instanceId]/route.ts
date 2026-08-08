@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: Request,
-  { params }: { params: { instanceId: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ instanceId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, tenantId } = await requireTenantContext();
 

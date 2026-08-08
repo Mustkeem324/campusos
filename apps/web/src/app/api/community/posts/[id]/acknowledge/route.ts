@@ -3,7 +3,9 @@ import { requireTenantContext } from '../../../../../../lib/tenant-context';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(_: Request, { params }: { params: { id: string } }) {
+export async function POST(_: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const postId = params.id;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSessionFromCookies } from '../../../lib/auth';
 import { prisma } from '../../../lib/db';
 import { z } from 'zod';
+import { decodeCursor, InvalidCursorError, pageInfo, pageSize } from '@/lib/platform/pagination';
 
 export async function GET(request: Request) {
   try {
@@ -10,7 +11,8 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get('filter'); // 'unread', 'all'
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = pageSize(searchParams.get('limit'));
+    const cursor = decodeCursor(searchParams.get('cursor'), session.tenantId);
     const search = searchParams.get('search') || '';
 
     const whereClause: any = {
@@ -30,14 +32,29 @@ export async function GET(request: Request) {
       ];
     }
 
-    const notifications = await prisma.notification.findMany({
+    const rows = await prisma.notification.findMany({
       where: whereClause,
-      orderBy: { createdAt: 'desc' },
-      take: limit,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : undefined,
+      take: limit + 1,
     });
 
-    return NextResponse.json(notifications);
+    const result = pageInfo(rows, limit, session.tenantId);
+    // Preserve the legacy array response for existing dashboard controls.
+    // New consumers opt into the cursor envelope (or receive it when sending
+    // a cursor) without ever receiving an unbounded collection.
+    if (cursor || searchParams.get('pagination') === 'cursor') {
+      return NextResponse.json({ notifications: result.items, ...result });
+    }
+    return NextResponse.json(result.items, {
+      headers: {
+        'X-Has-Next-Page': String(result.pageInfo.hasNextPage),
+        'X-Next-Cursor': result.pageInfo.nextCursor ?? '',
+      },
+    });
   } catch (error) {
+    if (error instanceof InvalidCursorError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error('Fetch notifications error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

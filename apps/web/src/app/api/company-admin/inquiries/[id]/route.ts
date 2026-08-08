@@ -20,7 +20,9 @@ type InquiryIdentity = {
   email: string;
 };
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   const actor = await requireCompanySuperAdmin().catch(() => null);
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

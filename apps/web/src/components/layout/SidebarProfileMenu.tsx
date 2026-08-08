@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React from 'react';
 import {
   Activity,
@@ -75,6 +76,7 @@ const quickLinks: Array<{
 ];
 
 export function SidebarProfileMenu({ expanded, onNavigate }: SidebarProfileMenuProps) {
+  const router = useRouter();
   const { currentSession, isDarkMode, toggleDarkMode } = useAuthStore();
   const [isOpen, setIsOpen] = React.useState(false);
   const [overview, setOverview] = React.useState<AccountSidebarOverview | null>(null);
@@ -162,7 +164,8 @@ export function SidebarProfileMenu({ expanded, onNavigate }: SidebarProfileMenuP
 
       useAuthStore.getState().setSession(null);
       window.localStorage.removeItem('campusos-auth-storage');
-      window.location.assign('/login');
+      router.push('/login');
+      router.refresh();
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Sign out failed. Please try again.');
       setLogoutMode(null);

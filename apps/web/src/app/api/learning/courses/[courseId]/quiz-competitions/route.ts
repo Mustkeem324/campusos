@@ -50,7 +50,9 @@ const createSchema = z.object({
 
 type NormalizableQuestion = Omit<CompetitionQuestion, 'id' | 'sequence'> & { id?: string; sequence?: number };
 
-export async function POST(request: Request, { params }: { params: { courseId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string }>; }) {
+  const params = await paramsPromise;
+
   let createdQuizId: string | null = null;
   try {
     const access = await requireCourseAccess(params.courseId);

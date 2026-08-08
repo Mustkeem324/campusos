@@ -14,7 +14,9 @@ export const dynamic = 'force-dynamic';
  *
  * Body: { fileUrl?: string }
  */
-export async function POST(request: Request, { params }: { params: { courseId: string; assignmentId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; assignmentId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireAssignmentAccess(params.assignmentId);
     const { db, session, assignment } = access;

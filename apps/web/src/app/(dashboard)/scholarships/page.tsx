@@ -1,8 +1,7 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import React from 'react';
-import { PaymentPage } from '../../../components/finance/payment/PaymentPage';
+export const dynamic = 'force-dynamic';
 
-export default function Page() {
-  return <PaymentPage />;
+export default function ScholarshipsPage() {
+  redirect('/finance');
 }

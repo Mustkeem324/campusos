@@ -18,7 +18,9 @@ function sessionInput(session: NonNullable<Awaited<ReturnType<typeof getSessionF
   return { userId: session.userId, tenantId: session.tenantId, role: session.role };
 }
 
-export async function GET(request: Request, { params }: { params: { communityId: string } }) {
+export async function GET(request: Request, { params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -48,7 +50,9 @@ export async function GET(request: Request, { params }: { params: { communityId:
   }
 }
 
-export async function POST(request: Request, { params }: { params: { communityId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

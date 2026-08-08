@@ -14,8 +14,10 @@ const decisionSchema = z.object({
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } },
+  { params: paramsPromise }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     if (!canApprovePhase7(context.activeRole)) {

@@ -6,7 +6,8 @@ import { getDigitalAccess, libraryError } from '@/lib/library-workspace';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, { params }: { params: { itemId: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ itemId: string }> }) {
+  const params = await paramsPromise;
   try {
     const context = await requireActiveUserContext();
     const digital = await getDigitalAccess(context, params.itemId);

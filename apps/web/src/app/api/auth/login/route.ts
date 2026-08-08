@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 
     await prisma.user.update({ where: { id: user.id }, data: { loginAttempts: 0, lockedUntil: null, lastLoginAt: new Date() } });
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('campusos_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

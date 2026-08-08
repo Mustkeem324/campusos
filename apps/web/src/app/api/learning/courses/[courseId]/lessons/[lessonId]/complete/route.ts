@@ -7,8 +7,10 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   _request: Request,
-  { params }: { params: { courseId: string; lessonId: string } },
+  { params: paramsPromise }: { params: Promise<{ courseId: string; lessonId: string }> },
 ) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireCourseAccess(params.courseId);
     if (access.accessRole !== 'STUDENT') {

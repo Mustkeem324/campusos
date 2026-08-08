@@ -5,7 +5,9 @@ import { CompanySupportError, replyCompanySupportTicket } from '@/lib/company-ad
 
 const schema = z.object({ body: z.string().trim().min(1).max(8000) });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the reply.' }, { status: 400 });

@@ -12,8 +12,10 @@ function safeDispositionName(value: string) {
 
 export async function GET(
   _request: Request,
-  { params }: { params: { attachmentId: string } },
+  { params: paramsPromise }: { params: Promise<{ attachmentId: string }> },
 ) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

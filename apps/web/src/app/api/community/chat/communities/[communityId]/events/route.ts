@@ -8,7 +8,9 @@ export const revalidate = 0;
 
 const encoder = new TextEncoder();
 
-export async function GET(request: Request, { params }: { params: { communityId: string } }) {
+export async function GET(request: Request, { params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return new Response('Unauthorized', { status: 401 });

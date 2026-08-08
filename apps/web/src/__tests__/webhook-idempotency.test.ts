@@ -22,15 +22,27 @@ describe('Phase 5 Payment Webhook Idempotency Test Suite', () => {
     };
 
     // First Webhook Processing
-    const res1 = processPaymentWebhookIdempotent(payload);
+    const res1 = processPaymentWebhookIdempotent(payload, webhookSecret);
     expect(res1.success).toBe(true);
     expect(res1.isDuplicate).toBe(false);
     expect(res1.receiptNumber).toBeDefined();
 
     // Duplicate Webhook Retry Attempt
-    const res2 = processPaymentWebhookIdempotent(payload);
+    const res2 = processPaymentWebhookIdempotent(payload, webhookSecret);
     expect(res2.success).toBe(true);
     expect(res2.isDuplicate).toBe(true); // Duplicate flag set!
     expect(res2.message).toContain('already processed idempotently');
+  });
+
+  it('refuses to process without an explicit webhook secret', () => {
+    const payload = {
+      transactionId: 'tx_test_no_secret',
+      invoiceId: 'inv_btech_101',
+      studentId: 'usr_student_01',
+      amount: 1800,
+      paymentMethod: 'UPI' as const,
+      signature: 'demo-signature',
+    };
+    expect(() => processPaymentWebhookIdempotent(payload, '')).toThrow(/webhook secret/i);
   });
 });

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { LearningSessionAccessError, requireLearningSessionParticipant } from '../../../../../../../../lib/learning-session-access';
 
-export async function POST(_: Request, { params }: { params: { courseId: string; sessionId: string } }) {
+export async function POST(_: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; sessionId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireLearningSessionParticipant(params.courseId, params.sessionId);
     const existing = await db.learningSessionPresence.findFirst({ where: { sessionId: params.sessionId, userId: session.userId } });

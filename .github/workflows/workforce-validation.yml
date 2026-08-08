@@ -1,0 +1,78 @@
+name: Faculty, HR, Payroll & Workforce Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/app/(dashboard)/workforce/**'
+      - 'apps/web/src/app/api/workforce/**'
+      - 'apps/web/src/components/workforce/**'
+      - 'apps/web/src/lib/workforce-*'
+      - 'apps/web/src/lib/payroll-*'
+      - 'packages/db/prisma/workforce-operations.sql'
+      - 'scripts/prepare-database.mjs'
+      - 'vitest.config.ts'
+      - 'test-stubs/**'
+      - '.github/workflows/workforce-validation.yml'
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  NEXT_TELEMETRY_DISABLED: '1'
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos?schema=public
+  JWT_SECRET: ci_only_jwt_secret_with_more_than_32_characters
+  JWT_REFRESH_SECRET: ci_only_refresh_secret_with_more_than_32_characters
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campusos"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Prisma validate
+        run: npx prisma validate --schema=packages/db/prisma/schema.prisma
+      - name: Create core database schema
+        run: npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
+      - name: Provision Workforce schema
+        run: npx prisma db execute --file=packages/db/prisma/workforce-operations.sql --schema=packages/db/prisma/schema.prisma
+      - name: Re-provision Workforce schema (idempotency)
+        run: npx prisma db execute --file=packages/db/prisma/workforce-operations.sql --schema=packages/db/prisma/schema.prisma
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint -- --max-warnings=0
+      - name: Workforce policy & lifecycle tests
+        run: npx vitest run apps/web/src/__tests__/workforce-operations.test.ts
+      - name: Legacy payroll calculation tests
+        run: npx vitest run apps/web/src/__tests__/payroll-calculation.test.ts
+      - name: Legacy NACH bank file tests
+        run: npx vitest run apps/web/src/__tests__/nach-bank-file.test.ts
+      - name: Production build
+        env:
+          CAMPUSOS_AUTO_DB_PUSH: 'false'
+        run: npm run build

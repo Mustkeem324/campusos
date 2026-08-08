@@ -5,10 +5,11 @@ import { publicPageProfileForPath } from '@/components/public/public-page-data';
 import type { Region } from '@/components/public/site-data';
 
 type CatchAllProps = {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 };
 
-export async function generateMetadata({ params }: CatchAllProps) {
+export async function generateMetadata({ params: paramsPromise }: CatchAllProps) {
+  const params = await paramsPromise;
   const path = `/${params.slug.join('/')}`;
   const profile = publicPageProfileForPath(path);
 
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: CatchAllProps) {
   };
 }
 
-export default function CatchAll({ params }: CatchAllProps) {
-  const region = (cookies().get('campus_region')?.value || 'global') as Region;
+export default async function CatchAll({ params: paramsPromise }: CatchAllProps) {
+  const params = await paramsPromise;
+  const region = ((await cookies()).get('campus_region')?.value || 'global') as Region;
   return <PublicPage segments={params.slug} region={region} />;
 }

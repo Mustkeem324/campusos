@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   NEXT_TELEMETRY_DISABLED: '1'
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos?schema=public
   JWT_SECRET: ci_only_jwt_secret_with_more_than_32_characters

@@ -72,6 +72,21 @@ model Institution {
   smartDevices           SmartDevice[]
   implementationProjects ImplementationProject[]
   supportCases           SupportCase[]
+  governanceCommittees   GovernanceCommittee[]
+  governanceMeetings     GovernanceMeeting[]
+  governanceResolutions  GovernanceResolution[]
+  governancePolicies     GovernancePolicy[]
+  governanceDelegations  GovernanceDelegation[]
+  internationalStudents  InternationalStudent[]
+  exchangePrograms       ExchangeProgram[]
+  creditMappings         CreditMapping[]
+  migrationConnectors    MigrationConnector[]
+  migrationJobs          MigrationJob[]
+  migrationFieldMappings MigrationFieldMapping[]
+  migrationValidations   MigrationValidation[]
+  migrationLogs          MigrationLog[]
+  aiBiasAudits           AiBiasAudit[]
+  aiIncidents            AiIncident[]
 
   @@map("institutions")
 }
@@ -317,6 +332,8 @@ model Student {
   submissions        Submission[]
 
   @@map("students")
+  @@unique([tenantId, rollNumber])
+  @@index([tenantId, sectionId])
 }
 
 model Staff {
@@ -333,6 +350,8 @@ model Staff {
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("staff")
+  @@unique([tenantId, employeeId])
+  @@index([tenantId, departmentId])
 }
 
 model Guardian {
@@ -447,6 +466,7 @@ model TimetableSlot {
   room             Room           @relation(fields: [roomId], references: [id])
 
   @@map("timetable_slots")
+  @@index([tenantId, courseOfferingId, dayOfWeek])
 }
 
 model AttendanceSession {
@@ -460,6 +480,7 @@ model AttendanceSession {
   courseOffering   CourseOffering      @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
 
   @@map("attendance_sessions")
+  @@index([tenantId, courseOfferingId, sessionDate])
 }
 
 model AttendanceRecord {
@@ -473,6 +494,8 @@ model AttendanceRecord {
   student             Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("attendance_records")
+  @@unique([attendanceSessionId, studentId])
+  @@index([tenantId, studentId, attendanceSessionId])
 }
 
 model Assignment {
@@ -608,6 +631,7 @@ model Invoice {
 
   @@index([tenantId, studentId])
   @@index([tenantId, status])
+  @@index([tenantId, status, dueDate])
   @@map("invoices")
 }
 
@@ -625,6 +649,7 @@ model Payment {
 
   @@unique([tenantId, transactionId])
   @@index([tenantId, invoiceId])
+  @@index([tenantId, paidAt])
   @@map("payments")
 }
 
@@ -834,6 +859,7 @@ model AuditLog {
   user        User?       @relation(fields: [userId], references: [id])
 
   @@map("audit_logs")
+  @@index([tenantId, createdAt(sort: Desc)])
 }
 
 model Notification {
@@ -852,6 +878,7 @@ model Notification {
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
+  @@index([tenantId, userId, isArchived, createdAt(sort: Desc)])
   @@map("notifications")
 }
 
@@ -2325,8 +2352,16 @@ model AiModel {
   dataClassification    AiDocumentClassification @default(INTERNAL)
   fallbackModelId       String?
   isEnabled             Boolean                  @default(true)
+  deploymentStatus      String                   @default("Development") // Development, Staging, Production, Retired
+  accuracyPct           Float?
+  f1Score               Float?
+  lastTrainedAt         DateTime?
+  predictionCount       Int                      @default(0)
+  driftDetected         Boolean                  @default(false)
   createdAt             DateTime                 @default(now())
   updatedAt             DateTime                 @updatedAt
+  biasAudits            AiBiasAudit[]
+  incidents             AiIncident[]
 
   @@map("ai_models")
 }
@@ -2657,6 +2692,285 @@ model DemoScenarioEvent {
   @@map("demo_scenario_events")
 }
 
+// ==========================================
+// GOVERNANCE, INTERNATIONAL, DATA MIGRATION MODELS
+// ==========================================
 
+model GovernanceCommittee {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  name           String
+  type           String   @default("Academic") // Statutory, Academic, Administrative, Advisory
+  chairperson    String
+  secretary      String
+  memberCount    Int      @default(0)
+  termStart      DateTime
+  termEnd        DateTime
+  status         String   @default("Active") // Active, Reconstitution Due, Dissolved
+  lastMeetingDate DateTime?
+  nextMeetingDate  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  meetings       GovernanceMeeting[]
+  institution    Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+  @@map("governance_committees")
+}
 
+model GovernanceMeeting {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  committeeId    String   @map("committee_id") @db.Uuid
+  title          String
+  scheduledAt    DateTime
+  venue          String   @default("")
+  mode           String   @default("Physical") // Physical, Virtual, Hybrid
+  status         String   @default("Scheduled") // Scheduled, In Progress, Completed, Cancelled
+  agendaItems    Int      @default(0)
+  quorumRequired Int      @default(1)
+  attendedCount  Int      @default(0)
+  minutesStatus  String   @default("Draft") // Draft, Under Review, Approved, Published
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  committee      GovernanceCommittee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  institution    Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  resolutions    GovernanceResolution[]
+
+  @@index([tenantId, scheduledAt])
+  @@map("governance_meetings")
+}
+
+model GovernanceResolution {
+  id               String   @id @default(uuid()) @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  meetingId        String   @map("meeting_id") @db.Uuid
+  title            String
+  proposedBy       String
+  status           String   @default("Proposed") // Proposed, Discussed, Voted, Approved, Rejected
+  votesFor         Int      @default(0)
+  votesAgainst     Int      @default(0)
+  abstentions      Int      @default(0)
+  actionItems      Int      @default(0)
+  completedActions Int      @default(0)
+  createdAt        DateTime @default(now())
+  meeting          GovernanceMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  institution      Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("governance_resolutions")
+}
+
+model GovernancePolicy {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  title          String
+  category       String
+  version        String   @default("1.0")
+  status         String   @default("Draft") // Draft, Under Review, Approved, Published, Archived
+  effectiveDate  DateTime @default(now())
+  lastReviewedAt DateTime @default(now())
+  approvedBy     String
+  department     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  institution    Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("governance_policies")
+}
+
+model GovernanceDelegation {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  authority  String
+  level1     String
+  level2     String
+  level3     String
+  limit      String
+  escalation String
+  createdAt  DateTime @default(now())
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("governance_delegations")
+}
+
+model InternationalStudent {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  fullName        String
+  nationality     String
+  countryCode     String   @default("") // ISO-2 code used to render the flag emoji
+  program         String
+  visaType        String   @default("Student Visa")
+  visaExpiry      DateTime
+  frroStatus      String   @default("Pending") // Registered, Pending, Expired
+  insuranceStatus String   @default("Not Enrolled") // Active, Expired, Not Enrolled
+  email           String
+  admissionYear   Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  institution     Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, nationality])
+  @@map("international_students")
+}
+
+model ExchangeProgram {
+  id                  String   @id @default(uuid()) @db.Uuid
+  tenantId            String   @map("tenant_id") @db.Uuid
+  university          String
+  country             String
+  countryCode         String   @default("")
+  type                String   @default("Outbound") // Inbound, Outbound
+  semester            String
+  creditsTransferable Int      @default(0)
+  seatsAvailable      Int      @default(0)
+  applicationDeadline DateTime
+  status              String   @default("Open") // Open, Closed, In Progress
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  institution         Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, type])
+  @@map("exchange_programs")
+}
+
+model CreditMapping {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  homeCourse    String
+  homeCredits   Int      @default(0)
+  hostCourse    String
+  hostCredits   Int      @default(0)
+  hostUniversity String
+  equivalence   String   @default("Under Review") // Approved, Under Review
+  notes         String?
+  createdAt     DateTime @default(now())
+  institution   Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("credit_mappings")
+}
+
+model MigrationConnector {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  name        String
+  type        String   // ERP, LMS, CSV, API
+  status      String   @default("Connected") // Connected, Disconnected, Error
+  lastSyncAt  DateTime @default(now())
+  recordCount Int      @default(0)
+  tableCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  jobs        MigrationJob[]
+
+  @@index([tenantId])
+  @@map("migration_connectors")
+}
+
+model MigrationJob {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  connectorId     String?  @map("connector_id") @db.Uuid
+  entity          String   // Students, Faculty, Courses, Enrollments, Finance, Attendance
+  status          String   @default("Pending") // Pending, Running, Completed, Failed, Paused
+  totalRecords    Int      @default(0)
+  migratedRecords Int      @default(0)
+  errorCount      Int      @default(0)
+  throughput      String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  connector       MigrationConnector? @relation(fields: [connectorId], references: [id], onDelete: SetNull)
+  institution     Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entity])
+  @@map("migration_jobs")
+}
+
+model MigrationFieldMapping {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  entity      String
+  sourceField String
+  targetField String
+  dataType    String
+  transform   String   @default("None")
+  sampleValue String?
+  status      String   @default("Mapped") // Mapped, Pending
+  createdAt   DateTime @default(now())
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("migration_field_mappings")
+}
+
+model MigrationValidation {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  entity    String
+  total     Int      @default(0)
+  valid     Int      @default(0)
+  duplicates Int     @default(0)
+  missing   Int      @default(0)
+  anomalies Int      @default(0)
+  quality   Float    @default(0)
+  createdAt DateTime @default(now())
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("migration_validations")
+}
+
+model MigrationLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  severity  String   @default("INFO") // INFO, WARN, ERROR
+  source    String
+  message   String
+  createdAt DateTime @default(now())
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@map("migration_logs")
+}
+
+model AiBiasAudit {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  modelId   String   @map("model_id") @db.Uuid
+  groupName String
+  groupA    Float    @default(0)
+  groupB    Float    @default(0)
+  groupC    Float    @default(0)
+  biasScore Float    @default(0)
+  status    String   @default("Fair") // Fair, Review
+  createdAt DateTime @default(now())
+  model     AiModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("ai_bias_audits")
+}
+
+model AiIncident {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  modelId     String   @map("model_id") @db.Uuid
+  severity    String   @default("Medium") // Low, Medium, High
+  status      String   @default("Open") // Open, Resolved
+  type        String
+  description String
+  resolution  String?
+  occurredAt  DateTime @default(now())
+  model       AiModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("ai_incidents")
+}

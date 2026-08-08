@@ -1,36 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Brain, Activity, Shield, Eye, FileText, GitBranch,
   AlertTriangle, Cpu, TrendingUp, TrendingDown,
-  CheckCircle,
+  CheckCircle, RefreshCw,
 } from 'lucide-react';
 
+import type {
+  AIBiasAuditView,
+  AIDecisionAuditView,
+  AIIncidentView,
+  AIModelView,
+  AIGovernanceWorkspace,
+} from '@/lib/ai-governance-workspace';
+
 type AIGovTab = 'model-registry' | 'performance' | 'ethics-bias' | 'explainability' | 'policies' | 'lifecycle' | 'incidents';
-
-interface AIModel {
-  id: string;
-  name: string;
-  version: string;
-  type: string;
-  framework: string;
-  deploymentStatus: 'Production' | 'Staging' | 'Development' | 'Retired';
-  accuracy: number;
-  f1Score: number;
-  lastTrained: string;
-  predictions: number;
-  driftDetected: boolean;
-}
-
-const mockModels: AIModel[] = [
-  { id: 'MOD-001', name: 'CampusOS Native Engine', version: 'v1.4', type: 'RAG & Assistant', framework: 'TypeScript / Node', deploymentStatus: 'Production', accuracy: 98.4, f1Score: 0.97, lastTrained: '2026-08-01', predictions: 124500, driftDetected: false },
-  { id: 'MOD-002', name: 'OpenAI GPT-4o Enterprise', version: '2024-08-06', type: 'LLM Reasoning', framework: 'API Integration', deploymentStatus: 'Production', accuracy: 99.1, f1Score: 0.98, lastTrained: '2026-08-02', predictions: 89200, driftDetected: false },
-  { id: 'MOD-003', name: 'Student Retention Dropout Classifier', version: 'v2.1', type: 'Gradient Boosting', framework: 'Scikit-Learn', deploymentStatus: 'Production', accuracy: 94.8, f1Score: 0.93, lastTrained: '2026-07-28', predictions: 45000, driftDetected: false },
-  { id: 'MOD-004', name: 'Timetable CSP Optimization Engine', version: 'v3.0', type: 'Constraint Solver', framework: 'Python OR-Tools', deploymentStatus: 'Production', accuracy: 99.8, f1Score: 0.99, lastTrained: '2026-07-15', predictions: 12000, driftDetected: false }
-];
-const biasMetrics: any[] = [];
-const incidents: any[] = [];
 
 const lifecycleStages = ['Data Collection', 'Preprocessing', 'Training', 'Validation', 'Staging', 'Production', 'Monitoring', 'Retraining'];
 
@@ -59,7 +44,7 @@ function StatusBadge({ status, className = '' }: { status: string; className?: s
 }
 
 /** Responsive model card for mobile (<768px) */
-function ModelCard({ model }: { model: AIModel }) {
+function ModelCard({ model }: { model: AIModelView }) {
   return (
     <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm space-y-3">
       <div className="flex items-start justify-between gap-2">
@@ -80,11 +65,11 @@ function ModelCard({ model }: { model: AIModel }) {
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Accuracy</p>
-          <p className="font-bold text-gray-900 dark:text-white">{model.accuracy}%</p>
+          <p className="font-bold text-gray-900 dark:text-white">{model.accuracy > 0 ? `${model.accuracy}%` : '—'}</p>
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">F1 Score</p>
-          <p className="font-bold text-gray-700 dark:text-gray-300">{model.f1Score}</p>
+          <p className="font-bold text-gray-700 dark:text-gray-300">{model.f1Score > 0 ? model.f1Score : '—'}</p>
         </div>
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Last Trained</p>
@@ -106,8 +91,27 @@ function ModelCard({ model }: { model: AIModel }) {
   );
 }
 
-export function AIGovernanceConsole() {
+export function AIGovernanceConsole({ initialData }: { initialData: AIGovernanceWorkspace }) {
   const [tab, setTab] = useState<AIGovTab>('model-registry');
+  const [data, setData] = useState(initialData);
+
+  const reload = async () => {
+    try {
+      const response = await fetch('/api/ai-governance/workspace', { cache: 'no-store' });
+      if (response.ok) setData(await response.json());
+    } catch { /* keep last safe snapshot */ }
+  };
+
+  useEffect(() => {
+    const timer = window.setInterval(() => void reload(), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const mockModels: AIModelView[] = data.models;
+  const biasMetrics: AIBiasAuditView[] = data.biasAudits;
+  const incidents: AIIncidentView[] = data.incidents;
+  const policies = data.policies;
+  const decisionAudit: AIDecisionAuditView[] = data.decisionAudit;
 
   const tabs: { id: AIGovTab; label: string; icon: React.ElementType }[] = [
     { id: 'model-registry', label: 'Model Registry', icon: Cpu },
@@ -133,10 +137,10 @@ export function AIGovernanceConsole() {
       {/* Stats — 1 col mobile, 2 col tablet, 4 col desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" role="list" aria-label="Key metrics">
         {[
-          { label: 'Models in Production', value: '—', sub: 'No telemetry available', color: 'text-gray-400' },
-          { label: 'Total Predictions', value: '—', sub: 'No telemetry available', color: 'text-gray-400' },
-          { label: 'Avg Accuracy', value: '—', sub: 'No telemetry available', color: 'text-gray-400' },
-          { label: 'Open Incidents', value: '—', sub: 'No telemetry available', color: 'text-gray-400' },
+          { label: 'Models in Production', value: String(data.stats.modelsInProduction), sub: 'Deployed and serving', color: 'text-indigo-600 dark:text-indigo-400' },
+          { label: 'Total Predictions', value: data.stats.totalPredictions > 0 ? `${(data.stats.totalPredictions / 1000).toFixed(1)}K` : '0', sub: 'Across enabled models', color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Avg Accuracy', value: data.stats.avgAccuracy > 0 ? `${data.stats.avgAccuracy}%` : '—', sub: 'Reported model accuracy', color: 'text-purple-600 dark:text-purple-400' },
+          { label: 'Open Incidents', value: String(data.stats.openIncidents), sub: 'Needing attention', color: data.stats.openIncidents > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' },
         ].map((s, i) => (
           <div key={i} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm" role="listitem">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.label}</p>
@@ -144,6 +148,16 @@ export function AIGovernanceConsole() {
             <p className="text-[10px] text-gray-500 mt-0.5">{s.sub}</p>
           </div>
         ))}
+        <div className="sm:col-span-2 lg:col-span-4 flex justify-end">
+          <button
+            onClick={() => void reload()}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold shadow-sm transition hover:bg-gray-50 dark:hover:bg-gray-800"
+            aria-label="Refresh AI governance data"
+          >
+            <RefreshCw size={14} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Tabs — horizontally scrollable, with keyboard support */}
@@ -193,7 +207,7 @@ export function AIGovernanceConsole() {
                 {mockModels.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="px-3 py-12 text-center text-gray-500 dark:text-gray-400 text-sm">
-                      No production telemetry available
+                      No models registered
                     </td>
                   </tr>
                 ) : (
@@ -207,8 +221,8 @@ export function AIGovernanceConsole() {
                       <td className="px-3 py-3"><span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{m.type}</span></td>
                       <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{m.framework}</td>
                       <td className="px-3 py-3"><StatusBadge status={m.deploymentStatus} /></td>
-                      <td className="px-3 py-3 font-bold text-gray-900 dark:text-white">{m.accuracy}%</td>
-                      <td className="px-3 py-3 font-bold text-gray-600 dark:text-gray-400">{m.f1Score}</td>
+                      <td className="px-3 py-3 font-bold text-gray-900 dark:text-white">{m.accuracy > 0 ? `${m.accuracy}%` : '—'}</td>
+                      <td className="px-3 py-3 font-bold text-gray-600 dark:text-gray-400">{m.f1Score > 0 ? m.f1Score : '—'}</td>
                       <td className="px-3 py-3 text-gray-500 whitespace-nowrap">{m.lastTrained}</td>
                       <td className="px-3 py-3 text-gray-600 dark:text-gray-400">{m.predictions > 0 ? `${(m.predictions / 1000).toFixed(1)}K` : '—'}</td>
                       <td className="px-3 py-3">
@@ -227,7 +241,7 @@ export function AIGovernanceConsole() {
           <div className="md:hidden space-y-3">
             {mockModels.length === 0 ? (
               <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
-                No production telemetry available
+                No models registered
               </div>
             ) : (
               mockModels.map(m => <ModelCard key={m.id} model={m} />)
@@ -259,19 +273,15 @@ export function AIGovernanceConsole() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {[
-                  { metric: 'Accuracy', value: m.accuracy, trend: 'up' as const, delta: '+0.3%' },
-                  { metric: 'Precision', value: (m.accuracy - 1.2).toFixed(1), trend: 'up' as const, delta: '+0.1%' },
-                  { metric: 'Recall', value: (m.accuracy - 0.8).toFixed(1), trend: 'down' as const, delta: '-0.2%' },
-                  { metric: 'F1 Score', value: m.f1Score, trend: 'up' as const, delta: '+0.01' },
-                  { metric: 'AUC-ROC', value: (m.f1Score + 0.04).toFixed(2), trend: 'up' as const, delta: '+0.02' },
+                  { metric: 'Accuracy', value: m.accuracy > 0 ? `${m.accuracy}%` : '—' },
+                  { metric: 'F1 Score', value: m.f1Score > 0 ? m.f1Score : '—' },
+                  { metric: 'Predictions', value: m.predictions > 0 ? `${(m.predictions / 1000).toFixed(1)}K` : '—' },
+                  { metric: 'Last Trained', value: m.lastTrained },
+                  { metric: 'Drift', value: m.driftDetected ? 'Detected' : 'None' },
                 ].map((met, i) => (
                   <div key={i} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-center">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{met.metric}</p>
-                    <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-1">{met.value}{typeof met.value === 'number' && '%'}</p>
-                    <div className="flex items-center justify-center gap-0.5 mt-0.5">
-                      {met.trend === 'up' ? <TrendingUp size={10} className="text-emerald-500" /> : <TrendingDown size={10} className="text-red-500" />}
-                      <span className={`text-[9px] font-bold ${met.trend === 'up' ? 'text-emerald-500' : 'text-red-500'}`}>{met.delta}</span>
-                    </div>
+                    <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-1">{met.value}</p>
                   </div>
                 ))}
               </div>
@@ -300,27 +310,24 @@ export function AIGovernanceConsole() {
                     </td>
                   </tr>
                 ) : (
-                  biasMetrics.map((b, i) => {
-                    const vals = [Object.values(b)[2], Object.values(b)[3], Object.values(b)[4]] as number[];
-                    return (
-                      <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                        <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{b.model}</td>
-                        <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{b.group}</span></td>
-                        <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">{vals[0]}%</td>
-                        <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">{vals[1]}%</td>
-                        <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">{vals[2]}%</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-12 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700">
-                              <div className={`h-full rounded-full ${b.biasScore > 0.07 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(b.biasScore * 100 * 10, 100)}%` }} />
-                            </div>
-                            <span className="font-bold text-gray-700 dark:text-gray-300">{b.biasScore}</span>
+                  biasMetrics.map((b, i) => (
+                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                      <td className="px-4 py-3 font-bold text-gray-900 dark:text-white">{b.model}</td>
+                      <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{b.group}</span></td>
+                      <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">{b.groupA}%</td>
+                      <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">{b.groupB}%</td>
+                      <td className="px-4 py-3 font-bold text-gray-700 dark:text-gray-300">{b.groupC}%</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-12 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700">
+                            <div className={`h-full rounded-full ${b.biasScore > 0.07 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(b.biasScore * 100 * 10, 100)}%` }} />
                           </div>
-                        </td>
-                        <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
-                      </tr>
-                    );
-                  })
+                          <span className="font-bold text-gray-700 dark:text-gray-300">{b.biasScore}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><StatusBadge status={b.status} /></td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -332,30 +339,27 @@ export function AIGovernanceConsole() {
                 No bias audits recorded
               </div>
             ) : (
-              biasMetrics.map((b, i) => {
-                const vals = [Object.values(b)[2], Object.values(b)[3], Object.values(b)[4]] as number[];
-                return (
-                  <div key={i} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{b.model}</p>
-                      <StatusBadge status={b.status} />
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{b.group}</span>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div><p className="text-[10px] text-gray-400">Group A</p><p className="font-bold">{vals[0]}%</p></div>
-                      <div><p className="text-[10px] text-gray-400">Group B</p><p className="font-bold">{vals[1]}%</p></div>
-                      <div><p className="text-[10px] text-gray-400">Group C</p><p className="font-bold">{vals[2]}%</p></div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-gray-400 font-bold">Bias:</span>
-                      <div className="w-16 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700">
-                        <div className={`h-full rounded-full ${b.biasScore > 0.07 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(b.biasScore * 100 * 10, 100)}%` }} />
-                      </div>
-                      <span className="font-bold">{b.biasScore}</span>
-                    </div>
+              biasMetrics.map((b, i) => (
+                <div key={i} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{b.model}</p>
+                    <StatusBadge status={b.status} />
                   </div>
-                );
-              })
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{b.group}</span>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div><p className="text-[10px] text-gray-400">Group A</p><p className="font-bold">{b.groupA}%</p></div>
+                    <div><p className="text-[10px] text-gray-400">Group B</p><p className="font-bold">{b.groupB}%</p></div>
+                    <div><p className="text-[10px] text-gray-400">Group C</p><p className="font-bold">{b.groupC}%</p></div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-400 font-bold">Bias:</span>
+                    <div className="w-16 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div className={`h-full rounded-full ${b.biasScore > 0.07 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(b.biasScore * 100 * 10, 100)}%` }} />
+                    </div>
+                    <span className="font-bold">{b.biasScore}</span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
@@ -364,6 +368,18 @@ export function AIGovernanceConsole() {
       {/* Explainability */}
       {tab === 'explainability' && (
         <div id="tabpanel-explainability" role="tabpanel" aria-label="Explainability" className="space-y-6">
+          <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
+            <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-3">Recent Audited AI Decisions</h3>
+            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800 space-y-2 text-[11px]">
+              {decisionAudit.map((r, i) => (
+                <div key={i} className="flex flex-col sm:flex-row sm:justify-between gap-0.5">
+                  <span className="text-gray-500 shrink-0">{r.label}</span>
+                  <span className="font-bold text-gray-900 dark:text-white sm:text-right sm:max-w-[60%]">{r.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
             <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-4">Feature Importance — Student Retention Predictor</h3>
             {[
@@ -391,48 +407,68 @@ export function AIGovernanceConsole() {
               </div>
             ))}
           </div>
-
-          <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
-            <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-3">Sample Decision Audit Trail</h3>
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800 space-y-2 text-[11px]">
-              {[
-                { label: 'Student', value: 'Rahul Verma (STU-2024-1205)' },
-                { label: 'Model', value: 'Student Retention Predictor v3.2' },
-                { label: 'Prediction', value: 'At Risk (78% probability)' },
-                { label: 'Top Factor', value: 'Attendance dropped below 60% (SHAP: +0.32)' },
-                { label: 'Second Factor', value: 'Fee payment delayed 45 days (SHAP: +0.18)' },
-                { label: 'Mitigating Factor', value: 'CGPA 3.5 (above average) (SHAP: -0.15)' },
-                { label: 'Action Taken', value: 'Mentor assigned + Scholarship counseling' },
-                { label: 'Timestamp', value: '2026-08-01 14:32:18 IST' },
-              ].map((r, i) => (
-                <div key={i} className="flex flex-col sm:flex-row sm:justify-between gap-0.5">
-                  <span className="text-gray-500 shrink-0">{r.label}</span>
-                  <span className="font-bold text-gray-900 dark:text-white sm:text-right sm:max-w-[60%]">{r.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
       {/* Policies */}
       {tab === 'policies' && (
         <div id="tabpanel-policies" role="tabpanel" aria-label="Policies" className="space-y-3">
-          <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
-            No published AI policies available
-          </div>
+          {data.tenantPolicy && (
+            <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <h3 className="text-sm font-extrabold text-gray-900 dark:text-white">Tenant AI Policy</h3>
+                <StatusBadge status={data.tenantPolicy.enabled ? 'Published' : 'Draft'} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-[11px]">
+                <div><span className="text-gray-400 block">Allowed Roles</span><span className="font-bold text-gray-700 dark:text-gray-300">{data.tenantPolicy.allowedRoles.join(', ')}</span></div>
+                <div><span className="text-gray-400 block">Monthly Budget</span><span className="font-bold text-gray-700 dark:text-gray-300">${data.tenantPolicy.maxMonthlyBudgetUsd}</span></div>
+                <div><span className="text-gray-400 block">Spend</span><span className="font-bold text-gray-700 dark:text-gray-300">${data.tenantPolicy.currentMonthlySpendUsd.toFixed(2)}</span></div>
+                <div><span className="text-gray-400 block">Rate Limit</span><span className="font-bold text-gray-700 dark:text-gray-300">{data.tenantPolicy.rateLimitPerMin}/min</span></div>
+                <div><span className="text-gray-400 block">Human Approval</span><span className="font-bold text-gray-700 dark:text-gray-300">{data.tenantPolicy.requireHumanApproval ? 'Required' : 'Off'}</span></div>
+                <div><span className="text-gray-400 block">Retention</span><span className="font-bold text-gray-700 dark:text-gray-300">{data.tenantPolicy.retentionDays} days</span></div>
+              </div>
+            </div>
+          )}
+          {policies.length === 0 ? (
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
+              No published AI policies available
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-gray-900">
+                  <tr>
+                    {['Title', 'Category', 'Status', 'Effective Date', 'Audience'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-[10px]">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
+                  {policies.map(p => (
+                    <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                      <td className="px-4 py-3 font-bold text-gray-900 dark:text-white max-w-xs truncate">{p.title}</td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{p.category}</td>
+                      <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{p.effectiveDate}</td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{p.audience}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
       {/* Lifecycle */}
       {tab === 'lifecycle' && (
         <div id="tabpanel-lifecycle" role="tabpanel" aria-label="Lifecycle" className="space-y-4">
-          {mockModels.filter(m => m.deploymentStatus !== 'Retired').length === 0 ? (
+          {data.lifecycleModels.length === 0 ? (
             <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
               No active AI models found
             </div>
           ) : (
-            mockModels.filter(m => m.deploymentStatus !== 'Retired').map(m => {
+            data.lifecycleModels.map(m => {
               const stageIndex = m.deploymentStatus === 'Production' ? 5 : m.deploymentStatus === 'Staging' ? 4 : 2;
               return (
                 <div key={m.id} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -463,37 +499,42 @@ export function AIGovernanceConsole() {
       {/* Incidents */}
       {tab === 'incidents' && (
         <div id="tabpanel-incidents" role="tabpanel" aria-label="Incidents" className="space-y-3">
-          {incidents.map(inc => (
-            <div key={inc.id} className={`p-4 rounded-2xl border shadow-sm ${inc.status === 'Open' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'}`}>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-mono font-bold text-indigo-500">{inc.id}</span>
-                <StatusBadge status={inc.severity} />
-                <StatusBadge status={inc.status} />
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{inc.type}</span>
-              </div>
-              <h3 className="text-xs font-bold text-gray-900 dark:text-white mt-1">{inc.model}</h3>
-              <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">{inc.description}</p>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-2 text-[10px] text-gray-400">
-                <span>Date: {inc.date}</span>
-                <span>Resolution: {inc.resolution}</span>
-              </div>
+          {incidents.length === 0 ? (
+            <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
+              No incidents recorded
             </div>
-          ))}
+          ) : (
+            incidents.map(inc => (
+              <div key={inc.id} className={`p-4 rounded-2xl border shadow-sm ${inc.status === 'Open' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'}`}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-mono font-bold text-indigo-500">{inc.id}</span>
+                  <StatusBadge status={inc.severity} />
+                  <StatusBadge status={inc.status} />
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{inc.type}</span>
+                </div>
+                <h3 className="text-xs font-bold text-gray-900 dark:text-white mt-1">{inc.model}</h3>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5">{inc.description}</p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-2 text-[10px] text-gray-400">
+                  <span>Date: {inc.date}</span>
+                  <span>Resolution: {inc.resolution}</span>
+                </div>
+              </div>
+            ))
+          )}
 
           {/* Resource Consumption */}
           <div className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm mt-6">
             <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-3">AI Resource Consumption</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { label: 'GPU Utilization', value: '68%', budget: '80%' },
-                { label: 'Avg Inference Latency', value: '42ms', budget: '< 100ms' },
-                { label: 'Monthly Compute Cost', value: '₹1.8L', budget: '₹2.5L' },
-                { label: 'Cost per 1K Predictions', value: '₹52', budget: '₹75' },
+                { label: 'Models Enabled', value: String(data.models.length) },
+                { label: 'Production Models', value: String(data.stats.modelsInProduction) },
+                { label: 'Total Predictions', value: data.stats.totalPredictions > 0 ? `${(data.stats.totalPredictions / 1000).toFixed(1)}K` : '0' },
+                { label: 'Open Incidents', value: String(data.stats.openIncidents) },
               ].map((r, i) => (
                 <div key={i} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{r.label}</p>
                   <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-1">{r.value}</p>
-                  <p className="text-[9px] text-gray-400">Budget: {r.budget}</p>
                 </div>
               ))}
             </div>

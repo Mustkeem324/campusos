@@ -20,12 +20,13 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 type BlogPageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     search?: string | string[];
-  };
+  }>;
 };
 
-export default async function BlogPage({ searchParams }: BlogPageProps) {
+export default async function BlogPage({ searchParams: searchParamsPromise }: BlogPageProps) {
+  const searchParams = await searchParamsPromise;
   const posts = await getPublishedBlogPosts();
   const initialSearch = typeof searchParams?.search === 'string' ? searchParams.search : '';
 

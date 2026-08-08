@@ -39,7 +39,6 @@ export function sanitizeAnnouncementField(value: string, maxLength: number, allo
   if (trimmed.length > maxLength) {
     throw new CourseAnnouncementValidationError(`Announcement fields are limited to ${maxLength} characters.`);
   }
-  // eslint-disable-next-line no-control-regex
   const controlPattern = allowNewlines ? /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/ : /[\u0000-\u001f\u007f]/;
   if (controlPattern.test(trimmed)) {
     throw new CourseAnnouncementValidationError('Announcement fields contain unsupported characters.');

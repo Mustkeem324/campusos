@@ -12,7 +12,9 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default async function AssignmentDetailPage({ params }: { params: { assignmentId: string } }) {
+export default async function AssignmentDetailPage({ params: paramsPromise }: { params: Promise<{ assignmentId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const detail = await loadAssignmentDetail(context, params.assignmentId);

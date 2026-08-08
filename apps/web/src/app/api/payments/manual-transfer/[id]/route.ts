@@ -17,7 +17,9 @@ type SubmissionIdentity = {
   transaction_reference: string;
 };
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   const context = await requireFinancePaymentOperator().catch(() => null);
   if (!context) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

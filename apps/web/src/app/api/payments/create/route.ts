@@ -37,6 +37,35 @@ export async function POST(request: Request) {
        return NextResponse.json({ error: 'Unauthorized ledger access' }, { status: 403 });
     }
 
+    // Ownership check: students may only initiate payment for their own
+    // invoices; parents only for their linked child. Finance/administrative
+    // roles retain the ability to pay on behalf of any student.
+    if (session.role === 'STUDENT' || session.role === 'PARENT') {
+      let ownedStudentId: string | null = null;
+      if (session.role === 'STUDENT') {
+        const student = await db.student.findFirst({
+          where: { userId: session.userId },
+          select: { id: true },
+        });
+        ownedStudentId = student?.id ?? null;
+      } else {
+        const guardian = await db.guardian.findFirst({
+          where: { userId: session.userId },
+          select: { id: true },
+        });
+        if (guardian) {
+          const child = await db.student.findFirst({
+            where: { guardianId: guardian.id },
+            select: { id: true },
+          });
+          ownedStudentId = child?.id ?? null;
+        }
+      }
+      if (ownedStudentId !== invoice.studentId) {
+        return NextResponse.json({ error: 'This invoice does not belong to your account.' }, { status: 403 });
+      }
+    }
+
     if (invoice.status === 'PAID') {
       return NextResponse.json({ error: 'Invoice is already fully paid' }, { status: 400 });
     }

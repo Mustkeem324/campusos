@@ -5,7 +5,9 @@ import { publishOfficialResult, ResultPublicationError } from '@/lib/result-publ
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(_request: Request, { params }: { params: { resultId: string } }) {
+export async function POST(_request: Request, { params: paramsPromise }: { params: Promise<{ resultId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const result = await publishOfficialResult(context, params.resultId);

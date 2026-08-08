@@ -1,87 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Users, Calendar, FileText, Shield, GitBranch, ClipboardList,
-  CheckCircle, XCircle, Clock, AlertTriangle, ChevronRight,
+  CheckCircle, XCircle, AlertTriangle, ChevronRight,
   Plus, Search, Filter, Eye, Download, Vote, Gavel,
-  Building2, UserCheck, Lock, Hash
+  Building2, UserCheck, Lock, Hash, RefreshCw
 } from 'lucide-react';
 
+import type {
+  GovernanceAuditView,
+  GovernanceCommitteeView,
+  GovernanceDelegationView,
+  GovernanceMeetingView,
+  GovernancePolicyView,
+  GovernanceResolutionView,
+  GovernanceWorkspace,
+} from '@/lib/governance-workspace';
+
 type GovTab = 'committees' | 'meetings' | 'resolutions' | 'policies' | 'delegation' | 'audit';
-
-interface Committee {
-  id: string;
-  name: string;
-  type: 'Statutory' | 'Academic' | 'Administrative' | 'Advisory';
-  chairperson: string;
-  secretary: string;
-  members: number;
-  termStart: string;
-  termEnd: string;
-  status: 'Active' | 'Reconstitution Due' | 'Dissolved';
-  lastMeeting: string;
-  nextMeeting: string;
-}
-
-interface Meeting {
-  id: string;
-  committee: string;
-  title: string;
-  date: string;
-  time: string;
-  venue: string;
-  type: 'Physical' | 'Virtual' | 'Hybrid';
-  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
-  agendaItems: number;
-  quorumRequired: number;
-  attended: number;
-  minutesStatus: 'Draft' | 'Under Review' | 'Approved' | 'Published';
-}
-
-interface Resolution {
-  id: string;
-  meeting: string;
-  title: string;
-  proposedBy: string;
-  status: 'Proposed' | 'Discussed' | 'Voted' | 'Approved' | 'Rejected';
-  votesFor: number;
-  votesAgainst: number;
-  abstained: number;
-  actionItems: number;
-  completedActions: number;
-  date: string;
-}
-
-interface Policy {
-  id: string;
-  title: string;
-  category: string;
-  version: string;
-  status: 'Draft' | 'Under Review' | 'Approved' | 'Published' | 'Archived';
-  effectiveDate: string;
-  lastReviewed: string;
-  approvedBy: string;
-  department: string;
-}
-
-interface AuditEntry {
-  id: string;
-  timestamp: string;
-  actor: string;
-  action: string;
-  entity: string;
-  details: string;
-  ipAddress: string;
-  digitalSignature: string;
-}
-
-const mockCommittees: Committee[] = [];
-const mockMeetings: Meeting[] = [];
-const mockResolutions: Resolution[] = [];
-const mockPolicies: Policy[] = [];
-const delegationMatrix: any[] = [];
-const mockAuditLog: AuditEntry[] = [];
 
 const statusColor = (s: string) => {
   const map: Record<string, string> = {
@@ -105,9 +42,29 @@ const statusColor = (s: string) => {
   return map[s] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
 };
 
-export function GovernanceConsole() {
+export function GovernanceConsole({ initialData }: { initialData: GovernanceWorkspace }) {
   const [tab, setTab] = useState<GovTab>('committees');
   const [search, setSearch] = useState('');
+  const [data, setData] = useState(initialData);
+
+  const reload = async () => {
+    try {
+      const response = await fetch('/api/governance/workspace', { cache: 'no-store' });
+      if (response.ok) setData(await response.json());
+    } catch { /* keep last safe snapshot */ }
+  };
+
+  useEffect(() => {
+    const timer = window.setInterval(() => void reload(), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const committees = data.committees;
+  const meetings = data.meetings;
+  const resolutions = data.resolutions;
+  const policies = data.policies;
+  const delegationMatrix: GovernanceDelegationView[] = data.delegations;
+  const mockAuditLog = data.auditLogs;
 
   const tabs: { id: GovTab; label: string; icon: React.ElementType }[] = [
     { id: 'committees', label: 'Committees', icon: Users },
@@ -131,19 +88,23 @@ export function GovernanceConsole() {
             Board meetings, resolutions, policy management & delegation authority
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 transition">
-          <Plus size={14} />
-          New Meeting
+        <button
+          onClick={() => void reload()}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold shadow-sm transition hover:bg-gray-50 dark:hover:bg-gray-800"
+          aria-label="Refresh governance data"
+        >
+          <RefreshCw size={14} />
+          Refresh
         </button>
       </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Active Committees', value: '6', sub: '2 due for reconstitution', color: 'indigo' },
-          { label: 'Meetings This Quarter', value: '12', sub: '3 upcoming', color: 'emerald' },
-          { label: 'Pending Resolutions', value: '4', sub: '2 awaiting vote', color: 'amber' },
-          { label: 'Active Policies', value: '18', sub: '3 under review', color: 'purple' },
+          { label: 'Active Committees', value: String(data.stats.activeCommittees), sub: `${data.stats.reconstitutionDue} due for reconstitution`, color: 'indigo' },
+          { label: 'Meetings This Quarter', value: String(data.stats.meetingsThisQuarter), sub: `${data.stats.upcomingMeetings} upcoming`, color: 'emerald' },
+          { label: 'Pending Resolutions', value: String(data.stats.pendingResolutions), sub: `${data.stats.awaitingVote} awaiting vote`, color: 'amber' },
+          { label: 'Active Policies', value: String(data.stats.activePolicies), sub: `${data.stats.underReviewPolicies} under review`, color: 'purple' },
         ].map((s, i) => (
           <div key={i} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.label}</p>
@@ -189,12 +150,12 @@ export function GovernanceConsole() {
       {/* Tab Content */}
       {tab === 'committees' && (
         <div className="space-y-3">
-          {mockCommittees.length === 0 ? (
+          {committees.length === 0 ? (
             <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
               No committees found
             </div>
           ) : (
-            mockCommittees.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => (
+            committees.filter(c => c.name.toLowerCase().includes(search.toLowerCase())).map(c => (
               <div key={c.id} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -238,12 +199,12 @@ export function GovernanceConsole() {
 
       {tab === 'meetings' && (
         <div className="space-y-3">
-          {mockMeetings.length === 0 ? (
+          {meetings.length === 0 ? (
             <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
               No meetings scheduled
             </div>
           ) : (
-            mockMeetings.filter(m => m.title.toLowerCase().includes(search.toLowerCase())).map(m => (
+            meetings.filter(m => m.title.toLowerCase().includes(search.toLowerCase())).map(m => (
               <div key={m.id} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -285,12 +246,12 @@ export function GovernanceConsole() {
 
       {tab === 'resolutions' && (
         <div className="space-y-3">
-          {mockResolutions.length === 0 ? (
+          {resolutions.length === 0 ? (
             <div className="p-12 text-center text-gray-500 dark:text-gray-400 text-sm border border-gray-200 dark:border-gray-800 rounded-2xl">
               No resolutions found
             </div>
           ) : (
-            mockResolutions.filter(r => r.title.toLowerCase().includes(search.toLowerCase())).map(r => (
+            resolutions.filter(r => r.title.toLowerCase().includes(search.toLowerCase())).map(r => (
               <div key={r.id} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[10px] font-mono font-bold text-indigo-500">{r.id}</span>
@@ -298,7 +259,7 @@ export function GovernanceConsole() {
                 </div>
                 <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mt-1">{r.title}</h3>
                 <p className="text-[11px] text-gray-500 mt-0.5">Proposed by {r.proposedBy} • {r.date}</p>
-  
+
                 {(r.status === 'Voted' || r.status === 'Approved' || r.status === 'Rejected') && (
                   <div className="flex items-center gap-4 mt-3">
                     <div className="flex items-center gap-1 text-[11px]">
@@ -315,7 +276,7 @@ export function GovernanceConsole() {
                     </div>
                   </div>
                 )}
-  
+
                 {r.actionItems > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between text-[11px]">
                     <span className="text-gray-500 font-bold">{r.completedActions}/{r.actionItems} action items completed</span>
@@ -339,14 +300,14 @@ export function GovernanceConsole() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
-              {mockPolicies.length === 0 ? (
+              {policies.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                     No policies found
                   </td>
                 </tr>
               ) : (
-                mockPolicies.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).map(p => (
+                policies.filter(p => p.title.toLowerCase().includes(search.toLowerCase())).map(p => (
                   <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
                     <td className="px-4 py-3 font-mono font-bold text-indigo-500">{p.id}</td>
                     <td className="px-4 py-3 font-bold text-gray-900 dark:text-white max-w-xs truncate">{p.title}</td>
@@ -416,11 +377,10 @@ export function GovernanceConsole() {
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">{a.action}</span>
                   </div>
                   <p className="text-xs font-bold text-gray-900 dark:text-white mt-0.5">{a.actor}</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5">{a.details}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 whitespace-pre-wrap break-words">{a.details}</p>
                   <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
                     <span>Entity: {a.entity}</span>
                     <span>IP: {a.ipAddress}</span>
-                    <span className="font-mono">Sig: {a.digitalSignature}</span>
                   </div>
                 </div>
               </div>

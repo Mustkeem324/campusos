@@ -38,7 +38,9 @@ async function resolveAttempt(courseId: string, quizId: string, attemptId: strin
   return { access, competition, attempt };
 }
 
-export async function GET(_request: Request, { params }: { params: { courseId: string; quizId: string; attemptId: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; quizId: string; attemptId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { access, competition, attempt } = await resolveAttempt(params.courseId, params.quizId, params.attemptId);
     const deadline = attemptDeadline(competition.quiz, attempt);
@@ -98,7 +100,9 @@ export async function GET(_request: Request, { params }: { params: { courseId: s
   }
 }
 
-export async function PATCH(request: Request, { params }: { params: { courseId: string; quizId: string; attemptId: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; quizId: string; attemptId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const input = answerSchema.parse(await request.json());
     const { access, competition, attempt } = await resolveAttempt(params.courseId, params.quizId, params.attemptId);
@@ -119,7 +123,9 @@ export async function PATCH(request: Request, { params }: { params: { courseId: 
   }
 }
 
-export async function POST(request: Request, { params }: { params: { courseId: string; quizId: string; attemptId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; quizId: string; attemptId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const input = actionSchema.parse(await request.json());
     const { access, competition, attempt } = await resolveAttempt(params.courseId, params.quizId, params.attemptId);

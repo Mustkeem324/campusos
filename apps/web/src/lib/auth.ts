@@ -5,8 +5,22 @@ import { RoleType } from '@prisma/client';
 import { prisma } from './db';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_campusos_key_for_development';
+const DEV_JWT_SECRET = 'super_secret_campusos_key_for_development';
 const BLOCKED_INSTITUTION_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
+
+/**
+ * Resolves the session-signing secret. A hardcoded development fallback would
+ * let anyone forge sessions in production, so it is only permitted outside
+ * production (local dev and CI where an explicit value is also provided).
+ */
+function sessionSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be configured in production.');
+  }
+  return DEV_JWT_SECRET;
+}
 
 export interface TokenPayload {
   sessionId: string;
@@ -16,13 +30,19 @@ export interface TokenPayload {
 }
 
 export function signToken(payload: TokenPayload, expiresIn = 3600): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, sessionSecret(), { expiresIn });
 }
 
 export function verifyToken(token: string): TokenPayload | null {
+  // Resolve the secret outside the try/catch: a missing JWT_SECRET in
+  // production is a critical configuration failure that must surface loudly
+  // instead of silently degrading every session check to "logged out".
+  const secret = sessionSecret();
   try {
-    return jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, secret) as TokenPayload;
   } catch (error) {
+    // Expired / malformed / wrong-signature tokens are normal runtime
+    // conditions and simply yield no session.
     return null;
   }
 }
@@ -40,7 +60,7 @@ export function generateRandomToken(bytes = 32): string {
 }
 
 export async function getSessionFromCookies(): Promise<TokenPayload | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('campusos_session')?.value;
   if (!token) return null;
   

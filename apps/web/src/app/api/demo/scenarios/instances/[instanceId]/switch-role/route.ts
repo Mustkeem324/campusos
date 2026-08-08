@@ -8,8 +8,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: Request,
-  { params }: { params: { instanceId: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ instanceId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, tenantId } = await requireTenantContext();
 
@@ -59,7 +60,7 @@ export async function POST(
       role: user.role,
     });
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('campusos_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

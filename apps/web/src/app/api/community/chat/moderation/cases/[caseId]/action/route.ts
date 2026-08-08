@@ -16,7 +16,9 @@ const actionSchema = z.object({
   userMessage: z.string().max(500).optional(),
 });
 
-export async function POST(request: Request, { params }: { params: { caseId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ caseId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

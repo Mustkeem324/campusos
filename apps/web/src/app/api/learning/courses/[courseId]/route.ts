@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
  * Premium course workspace payload. Access is still enforced by
  * requireCourseAccess, so the richer UI never broadens course visibility.
  */
-export async function GET(_: Request, { params }: { params: { courseId: string } }) {
+export async function GET(_: Request, { params: paramsPromise }: { params: Promise<{ courseId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireCourseAccess(params.courseId);
     const { db, offering, session } = access;

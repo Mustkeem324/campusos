@@ -36,8 +36,10 @@ function errorResponse(error: unknown) {
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { layoutId: string } },
+  { params: paramsPromise }: { params: Promise<{ layoutId: string }> },
 ) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const parsed = updateDashboardLayoutSchema.parse(await request.json());
@@ -69,8 +71,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { layoutId: string } },
+  { params: paramsPromise }: { params: Promise<{ layoutId: string }> },
 ) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const parsed = revisionMutationSchema.parse(await request.json());

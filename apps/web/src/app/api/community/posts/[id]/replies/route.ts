@@ -9,7 +9,9 @@ const replySchema = z.object({
   parentId: z.string().uuid().optional(),
 });
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db } = await requireTenantContext();
     const postId = params.id;
@@ -38,7 +40,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const postId = params.id;

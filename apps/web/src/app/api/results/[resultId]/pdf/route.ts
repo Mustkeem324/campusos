@@ -4,7 +4,9 @@ import { loadOfficialResultForViewer, ResultPublicationError } from '@/lib/resul
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, { params }: { params: { resultId: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ resultId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const result = await loadOfficialResultForViewer(context, params.resultId);

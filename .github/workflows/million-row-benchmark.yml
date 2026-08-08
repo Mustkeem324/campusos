@@ -1,0 +1,32 @@
+name: NAVEMORA Million-Row Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Performance environment URL (never production)
+        required: true
+        type: string
+      run_load_test:
+        description: Run the k6 API smoke scenario after dataset provisioning
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '0 2 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    # Dataset provisioning is environment-owned because it requires isolated
+    # database credentials and fixture IDs; this workflow must never target prod.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Publish benchmark instructions
+        run: |
+          echo "Provision an isolated 1M-row dataset with npm run perf:seed-million-attendance and capture EXPLAIN plans." >> "$GITHUB_STEP_SUMMARY"
+          echo "Run k6 only after authenticated performance fixtures are configured." >> "$GITHUB_STEP_SUMMARY"

@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity,
@@ -37,6 +38,7 @@ const accountLinks = [
 ] as const;
 
 export function ProfileMenu() {
+  const router = useRouter();
   const { currentSession, isDarkMode, toggleDarkMode } = useAuthStore();
   const [isOpen, setIsOpen] = useState(false);
   const [logoutMode, setLogoutMode] = useState<LogoutMode>(null);
@@ -87,7 +89,8 @@ export function ProfileMenu() {
 
       useAuthStore.getState().setSession(null);
       window.localStorage.removeItem('campusos-auth-storage');
-      window.location.assign('/login');
+      router.push('/login');
+      router.refresh();
     } catch (cause: unknown) {
       setError(cause instanceof Error ? cause.message : 'Sign out failed. Please try again.');
       setLogoutMode(null);

@@ -21,7 +21,7 @@ export default function NotificationsPreferencesPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/notifications/preferences')
+    fetch('/api/notification-preferences')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -49,7 +49,7 @@ export default function NotificationsPreferencesPage() {
       return [...prev, updated];
     });
 
-    await fetch('/api/notifications/preferences', {
+    await fetch('/api/notification-preferences', {
       method: 'PATCH',
       body: JSON.stringify({ type, [field]: value }),
       headers: { 'Content-Type': 'application/json' }

@@ -18,7 +18,9 @@ type UpdatePayload = {
   vehicleId: string | null;
 };
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const parsed = updateSchema.safeParse(await request.json());
     if (!parsed.success) {

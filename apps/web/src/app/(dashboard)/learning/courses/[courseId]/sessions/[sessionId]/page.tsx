@@ -3,6 +3,7 @@
 import React, { useCallback, useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Mic, MicOff, Video, VideoOff, MonitorUp, Hand, MessageSquare, Users, Settings, LogOut, Send, HelpCircle } from "lucide-react";
+import { useAuthStore } from "@/lib/auth-store";
 
 export default function LearningSessionPage() {
   const params = useParams();
@@ -11,8 +12,10 @@ export default function LearningSessionPage() {
   const courseId = params?.courseId as string;
   const sessionId = params?.sessionId as string;
 
-  // Mock user since next-auth is not installed
-  const userId = "mock-user-id";
+  // The authenticated user drives all live-session interactions. The backend
+  // derives identity from the session cookie and ignores any client-supplied
+  // id, so this value only powers local UI comparisons ("You" labels etc.).
+  const userId = useAuthStore((state) => state.currentSession?.id) ?? "";
 
   const [data, setData] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"chat" | "participants" | "qa">("chat");
@@ -38,11 +41,12 @@ export default function LearningSessionPage() {
   }, [courseId, sessionId]);
 
   useEffect(() => {
-    // Join session on mount
+    // Join session on mount. Identity comes from the session cookie server-side;
+    // these endpoints reject client-supplied ids.
     fetch(`/api/learning/courses/${courseId}/sessions/${sessionId}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({}),
     });
 
     fetchSessionData();
@@ -52,20 +56,20 @@ export default function LearningSessionPage() {
       fetch(`/api/learning/courses/${courseId}/sessions/${sessionId}/presence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({}),
       });
       fetchSessionData();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [courseId, sessionId, userId, fetchSessionData]);
+  }, [courseId, sessionId, fetchSessionData]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [data?.session?.chatMessages]);
 
   const toggleControl = async (control: "mic" | "camera" | "screen" | "hand") => {
-    const payload: any = { userId };
+    const payload: any = {};
     
     if (control === "mic") { setMicEnabled(!micEnabled); payload.micEnabled = !micEnabled; }
     if (control === "camera") { setCameraEnabled(!cameraEnabled); payload.cameraEnabled = !cameraEnabled; }
@@ -87,7 +91,7 @@ export default function LearningSessionPage() {
     await fetch(`/api/learning/courses/${courseId}/sessions/${sessionId}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, content: chatInput }),
+      body: JSON.stringify({ content: chatInput }),
     });
     setChatInput("");
     fetchSessionData();

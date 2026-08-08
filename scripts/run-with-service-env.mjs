@@ -29,6 +29,19 @@ if (!command) {
   process.exit(1);
 }
 
+// Enforce the canonical NODE_ENV for Next.js tooling. A pre-set environment
+// value (e.g. a shell exporting NODE_ENV=development) makes `next build` run in
+// a broken mixed mode that fails static generation with hundreds of obscure
+// prerender errors, so the toolchain must always win here.
+if (command === 'next') {
+  const arg = args[0] ?? '';
+  if (arg === 'build' || arg === 'start') {
+    process.env.NODE_ENV = 'production';
+  } else if (arg === 'dev') {
+    process.env.NODE_ENV = 'development';
+  }
+}
+
 const child = spawn(command, args, {
   env: process.env,
   stdio: 'inherit',

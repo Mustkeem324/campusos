@@ -40,9 +40,9 @@ export default function SignupDispatcher() {
 
       <div className="mt-8 text-center text-sm text-gray-500">
         Already have an account?{' '}
-        <a href="/login" className="font-semibold text-indigo-600 hover:text-indigo-700">
+        <Link href="/login" className="font-semibold text-indigo-600 hover:text-indigo-700">
           Sign in
-        </a>
+        </Link>
       </div>
     </div>
   );

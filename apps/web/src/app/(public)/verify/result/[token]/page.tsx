@@ -11,7 +11,9 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function VerifyResultPage({ params }: { params: { token: string } }) {
+export default async function VerifyResultPage({ params: paramsPromise }: { params: Promise<{ token: string }>; }) {
+  const params = await paramsPromise;
+
   const result = await loadVerifiedPublicResult(params.token);
 
   if (!result) {

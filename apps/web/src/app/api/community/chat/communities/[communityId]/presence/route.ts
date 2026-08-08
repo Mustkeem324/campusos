@@ -10,7 +10,9 @@ export const dynamic = 'force-dynamic';
 
 const actionSchema = z.object({ action: z.enum(['heartbeat', 'typing_start', 'typing_stop']) });
 
-export async function GET(_request: Request, { params }: { params: { communityId: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -24,7 +26,9 @@ export async function GET(_request: Request, { params }: { params: { communityId
   }
 }
 
-export async function POST(request: Request, { params }: { params: { communityId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

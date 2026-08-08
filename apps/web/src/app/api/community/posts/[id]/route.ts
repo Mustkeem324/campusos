@@ -17,8 +17,9 @@ const moderatorRoles: RoleType[] = [RoleType.SUPER_ADMIN, RoleType.INSTITUTION_A
 
 export async function GET(
   _: Request,
-  { params }: { params: { id: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const id = params.id;
@@ -106,8 +107,9 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const id = params.id;
@@ -164,8 +166,9 @@ export async function PATCH(
 
 export async function DELETE(
   _: Request,
-  { params }: { params: { id: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const id = params.id;

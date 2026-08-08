@@ -4,11 +4,16 @@ import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-// Webhook Secret from the payment gateway (e.g. Razorpay/Stripe)
-const WEBHOOK_SECRET = process.env.PAYMENT_WEBHOOK_SECRET || 'dev_secret_key';
-
 export async function POST(request: Request) {
   try {
+    // Never fall back to a known development secret: a hardcoded fallback
+    // would let anyone forge a payment.captured event and mark invoices as
+    // paid. The endpoint refuses to operate until a real secret is configured.
+    const webhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      return NextResponse.json({ error: 'Webhook not configured.' }, { status: 503 });
+    }
+
     const rawBody = await request.text();
     const signature = request.headers.get('x-payment-signature');
 
@@ -18,12 +23,12 @@ export async function POST(request: Request) {
 
     // 1. Webhook Verification (Source of Truth)
     const expectedSignature = crypto
-      .createHmac('sha256', WEBHOOK_SECRET)
+      .createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('hex');
 
     if (signature !== expectedSignature) {
-      console.warn('[WEBHOOK] Invalid signature detected', { signature });
+      console.warn('[WEBHOOK] Invalid signature detected');
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 

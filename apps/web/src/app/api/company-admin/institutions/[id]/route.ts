@@ -11,7 +11,9 @@ const updateSchema = z.object({
 
 const BLOCKED_STATUSES = new Set(['SUSPENDED', 'INACTIVE', 'DISABLED']);
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   const actor = await requireCompanySuperAdmin().catch(() => null);
   if (!actor) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

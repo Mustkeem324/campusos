@@ -9,7 +9,9 @@ const reportSchema = z.object({
   details: z.string().max(2000).optional(),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const postId = params.id;

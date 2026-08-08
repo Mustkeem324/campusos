@@ -23,7 +23,9 @@ async function resolve(requestSession: MessageSession, messageId: string) {
   return message;
 }
 
-export async function PATCH(request: Request, { params }: { params: { messageId: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ messageId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -41,7 +43,9 @@ export async function PATCH(request: Request, { params }: { params: { messageId:
   }
 }
 
-export async function DELETE(_request: Request, { params }: { params: { messageId: string } }) {
+export async function DELETE(_request: Request, { params: paramsPromise }: { params: Promise<{ messageId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -29,14 +29,15 @@ const workplaceLabels = {
 } as const;
 
 type JobDetailPageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export function generateStaticParams() {
   return getCareerOpenings().map((opening) => ({ slug: opening.slug }));
 }
 
-export function generateMetadata({ params }: JobDetailPageProps): Metadata {
+export async function generateMetadata({ params: paramsPromise }: JobDetailPageProps): Promise<Metadata> {
+  const params = await paramsPromise;
   const opening = getCareerOpeningBySlug(params.slug);
   if (!opening) return { title: 'Role not found | CampusOS Careers' };
 
@@ -62,7 +63,8 @@ function DetailList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export default function JobDetailPage({ params }: JobDetailPageProps) {
+export default async function JobDetailPage({ params: paramsPromise }: JobDetailPageProps) {
+  const params = await paramsPromise;
   const opening = getCareerOpeningBySlug(params.slug);
   if (!opening) notFound();
 

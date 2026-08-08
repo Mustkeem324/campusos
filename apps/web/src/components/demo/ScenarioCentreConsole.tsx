@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   Play, 
   RotateCcw, 
@@ -22,6 +23,7 @@ import { SCENARIO_CATALOGUE, DemoScenarioDefinition } from '../../lib/demo/scena
 import { useAuthStore } from '../../lib/auth-store';
 
 export function ScenarioCentreConsole() {
+  const router = useRouter();
   const { currentSession } = useAuthStore();
   const [instances, setInstances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export function ScenarioCentreConsole() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start scenario');
-      window.location.href = `/demo/scenarios/${scenarioId}?instanceId=${data.instance.id}`;
+      router.push(`/demo/scenarios/${scenarioId}?instanceId=${data.instance.id}`);
     } catch (err: any) {
       alert(err.message);
       setStartingScenario(null);

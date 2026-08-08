@@ -253,7 +253,7 @@ function VerificationPanel({ result }: { result: OfficialResult }) {
 function QrMatrix({ matrix }: { matrix: boolean[][] }) {
   const quiet = 4;
   const size = matrix.length + quiet * 2;
-  const rects: JSX.Element[] = [];
+  const rects: React.JSX.Element[] = [];
   matrix.forEach((row, rowIndex) => row.forEach((filled, columnIndex) => {
     if (filled) rects.push(<rect key={`${rowIndex}-${columnIndex}`} x={columnIndex + quiet} y={rowIndex + quiet} width="1" height="1" />);
   }));

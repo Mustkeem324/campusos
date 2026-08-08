@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(departments);
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
+    if (error?.message?.startsWith('Unauthorized')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     console.error('[DEPARTMENTS_GET]', error);
@@ -75,8 +75,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json(department, { status: 201 });
   } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (error?.message?.startsWith('Forbidden') || error?.message?.startsWith('Unauthorized')) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });

@@ -15,7 +15,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *
  * Body: { marksObtained: number, rubricScores?: Record<string, number>, gradeLetter?: string, feedback?: string }
  */
-export async function PUT(request: Request, { params }: { params: { courseId: string; assignmentId: string; submissionId: string } }) {
+export async function PUT(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; assignmentId: string; submissionId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireAssignmentAccess(params.assignmentId);
     const { db, session, assignment } = access;

@@ -31,8 +31,10 @@ function errorResponse(error: unknown) {
 
 export async function POST(
   request: Request,
-  { params }: { params: { layoutId: string } },
+  { params: paramsPromise }: { params: Promise<{ layoutId: string }> },
 ) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const { expectedRevision } = revisionMutationSchema.parse(await request.json());

@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 
 import { HelpdeskError, resolveHelpdeskTicket } from '@/lib/helpdesk';
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     await resolveHelpdeskTicket(params.id);
     return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } });

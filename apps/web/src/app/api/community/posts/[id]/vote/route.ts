@@ -8,7 +8,9 @@ const voteSchema = z.object({
   value: z.union([z.literal(1), z.literal(-1)]),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const postId = params.id;

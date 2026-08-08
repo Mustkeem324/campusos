@@ -9,7 +9,9 @@ export const metadata = {
   alternates: { canonical: '/contact' },
 };
 
-export default function ContactPage({ searchParams }: { searchParams?: { intent?: string } }) {
+export default async function ContactPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ intent?: string }>; }) {
+  const searchParams = await searchParamsPromise;
+
   return (
     <main className="bg-white text-[#101828]">
       <section className="border-b border-[#DDE5F0] bg-[#F4F7FB] px-4 py-14 sm:px-6 sm:py-18 lg:px-8 lg:py-20">

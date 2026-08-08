@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 test('Student dashboard accessibility scan', async ({ page }) => {
-  const login = await page.request.post('/api/auth/demo-login', { data: { persona: 'STUDENT' } });
+  // The synthetic demo login endpoint was intentionally removed for production
+  // hardening; authenticate with the seeded synthetic role account instead.
+  const login = await page.request.post('/api/auth/login', {
+    data: { email: 'student@nexus-campus.local', password: 'Campus@2026!' },
+  });
   expect(login.status()).toBe(200);
 
   await page.goto('/dashboard');

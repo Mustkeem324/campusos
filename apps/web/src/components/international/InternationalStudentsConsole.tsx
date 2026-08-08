@@ -1,46 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Globe, Plane, FileText, BookOpen, Users, AlertTriangle,
   Search, MapPin, Calendar, Clock, CheckCircle, XCircle,
-  Phone, Shield, Flag, Star, ArrowRight, Plus, Eye
+  Phone, Shield, Flag, Star, ArrowRight, Plus, Eye, RefreshCw
 } from 'lucide-react';
 
+import type {
+  CountryDistributionEntry,
+  CreditMappingView,
+  ExchangeProgramView,
+  InternationalStudentView,
+  InternationalWorkspace,
+} from '@/lib/international-workspace';
+
 type IntlTab = 'registry' | 'visa' | 'exchange' | 'credit-transfer' | 'global-dashboard' | 'support';
-
-interface InternationalStudent {
-  id: string;
-  name: string;
-  nationality: string;
-  flag: string;
-  program: string;
-  visaType: string;
-  visaExpiry: string;
-  frroStatus: 'Registered' | 'Pending' | 'Expired';
-  insuranceStatus: 'Active' | 'Expired' | 'Not Enrolled';
-  email: string;
-  admissionYear: number;
-}
-
-interface ExchangeProgram {
-  id: string;
-  university: string;
-  country: string;
-  flag: string;
-  type: 'Inbound' | 'Outbound';
-  semester: string;
-  creditsTransferable: number;
-  seatsAvailable: number;
-  applicationDeadline: string;
-  status: 'Open' | 'Closed' | 'In Progress';
-}
-
-const mockStudents: InternationalStudent[] = [];
-const mockExchange: ExchangeProgram[] = [];
-const countryDistribution: any[] = [];
-const maxCount = 0;
-const creditMappings: any[] = [];
 
 const statusColor = (s: string) => {
   const map: Record<string, string> = {
@@ -58,9 +33,28 @@ const statusColor = (s: string) => {
   return map[s] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400';
 };
 
-export function InternationalStudentsConsole() {
+export function InternationalStudentsConsole({ initialData }: { initialData: InternationalWorkspace }) {
   const [tab, setTab] = useState<IntlTab>('registry');
   const [search, setSearch] = useState('');
+  const [data, setData] = useState(initialData);
+
+  const reload = async () => {
+    try {
+      const response = await fetch('/api/international/workspace', { cache: 'no-store' });
+      if (response.ok) setData(await response.json());
+    } catch { /* keep last safe snapshot */ }
+  };
+
+  useEffect(() => {
+    const timer = window.setInterval(() => void reload(), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const mockStudents: InternationalStudentView[] = data.students;
+  const mockExchange: ExchangeProgramView[] = data.exchangePrograms;
+  const countryDistribution: CountryDistributionEntry[] = data.countryDistribution;
+  const maxCount = Math.max(1, ...countryDistribution.map(c => c.count));
+  const creditMappings: CreditMappingView[] = data.creditMappings;
 
   const tabs: { id: IntlTab; label: string; icon: React.ElementType }[] = [
     { id: 'registry', label: 'Registry', icon: Users },
@@ -83,18 +77,23 @@ export function InternationalStudentsConsole() {
             Visa tracking, exchange programs, credit transfer & global student support
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 transition">
-          <Plus size={14} /> Register Student
+        <button
+          onClick={() => void reload()}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold shadow-sm transition hover:bg-gray-50 dark:hover:bg-gray-800"
+          aria-label="Refresh international data"
+        >
+          <RefreshCw size={14} />
+          Refresh
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'International Students', value: '—', sub: 'No records available', color: 'text-gray-400' },
-          { label: 'Active Visas', value: '—', sub: 'No records available', color: 'text-gray-400' },
-          { label: 'Exchange Programs', value: '—', sub: 'No programs available', color: 'text-gray-400' },
-          { label: 'Credits Transferred', value: '—', sub: 'No credits available', color: 'text-gray-400' },
+          { label: 'International Students', value: String(data.stats.internationalStudents), sub: 'Registered across programs', color: 'text-indigo-600 dark:text-indigo-400' },
+          { label: 'Active Visas', value: String(data.stats.activeVisas), sub: 'Valid visa records', color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Exchange Programs', value: String(data.stats.exchangePrograms), sub: 'Live partnerships', color: 'text-purple-600 dark:text-purple-400' },
+          { label: 'Credits Transferred', value: String(data.stats.creditsTransferred), sub: 'Approved mappings', color: 'text-amber-600 dark:text-amber-400' },
         ].map((s, i) => (
           <div key={i} className="p-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.label}</p>
@@ -224,9 +223,9 @@ export function InternationalStudentsConsole() {
               { doc: 'FRRO Registration Certificate', required: true, uploaded: true },
               { doc: 'Health Insurance Policy', required: true, uploaded: true },
               { doc: 'Financial Proof / Scholarship Letter', required: true, uploaded: true },
-              { doc: 'Admission Letter from UPES', required: true, uploaded: true },
+              { doc: 'Admission Letter', required: true, uploaded: true },
               { doc: 'Police Clearance Certificate', required: false, uploaded: false },
-              { doc: 'COVID-19 Vaccination Certificate', required: false, uploaded: true },
+              { doc: 'Vaccination Certificate', required: false, uploaded: true },
             ].map((d, i) => (
               <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
                 <div className="flex items-center gap-2">
@@ -333,7 +332,7 @@ export function InternationalStudentsConsole() {
                 countryDistribution.map((c, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <span className="text-lg w-8">{c.flag}</span>
-                    <span className="text-xs font-bold text-gray-600 dark:text-gray-400 w-24">{c.country}</span>
+                    <span className="text-xs font-bold text-gray-600 dark:text-gray-400 w-24 truncate">{c.country}</span>
                     <div className="flex-1 h-5 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-hidden">
                       <div className="h-full bg-indigo-500 rounded-lg flex items-center justify-end pr-2 text-[9px] font-bold text-white transition-all" style={{ width: `${(c.count / maxCount) * 100}%`, minWidth: '30px' }}>
                         {c.count}
@@ -350,12 +349,12 @@ export function InternationalStudentsConsole() {
               <h3 className="text-sm font-extrabold text-gray-900 dark:text-white mb-3">Mobility Statistics</h3>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Total Countries', value: '0' },
-                  { label: 'Outbound This Year', value: '0' },
-                  { label: 'Inbound This Year', value: '0' },
-                  { label: 'Partner Universities', value: '0' },
-                  { label: 'Active MOUs', value: '0' },
-                  { label: 'Credits Transferred', value: '0' },
+                  { label: 'Total Countries', value: String(data.mobilityStats.totalCountries) },
+                  { label: 'Outbound This Year', value: String(data.mobilityStats.outboundThisYear) },
+                  { label: 'Inbound This Year', value: String(data.mobilityStats.inboundThisYear) },
+                  { label: 'Partner Universities', value: String(data.mobilityStats.partnerUniversities) },
+                  { label: 'Active MOUs', value: String(data.mobilityStats.activeMous) },
+                  { label: 'Credits Transferred', value: String(data.mobilityStats.creditsTransferred) },
                 ].map((m, i) => (
                   <div key={i} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800">
                     <p className="text-[10px] text-gray-400 font-bold uppercase">{m.label}</p>

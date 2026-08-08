@@ -8,7 +8,9 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function LoginPage({ searchParams }: { searchParams?: { workspace?: string } }) {
+export default async function LoginPage({ searchParams: searchParamsPromise }: { searchParams: Promise<{ workspace?: string }>; }) {
+  const searchParams = await searchParamsPromise;
+
   const candidate = searchParams?.workspace?.trim().toLowerCase() ?? '';
   const workspace = WORKSPACE_PATTERN.test(candidate) ? candidate : undefined;
   return <ProductionLoginForm workspace={workspace} />;

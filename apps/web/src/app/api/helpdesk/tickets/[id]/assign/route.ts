@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 
 import { assignHelpdeskTicketToSelf, HelpdeskError } from '@/lib/helpdesk';
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const result = await assignHelpdeskTicketToSelf(params.id);
     return NextResponse.json({ success: true, assignment: result }, { headers: { 'Cache-Control': 'no-store' } });

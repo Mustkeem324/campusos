@@ -1,5 +1,7 @@
 import { CommunityChatWorkspace } from '../../../../components/community/CommunityChatWorkspace';
 
-export default function CommunityDetailPage({ params }: { params: { communityId: string } }) {
+export default async function CommunityDetailPage({ params: paramsPromise }: { params: Promise<{ communityId: string }>; }) {
+  const params = await paramsPromise;
+
   return <CommunityChatWorkspace initialCommunityId={params.communityId} />;
 }

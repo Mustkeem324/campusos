@@ -28,6 +28,8 @@ import {
   Shield,
   User,
   UserCheck,
+  UsersRound,
+  FlaskConical,
   X,
 } from 'lucide-react';
 
@@ -67,6 +69,23 @@ const HOSTEL_WORKSPACE_ROLES = new Set([
   'HOD',
   'DEAN',
   'REGISTRAR',
+]);
+
+const WORKFORCE_ADMIN_ROLES = new Set(['HR_ADMIN', 'INSTITUTION_ADMIN', 'REGISTRAR']);
+
+const LIBRARY_ADMIN_ROLES = new Set(['LIBRARIAN', 'INSTITUTION_ADMIN', 'REGISTRAR']);
+const LIBRARY_WORKSPACE_ROLES = new Set(['STUDENT', 'FACULTY']);
+
+const RESEARCH_ADMIN_ROLES = new Set(['HOD', 'DEAN', 'REGISTRAR', 'INSTITUTION_ADMIN']);
+const RESEARCH_WORKSPACE_ROLES = new Set(['STUDENT', 'FACULTY']);
+
+const WORKFORCE_SELF_SERVICE_ROLES = new Set([
+  'HR_ADMIN',
+  'INSTITUTION_ADMIN',
+  'REGISTRAR',
+  'HOD',
+  'DEAN',
+  'FACULTY',
 ]);
 
 function formatRole(role?: string) {
@@ -126,6 +145,9 @@ function iconForHref(href: string): React.ElementType {
   if (href.startsWith('/support')) return HelpCircle;
   if (href.startsWith('/notifications')) return MessageSquare;
   if (href.startsWith('/recruitment')) return BriefcaseBusiness;
+  if (href.startsWith('/workforce')) return UsersRound;
+  if (href.startsWith('/library') || href.startsWith('/opac')) return Library;
+  if (href.startsWith('/research')) return FlaskConical;
   return LayoutDashboard;
 }
 
@@ -250,7 +272,47 @@ export function Sidebar() {
       : null;
 
   const groupsWithTransport = transportGroup ? [...resultAwareGroups, transportGroup] : resultAwareGroups;
-  const hasHostelItem = groupsWithTransport.some((group) => group.items.some((item) => item.href === '/hostel'));
+
+  const workforceGroup: NavGroup | null = currentSession?.role && WORKFORCE_ADMIN_ROLES.has(currentSession.role)
+    ? {
+        label: 'WORKFORCE',
+        items: [{ label: 'HR & Workforce Control', icon: UsersRound, href: '/workforce/admin' }],
+      }
+    : currentSession?.role && WORKFORCE_SELF_SERVICE_ROLES.has(currentSession.role)
+      ? {
+          label: 'WORKFORCE',
+          items: [{ label: 'My Workforce', icon: UsersRound, href: '/workforce' }],
+        }
+      : null;
+  const groupsWithWorkforce = workforceGroup ? [...groupsWithTransport, workforceGroup] : groupsWithTransport;
+
+  const libraryGroup: NavGroup | null = currentSession?.role && LIBRARY_ADMIN_ROLES.has(currentSession.role)
+    ? {
+        label: 'LIBRARY & RESEARCH',
+        items: [{ label: 'Library Control', icon: Library, href: '/library/admin' }],
+      }
+    : currentSession?.role && LIBRARY_WORKSPACE_ROLES.has(currentSession.role)
+      ? {
+          label: 'LIBRARY & RESEARCH',
+          items: [{ label: 'Library', icon: Library, href: '/library' }],
+        }
+      : null;
+  const groupsWithLibrary = libraryGroup ? [...groupsWithWorkforce, libraryGroup] : groupsWithWorkforce;
+
+  const researchGroup: NavGroup | null = currentSession?.role && RESEARCH_ADMIN_ROLES.has(currentSession.role)
+    ? {
+        label: 'RESEARCH',
+        items: [{ label: 'Research Control', icon: FlaskConical, href: '/research/admin' }],
+      }
+    : currentSession?.role && RESEARCH_WORKSPACE_ROLES.has(currentSession.role)
+      ? {
+          label: 'RESEARCH',
+          items: [{ label: 'Research & Projects', icon: FlaskConical, href: '/research' }],
+        }
+      : null;
+  const groupsWithResearch = researchGroup ? [...groupsWithLibrary, researchGroup] : groupsWithLibrary;
+
+  const hasHostelItem = groupsWithResearch.some((group) => group.items.some((item) => item.href === '/hostel'));
   const hostelGroup: NavGroup | null = currentSession?.role === 'INSTITUTION_ADMIN'
     ? {
         label: 'HOSTEL OPERATIONS',
@@ -266,7 +328,7 @@ export function Sidebar() {
         }
       : null;
 
-  const navGroups: NavGroup[] = hostelGroup ? [...groupsWithTransport, hostelGroup] : groupsWithTransport;
+  const navGroups: NavGroup[] = hostelGroup ? [...groupsWithResearch, hostelGroup] : groupsWithResearch;
 
   const roleLabel = formatRole(currentSession?.role);
   const institutionName = currentSession?.institutionName ?? 'CampusOS Institution';

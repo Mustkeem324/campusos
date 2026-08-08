@@ -29,7 +29,9 @@ function parseBody(text: string): AnnouncementInput | null {
  * announcement. Students and other roles receive 403. Records are created
  * tenant-scoped through the access gate's extended client (tenantId auto-injected).
  */
-export async function POST(request: Request, { params }: { params: { courseId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireCourseAccess(params.courseId);
 

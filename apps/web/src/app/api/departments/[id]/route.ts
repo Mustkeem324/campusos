@@ -10,7 +10,9 @@ const updateSchema = z.object({
   code: z.string().min(2).toUpperCase().optional(),
 });
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     requirePermission(session.role as any, 'edit_academic_records');
@@ -39,8 +41,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Department not found' }, { status: 404 });
     }
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (error?.message?.startsWith('Forbidden') || error?.message?.startsWith('Unauthorized')) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
@@ -50,7 +52,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     requirePermission(session.role as any, 'edit_academic_records');
@@ -74,8 +78,8 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Department not found' }, { status: 404 });
     }
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    if (error?.message?.startsWith('Forbidden') || error?.message?.startsWith('Unauthorized')) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
     console.error('[DEPARTMENTS_DELETE]', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

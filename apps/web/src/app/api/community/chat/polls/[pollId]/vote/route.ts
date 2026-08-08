@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
 
 const voteSchema = z.object({ optionIds: z.array(z.string().uuid()).min(1).max(10) });
 
-export async function POST(request: Request, { params }: { params: { pollId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ pollId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const session = await getSessionFromCookies();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -29,4 +29,12 @@ function clearSessionCookie(response: NextResponse) {
     expires: new Date(0),
     maxAge: 0,
   });
+  response.cookies.set('campusos_workspace', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: new Date(0),
+    maxAge: 0,
+  });
 }

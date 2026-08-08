@@ -8,7 +8,9 @@ const pollVoteSchema = z.object({
   optionId: z.string().uuid(),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, session } = await requireTenantContext();
     const postId = params.id;

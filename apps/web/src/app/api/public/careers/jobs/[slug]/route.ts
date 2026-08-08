@@ -3,12 +3,13 @@ import { NextResponse } from 'next/server';
 import { getCareerOpeningBySlug } from '@/lib/careers-service';
 
 type RouteContext = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_: Request, { params }: RouteContext) {
+export async function GET(_: Request, { params: paramsPromise }: RouteContext) {
+  const params = await paramsPromise;
   const opening = getCareerOpeningBySlug(params.slug);
 
   if (!opening) {

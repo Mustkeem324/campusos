@@ -9,7 +9,9 @@ export const dynamic = 'force-dynamic';
 
 type AttemptStart = { id: string; startedAt: Date; completedAt: Date | null; resumed: boolean };
 
-export async function POST(_request: Request, { params }: { params: { courseId: string; quizId: string } }) {
+export async function POST(_request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; quizId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireCourseAccess(params.courseId);
     if (access.accessRole !== 'STUDENT') return NextResponse.json({ error: 'Only enrolled students can start a competition attempt.' }, { status: 403 });

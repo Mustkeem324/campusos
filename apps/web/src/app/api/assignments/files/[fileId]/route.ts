@@ -13,7 +13,9 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request, { params }: { params: { fileId: string } }) {
+export async function GET(request: Request, { params: paramsPromise }: { params: Promise<{ fileId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     const file = await prisma.file.findFirst({

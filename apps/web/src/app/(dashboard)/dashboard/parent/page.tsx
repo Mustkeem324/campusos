@@ -16,10 +16,10 @@ export const dynamic = 'force-dynamic';
  *   verified link of this guardian.
  */
 export default async function ParentDashboardPage({
-  searchParams,
-}: {
-  searchParams: { studentId?: string };
-}) {
+  searchParams: searchParamsPromise,
+}: { searchParams: Promise<{ studentId?: string }>; }) {
+  const searchParams = await searchParamsPromise;
+
   let context;
   try {
     context = await requireActiveUserContext();

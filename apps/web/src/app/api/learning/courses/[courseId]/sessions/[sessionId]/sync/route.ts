@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { LearningSessionAccessError, requireLearningSessionAccess } from '../../../../../../../../lib/learning-session-access';
 
-export async function GET(_: Request, { params }: { params: { courseId: string; sessionId: string } }) {
+export async function GET(_: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; sessionId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, learningSession } = await requireLearningSessionAccess(params.courseId, params.sessionId);
     const current = await db.learningSession.findFirst({

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { LearningSessionAccessError, requireLearningSessionParticipant } from '../../../../../../../../lib/learning-session-access';
 
-export async function POST(request: Request, { params }: { params: { courseId: string; sessionId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; sessionId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const body: unknown = await request.json();
     const content = getContent(body);

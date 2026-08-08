@@ -9,7 +9,9 @@ const schema = z.object({
   assignToMe: z.boolean().optional(),
 }).refine((value) => value.status !== undefined || value.priority !== undefined || value.assignToMe !== undefined, { message: 'At least one update is required.' });
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the support-case update.' }, { status: 400 });

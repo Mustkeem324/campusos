@@ -146,6 +146,13 @@ export const DASHBOARD_DEFINITIONS: Partial<Record<RoleType, DashboardDefinition
         ],
       },
       {
+        label: 'FINANCE & WORKFORCE',
+        items: [
+          { label: 'Finance Control', href: '/finance/admin', permission: 'fees:manage:institution' },
+          { label: 'HR & Workforce Control', href: '/workforce/admin', permission: 'users:manage:institution' },
+        ],
+      },
+      {
         label: 'SETTINGS',
         items: [{ label: 'Settings', href: '/settings' }],
       },
@@ -156,6 +163,7 @@ export const DASHBOARD_DEFINITIONS: Partial<Record<RoleType, DashboardDefinition
       { label: 'View departments', href: '/departments' },
       { label: 'Open audit logs', href: '/audit' },
       { label: 'AI governance', href: '/ai-governance' },
+      { label: 'Workforce control', href: '/workforce/admin' },
     ],
     widgets: [
       {

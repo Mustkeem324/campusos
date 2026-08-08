@@ -19,7 +19,9 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request, { params }: { params: { assignmentId: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ assignmentId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const context = await requireActiveUserContext();
     if (context.activeRole !== RoleType.STUDENT || !context.studentProfileId) throw new Error('ASSIGNMENT_FORBIDDEN');

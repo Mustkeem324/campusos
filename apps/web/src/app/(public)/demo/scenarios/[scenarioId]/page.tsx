@@ -6,7 +6,9 @@ export const metadata = {
   description: 'Interactive scenario workspace for cross-role workflow execution and verification.',
 };
 
-export default function ScenarioWorkspacePage({ params }: { params: { scenarioId: string } }) {
+export default async function ScenarioWorkspacePage({ params: paramsPromise }: { params: Promise<{ scenarioId: string }>; }) {
+  const params = await paramsPromise;
+
   return (
     <div className="bg-[#F5F7FB] min-h-screen py-8 md:py-12">
       <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 xl:px-12">

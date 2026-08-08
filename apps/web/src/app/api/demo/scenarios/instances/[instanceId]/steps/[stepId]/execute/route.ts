@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: Request,
-  { params }: { params: { instanceId: string; stepId: string } }
-) {
+  { params: paramsPromise }: { params: Promise<{ instanceId: string; stepId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const { db, role, session, tenantId } = await requireTenantContext();
 

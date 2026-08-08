@@ -21,7 +21,9 @@ export function generateStaticParams() {
   return STARTER_BLOG_POSTS.map((post) => ({ slug: post.slug }));
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params: paramsPromise }: { params: Promise<{ slug: string }>; }) {
+  const params = await paramsPromise;
+
   const post = await getPublishedBlogPost(params.slug);
   if (!post) return {};
 
@@ -55,7 +57,9 @@ function headingsFromBody(body: string) {
     .filter(Boolean);
 }
 
-export default async function BlogPostPage({ params }: { params: { slug: string } }) {
+export default async function BlogPostPage({ params: paramsPromise }: { params: Promise<{ slug: string }>; }) {
+  const params = await paramsPromise;
+
   const [post, allPosts] = await Promise.all([
     getPublishedBlogPost(params.slug),
     getPublishedBlogPosts(),

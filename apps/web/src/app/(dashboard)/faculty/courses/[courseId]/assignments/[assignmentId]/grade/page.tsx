@@ -30,7 +30,11 @@ async function readPayload<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-export default function GradingView({ params }: { params: { courseId: string; assignmentId: string } }) {
+export default function GradingView({ params }: { params: Promise<{ courseId: string; assignmentId: string }> }) {
+  // Client components receive `params` as a Promise in Next.js 15+; React 19's
+  // `use()` unwraps it synchronously at render time.
+  const { courseId, assignmentId } = React.use(params);
+
   const [data, setData] = React.useState<AssignmentDetail | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -41,17 +45,17 @@ export default function GradingView({ params }: { params: { courseId: string; as
   const [savedMessage, setSavedMessage] = React.useState('');
 
   React.useEffect(() => {
-    fetch(`/api/learning/courses/${encodeURIComponent(params.courseId)}/assignments`)
+    fetch(`/api/learning/courses/${encodeURIComponent(courseId)}/assignments`)
       .then(async (response) => {
         const payload = await readPayload<{ assignments?: AssignmentDetail[] }>(response);
         if (!response.ok || !payload.assignments) throw new Error(payload && 'error' in payload ? String((payload as { error: string }).error) : 'Unable to load assignments.');
-        const found = payload.assignments.find((assignment) => assignment.id === params.assignmentId);
+        const found = payload.assignments.find((assignment) => assignment.id === assignmentId);
         if (!found) throw new Error('This assignment is not available.');
         return found;
       })
       .then(setData)
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load this assignment.'));
-  }, [params.courseId, params.assignmentId]);
+  }, [courseId, assignmentId]);
 
   const selected = data?.submissions.find((submission) => submission.id === selectedId) ?? null;
 
@@ -83,7 +87,7 @@ export default function GradingView({ params }: { params: { courseId: string; as
 
     try {
       const response = await fetch(
-        `/api/learning/courses/${encodeURIComponent(params.courseId)}/assignments/${encodeURIComponent(params.assignmentId)}/submissions/${encodeURIComponent(selected.id)}/grade`,
+        `/api/learning/courses/${encodeURIComponent(courseId)}/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(selected.id)}/grade`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -238,7 +242,7 @@ export default function GradingView({ params }: { params: { courseId: string; as
           )}
 
           <Link
-            href={`/learning/courses/${encodeURIComponent(params.courseId)}`}
+            href={`/learning/courses/${encodeURIComponent(courseId)}`}
             className="mt-5 inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-border px-3 text-sm font-medium transition-colors hover:bg-surface-muted"
           >
             Back to course

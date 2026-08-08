@@ -5,7 +5,9 @@ import { loadCompetitionConfig, quizWindowState, shouldReleaseResult } from '@/l
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_request: Request, { params }: { params: { courseId: string; quizId: string } }) {
+export async function GET(_request: Request, { params: paramsPromise }: { params: Promise<{ courseId: string; quizId: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const access = await requireCourseAccess(params.courseId);
     const competition = await loadCompetitionConfig(access, params.quizId);

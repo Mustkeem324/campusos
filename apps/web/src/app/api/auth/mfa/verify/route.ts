@@ -1,61 +1,54 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../../../lib/db';
-import { signToken, createSession } from '../../../../../lib/auth';
-import { cookies } from 'next/headers';
+import { z } from 'zod';
+
+import { completeMfaLogin } from '@/lib/mfa-session';
+import {
+  checkPublicRateLimit,
+  InvalidJsonError,
+  PayloadTooLargeError,
+  readJsonWithLimit,
+  requestIp,
+} from '@/lib/public-rate-limit';
+
+const MFA_BODY_LIMIT_BYTES = 4 * 1024;
+const MFA_RATE_LIMIT_PER_IP = 20;
+const MFA_RATE_WINDOW_MS = 10 * 60_000;
+
+const verifySchema = z.object({
+  // Kept as `userId` for backward compatibility with legacy callers, but its
+  // value is now required to be a signed, short-lived MFA challenge - never a
+  // raw account identifier. A raw userId is rejected so this endpoint can no
+  // longer be used to authenticate as an arbitrary account.
+  userId: z.string().min(40),
+  code: z.string().regex(/^\d{6}$/),
+});
 
 export async function POST(request: Request) {
   try {
-    const { userId, code } = await request.json();
-
-    if (!userId || !code) {
-      return NextResponse.json({ error: 'User ID and code are required' }, { status: 400 });
+    const clientIp = requestIp(request);
+    const rateLimit = checkPublicRateLimit({
+      key: `mfa:${clientIp}`,
+      limit: MFA_RATE_LIMIT_PER_IP,
+      windowMs: MFA_RATE_WINDOW_MS,
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please wait and try again.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { institution: true },
-    });
+    const body = await readJsonWithLimit(request, MFA_BODY_LIMIT_BYTES);
+    const { userId: challengeToken, code } = verifySchema.parse(body);
 
-    if (!user || !user.isActive) {
-      return NextResponse.json({ error: 'Invalid user state' }, { status: 400 });
+    return await completeMfaLogin(request, challengeToken, code, false);
+  } catch (error: unknown) {
+    if (error instanceof PayloadTooLargeError) return NextResponse.json({ error: 'Request payload is too large.' }, { status: 413 });
+    if (error instanceof InvalidJsonError) return NextResponse.json({ error: 'Request body must be valid JSON.' }, { status: 400 });
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Enter a valid 6-digit authentication code.' }, { status: 400 });
     }
-
-    // In a real production environment, we would use otplib:
-    // const isValid = authenticator.check(code, user.mfaSecret);
-    // For this demonstration, we'll accept '123456' as the mock valid TOTP code
-    const isValid = code === '123456'; 
-
-    if (!isValid) {
-      return NextResponse.json({ error: 'Invalid 2FA code' }, { status: 401 });
-    }
-
-    // Capture basic request metadata securely
-    const userAgent = request.headers.get('user-agent') || 'Unknown';
-    const ipAddress = request.headers.get('x-forwarded-for') || 'Unknown IP';
-
-    // Create a real DB session
-    const sessionRecord = await createSession(user.id, userAgent, ipAddress);
-
-    // Sign the JWT bridging the Session ID
-    const token = signToken({
-      sessionId: sessionRecord.token,
-      userId: user.id,
-      tenantId: user.tenantId,
-      role: user.role,
-    });
-
-    const cookieStore = cookies();
-    cookieStore.set('campusos_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('MFA Verify error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('MFA verification failed:', error);
+    return NextResponse.json({ error: 'Unable to verify the authentication code.' }, { status: 500 });
   }
 }

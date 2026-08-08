@@ -9,6 +9,8 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default function QuizCompetitionPage({ params }: { params: { courseId: string; quizId: string } }) {
+export default async function QuizCompetitionPage({ params: paramsPromise }: { params: Promise<{ courseId: string; quizId: string }>; }) {
+  const params = await paramsPromise;
+
   return <QuizCompetitionWorkspace courseId={params.courseId} quizId={params.quizId} />;
 }

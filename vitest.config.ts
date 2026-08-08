@@ -29,6 +29,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'apps/web/src'),
+      // Next.js virtualizes `server-only`; vitest needs a resolvable stub.
+      'server-only': path.resolve(__dirname, 'test-stubs/server-only.ts'),
     },
   },
   test: {

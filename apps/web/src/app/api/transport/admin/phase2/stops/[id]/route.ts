@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 
 import { deleteTransportRouteStop, TransportPhase2Error } from '@/lib/transport-gps-phase2';
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     if (!/^[0-9a-f-]{36}$/i.test(params.id)) return NextResponse.json({ error: 'Invalid route stop identifier.' }, { status: 400 });
     await deleteTransportRouteStop(params.id);

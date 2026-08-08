@@ -1,0 +1,25 @@
+name: NAVEMORA Scalability & Performance Validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run db:generate
+      - run: npx prisma validate --schema=packages/db/prisma/schema.prisma
+      - run: npm test -- platform-pagination
+      - name: Verify performance assets
+        run: test -f docs/SCALABILITY_ARCHITECTURE.md && test -f docs/DATABASE_PERFORMANCE.md && test -f docs/PERFORMANCE_TESTING.md && test -f scripts/performance/api-smoke.k6.js

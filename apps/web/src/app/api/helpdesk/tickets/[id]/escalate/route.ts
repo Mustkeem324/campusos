@@ -9,7 +9,9 @@ const schema = z.object({
   reason: z.string().trim().min(5).max(2000),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params: paramsPromise }: { params: Promise<{ id: string }>; }) {
+  const params = await paramsPromise;
+
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: 'Review the escalation target and reason.' }, { status: 400 });
