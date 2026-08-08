@@ -167,12 +167,14 @@ export function renderEmailShell(input: {
 }
 
 export function renderBaseTemplate(input: {
-  key: string;
+  key?: string;
+  templateKey?: string;
   variables: Record<string, unknown>;
   institution: { name: string; logoUrl?: string | null; primaryColor?: string | null };
   supportEmail?: string | null;
 }) {
-  const template = BASE_COMMUNICATION_TEMPLATES[input.key] ?? BASE_COMMUNICATION_TEMPLATES.platform_maintenance;
+  const selectedKey = input.key ?? input.templateKey ?? 'platform_maintenance';
+  const template = BASE_COMMUNICATION_TEMPLATES[selectedKey] ?? BASE_COMMUNICATION_TEMPLATES.platform_maintenance;
   const merged = { ...input.variables, institution: { ...(input.variables.institution as Record<string, unknown> | undefined), name: input.institution.name } };
   const subject = renderText(template.subject, merged).replace(/[\r\n]+/g, ' ').slice(0, 200);
   const preheader = renderText(template.preheader, merged).slice(0, 250);
