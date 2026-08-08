@@ -1,4 +1,4 @@
-import { SecureExamAttemptV2 } from '@/components/examinations/SecureExamAttemptV2';
+import { SecureExamAttemptClient } from '@/components/examinations/SecureExamAttemptClient';
 
 export default async function SecureExamAttemptPage({
   params,
@@ -6,5 +6,5 @@ export default async function SecureExamAttemptPage({
   params: Promise<{ attemptId: string }>;
 }) {
   const { attemptId } = await params;
-  return <SecureExamAttemptV2 attemptId={attemptId} />;
+  return <SecureExamAttemptClient attemptId={attemptId} />;
 }
