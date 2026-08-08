@@ -46,18 +46,14 @@ export function ThreeDEyesCamera({ initialToken }: { initialToken?: string }) {
   const [code, setCode] = React.useState('');
   const [sessionId, setSessionId] = React.useState<string | null>(null);
   const [attemptId, setAttemptId] = React.useState<string | null>(null);
-  const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [message, setMessage] = React.useState<string>('Pair this authenticated phone with the examination shown on your laptop.');
   const [cameraActive, setCameraActive] = React.useState(false);
   const [mediaState, setMediaState] = React.useState<WebRtcSessionState | 'IDLE'>('IDLE');
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
   const transportRef = React.useRef<WebRtcTransportHandle | null>(null);
   const mediaStateRef = React.useRef<'PUBLISHING' | 'LIVE' | 'DEGRADED' | 'FAILED'>('PUBLISHING');
-
-  React.useEffect(() => {
-    if (videoRef.current && stream) videoRef.current.srcObject = stream;
-  }, [stream]);
 
   React.useEffect(() => {
     if (!sessionId || !cameraActive) return;
@@ -77,9 +73,10 @@ export function ThreeDEyesCamera({ initialToken }: { initialToken?: string }) {
     const handle = transportRef.current;
     transportRef.current = null;
     if (handle) void handle.close();
-    stream?.getTracks().forEach((track) => track.stop());
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
     if (attemptId) void runtimeAction({ action: 'media_state', attemptId, streamKind: 'SECONDARY', state: 'ENDED' }).catch(() => undefined);
-  }, [attemptId, stream]);
+  }, [attemptId]);
 
   async function pair() {
     if (!token.trim() && !code.trim()) {
@@ -109,8 +106,9 @@ export function ThreeDEyesCamera({ initialToken }: { initialToken?: string }) {
     const handle = transportRef.current;
     transportRef.current = null;
     if (handle) await handle.close();
-    stream?.getTracks().forEach((track) => track.stop());
-    setStream(null);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
     setCameraActive(false);
     setMediaState('IDLE');
     if (attemptId) await runtimeAction({ action: 'media_state', attemptId, streamKind: 'SECONDARY', state: 'ENDED' }).catch(() => undefined);
@@ -119,13 +117,15 @@ export function ThreeDEyesCamera({ initialToken }: { initialToken?: string }) {
   async function startCamera() {
     if (!sessionId || !attemptId) return;
     setBusy(true);
+    let media: MediaStream | null = null;
     try {
-      if (transportRef.current || stream) await stopMedia();
-      const media = await navigator.mediaDevices.getUserMedia({
+      if (transportRef.current || streamRef.current) await stopMedia();
+      media = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 24, max: 30 } },
         audio: false,
       });
-      setStream(media);
+      streamRef.current = media;
+      if (videoRef.current) videoRef.current.srcObject = media;
       const grant = await runtimeAction({ action: 'media_grant', attemptId, streamKind: 'SECONDARY', permission: 'PUBLISH' }) as unknown as MediaGrant;
       const handle = await publishWhipStream({
         endpointUrl: grant.endpointUrl,
@@ -152,7 +152,9 @@ export function ThreeDEyesCamera({ initialToken }: { initialToken?: string }) {
         payload: { type: 'CAMERA_READY', attemptId, videoTracks: media.getVideoTracks().length, transport: 'WHIP_WHEP' },
       });
     } catch (error) {
-      stream?.getTracks().forEach((track) => track.stop());
+      media?.getTracks().forEach((track) => track.stop());
+      if (streamRef.current === media) streamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
       setCameraActive(false);
       setMediaState('FAILED');
       setMessage(error instanceof Error ? error.message : 'Camera permission and realtime media are required for 3D Eyes.');
