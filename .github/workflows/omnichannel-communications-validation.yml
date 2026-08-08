@@ -1,0 +1,117 @@
+name: Omnichannel Communications Validation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/app/**/communications/**'
+      - 'apps/web/src/app/api/communications/**'
+      - 'apps/web/src/components/communications/**'
+      - 'apps/web/src/lib/communications*'
+      - 'workers/communication*.mjs'
+      - 'infra/communication-worker.Dockerfile'
+      - 'packages/db/prisma/communications*.sql'
+      - 'scripts/prepare-database.mjs'
+      - 'docker-compose.yml'
+      - '.env.example'
+      - 'package.json'
+      - '.github/workflows/omnichannel-communications-validation.yml'
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/campusos?schema=public
+  JWT_SECRET: ci_only_jwt_secret_with_more_than_32_characters
+  JWT_REFRESH_SECRET: ci_only_refresh_secret_with_more_than_32_characters
+  NAVEMORA_COMMUNICATION_INTERNAL_SECRET: ci_only_communications_internal_secret_1234567890
+  NAVEMORA_COMMUNICATION_WEBHOOK_SECRET: ci_only_communications_webhook_secret_1234567890
+  CAMPUSOS_COMMUNICATION_MODE: development
+  APP_PUBLIC_URL: http://localhost:3000
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campusos
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d campusos"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Validate Prisma schema
+        run: npx prisma validate --schema=packages/db/prisma/schema.prisma
+      - name: Create core database schema
+        run: npx prisma db push --schema=packages/db/prisma/schema.prisma --skip-generate --accept-data-loss
+      - name: Provision communications schema
+        run: npx prisma db execute --file=packages/db/prisma/communications.sql --schema=packages/db/prisma/schema.prisma
+      - name: Re-provision communications schema
+        run: npx prisma db execute --file=packages/db/prisma/communications.sql --schema=packages/db/prisma/schema.prisma
+      - name: Apply communications safety constraints
+        run: npx prisma db execute --file=packages/db/prisma/communications-safety.sql --schema=packages/db/prisma/schema.prisma
+      - name: Re-apply communications safety constraints
+        run: npx prisma db execute --file=packages/db/prisma/communications-safety.sql --schema=packages/db/prisma/schema.prisma
+      - name: Verify communications storage
+        run: |
+          node --input-type=module <<'NODE'
+          import { PrismaClient } from '@prisma/client';
+          const prisma = new PrismaClient();
+          try {
+            const rows = await prisma.$queryRawUnsafe(`
+              SELECT
+                to_regclass('campusos_communications.messages')::text AS messages,
+                to_regclass('campusos_communications.template_versions')::text AS templates,
+                to_regclass('campusos_communications.communication_preferences')::text AS preferences,
+                to_regclass('campusos_communications.contact_points')::text AS contacts,
+                to_regclass('campusos_communications.usage_ledger')::text AS usage,
+                to_regclass('campusos_communications.credit_wallets')::text AS wallets,
+                to_regclass('campusos_communications.webhook_events')::text AS webhooks,
+                to_regclass('campusos_communications.dead_letter_messages')::text AS dead_letters,
+                EXISTS (
+                  SELECT 1 FROM pg_constraint c
+                  JOIN pg_class t ON t.oid=c.conrelid
+                  JOIN pg_namespace n ON n.oid=t.relnamespace
+                  WHERE n.nspname='campusos_communications'
+                    AND t.relname='delivery_events'
+                    AND c.conname='delivery_events_canonical_status_ck'
+                ) AS delivery_constraint
+            `);
+            const row = rows[0];
+            if (!row?.messages || !row?.templates || !row?.preferences || !row?.contacts || !row?.usage || !row?.wallets || !row?.webhooks || !row?.dead_letters || !row?.delivery_constraint) process.exit(1);
+          } finally {
+            await prisma.$disconnect();
+          }
+          NODE
+      - name: Validate communication worker syntax
+        run: node --check workers/communication-delivery-worker.mjs
+      - name: Validate communications Docker composition
+        run: docker compose --profile communications config --quiet
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint with zero warnings
+        run: npm run lint -- --max-warnings=0
+      - name: Communications policy tests
+        run: npx vitest run apps/web/src/lib/communications-policy.test.ts
+      - name: Production build
+        env:
+          CAMPUSOS_AUTO_DB_PUSH: 'false'
+        run: npm run build
